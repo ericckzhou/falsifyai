@@ -29,6 +29,13 @@
 
 The `uv` binary lives at `C:\Users\Eric\AppData\Roaming\Python\Python313\Scripts\uv.exe`. PATH is configured. If a shell can't find `uv`, prepend that directory to `$env:PATH`.
 
+## Branch workflow
+
+- **Active development branch is `dev`.** Do not commit directly to `main`.
+- `main` is reserved for tagged releases and merged work. CI is gated on PRs to `main`.
+- Feature commits land on `dev` (or topic branches off `dev`); promote to `main` via PR when a milestone ships.
+- If you find yourself on `main` mid-session, switch to `dev` before staging changes.
+
 ## Common commands
 
 ```bash
