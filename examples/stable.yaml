@@ -1,0 +1,46 @@
+# examples/stable.yaml
+#
+# Two cases that a sane model should answer consistently under typo and
+# casing perturbations. Demonstrates both perturbation families
+# (typo_noise + casing) and both MVP invariants (contains +
+# semantic_equivalence).
+
+falsify:
+  version: "1.0"
+  name: "Stable model under perturbation"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france
+    tags: ["geography", "factual"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["Paris"]
+
+  - id: define_photosynthesis
+    tags: ["biology", "definitional"]
+    input:
+      text: "Briefly define photosynthesis."
+    perturbations:
+      - type: typo_noise
+        count: 2
+      - type: casing
+    invariants:
+      - type: semantic_equivalence
+        threshold: 0.85

@@ -1,0 +1,32 @@
+# examples/fragile.yaml
+#
+# Single case demonstrating a model that returns the correct answer to a
+# well-formed question but drifts under typo perturbation. Five typo
+# samples give enough variance to reveal the failure.
+
+falsify:
+  version: "1.0"
+  name: "Fragile model: typos cause answer drift"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france_fragile
+    tags: ["geography", "factual", "fragile-demo"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: typo_noise
+        count: 5
+    invariants:
+      - type: contains
+        values: ["Paris"]
