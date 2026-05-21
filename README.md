@@ -38,31 +38,59 @@ model:
 run:
   seed: 42
 cases:
-  - id: capital_factual
+  - id: factual_recall
     input: { text: "What is the capital of France?" }
     expected: { contains: ["Paris"] }
     perturbations:
-      - type: typo_noise
-        count: 3
-      - type: casing
+      - { type: typo_noise, count: 3 }
+      - { type: casing }
     invariants:
-      - type: contains
-        values: ["Paris"]
+      - { type: contains, values: ["Paris"] }
+
+  - id: structured_output
+    input: { text: 'Reply ONLY with a JSON object of the form {"capital": "<city>"}. What is the capital of Japan?' }
+    expected: { contains: ['"capital"', "Tokyo"] }
+    perturbations:
+      - { type: typo_noise, count: 2 }
+      - { type: casing }
+    invariants:
+      - { type: contains, values: ['"capital"', "Tokyo"] }
+
+  - id: extraction
+    input: { text: "Extract only the email addresses from this text: Contact alice@example.com or bob@example.com for details. The deadline is Friday." }
+    expected: { contains: ["alice@example.com", "bob@example.com"] }
+    perturbations:
+      - { type: typo_noise, count: 2 }
+      - { type: casing }
+    invariants:
+      - { type: contains, values: ["alice@example.com", "bob@example.com"] }
+
+  - id: policy_summary
+    input: { text: "Summarize this refund policy in one sentence: Customers can request a refund within 30 days if the item is unused and the receipt is provided." }
+    expected: { contains: ["30 days", "unused", "receipt"] }
+    perturbations:
+      - { type: typo_noise, count: 2 }
+      - { type: casing }
+    invariants:
+      - { type: contains, values: ["30 days", "unused", "receipt"] }
 ```
 
-One case. Three typo variants + casing variants. A `contains` invariant saying *"any acceptable answer must mention Paris."* The spec is the contract.
+Four cases. One obvious sanity anchor (*factual recall*) plus three production-shaped contracts: *structured output*, *extraction*, and *grounded policy summarization*. The mix is deliberate — a migration regression then looks like a behavioral pattern across contract types, not a single anecdote.
 
 ### 2. Run against your baseline model
 
 ```bash
 $ falsifyai run examples/model_migration.yaml
-case: capital_factual  verdict: STABLE  confidence: 0.95 (CI: 0.92-0.98)
+case: factual_recall     verdict: STABLE  confidence: 0.95 (CI: 0.92-0.98)
+case: structured_output  verdict: STABLE  confidence: 0.94 (CI: 0.91-0.97)
+case: extraction         verdict: STABLE  confidence: 0.96 (CI: 0.93-0.99)
+case: policy_summary     verdict: STABLE  confidence: 0.93 (CI: 0.90-0.97)
 =================================================================
 Session 7c4f...a201 -> .falsifyai/replays.db
-1 case, verdict STABLE, 0 FRAGILE, 0 CONSISTENTLY_WRONG, falsifiability 0.10
+4 cases, verdict STABLE, 0 FRAGILE, 0 CONSISTENTLY_WRONG
 ```
 
-Exit code: `0`. Note the session id (`7c4f...a201`) — that's your *known-good baseline*. Commit it to your repo if you want it durable.
+Exit code: `0`. Four contracts, four green rows. Note the session id (`7c4f...a201`) — that's your *known-good baseline*. Commit it to your repo if you want it durable.
 
 ### 3. Switch to the new model. Run again.
 
@@ -70,13 +98,16 @@ Change `model:` in the spec (or set a different `OPENAI_MODEL` env var), then:
 
 ```bash
 $ falsifyai run examples/model_migration.yaml
-case: capital_factual  verdict: CONSISTENTLY_WRONG  confidence: 0.00 (CI: 0.00-0.00)
+case: factual_recall     verdict: STABLE              confidence: 0.94 (CI: 0.91-0.97)
+case: structured_output  verdict: CONSISTENTLY_WRONG  confidence: 0.00 (CI: 0.00-0.00)
+case: extraction         verdict: CONSISTENTLY_WRONG  confidence: 0.00 (CI: 0.00-0.00)
+case: policy_summary     verdict: STABLE              confidence: 0.92 (CI: 0.88-0.96)
 =================================================================
 Session 9a32...b1f0 -> .falsifyai/replays.db
-1 case, verdict CONSISTENTLY_WRONG, 0 FRAGILE, 1 CONSISTENTLY_WRONG, falsifiability 0.10
+4 cases, verdict CONSISTENTLY_WRONG, 0 FRAGILE, 2 CONSISTENTLY_WRONG
 ```
 
-Exit code: `2` (FAILURE). The new model is confidently wrong on every perturbation of the question. That's exactly the failure mode that slips past accuracy benchmarks — same wrong answer everywhere, looks consistent, *is* consistent, just consistently wrong.
+Exit code: `2` (FAILURE). The new model still knows the capital of France and can still summarize the refund policy with the required terms — but it dropped the JSON envelope on structured output and refused to do the extraction. *Same model. Two contracts broken. Two unchanged.*
 
 ### 4. Diff the two runs
 
@@ -85,12 +116,15 @@ $ falsifyai diff 7c4f...a201 9a32...b1f0
 Diff: baseline 7c4f...a201 -> candidate 9a32...b1f0
 Store: .falsifyai/replays.db
 =================================================================
-case: capital_factual  baseline: STABLE (0.92)  candidate: CONSISTENTLY_WRONG (0.00)  REGRESSED
+case: extraction         baseline: STABLE (0.96)  candidate: CONSISTENTLY_WRONG (0.00)  REGRESSED
+case: structured_output  baseline: STABLE (0.94)  candidate: CONSISTENTLY_WRONG (0.00)  REGRESSED
 =================================================================
-1 regressed, 0 improved, 0 unchanged, 0 other, 0 added, 0 removed
+2 regressed, 0 improved, 2 unchanged, 0 other, 0 added, 0 removed
 ```
 
-Exit code: `5` (REGRESSION). One command, one verdict-class downgrade, one number your CI can gate on.
+Exit code: `5` (REGRESSION). Only the rows that changed are shown — two regressions, two unchanged contracts compressed into the footer count. **The migration broke structured output and extraction, but preserved factual recall and policy grounding. That is a behavioral pattern, not an anecdote.**
+
+One command, two verdict-class downgrades, one number your CI can gate on.
 
 ### 5. Replay any past session
 
@@ -124,7 +158,7 @@ Five concepts, one screen each:
 | `FRAGILE` | Some perturbations failed; model drifts under pressure | 1 |
 | `CONSISTENTLY_WRONG` | Every output (including baseline) violates the ground truth | 2 |
 | `INSUFFICIENT` | Not enough evidence to decide (too few perturbations) | 4 |
-| `INVALID_EVAL` | The eval itself is broken (Phase 1) | 2 |
+| `INVALID_EVAL` | The evaluation itself is invalid or contradictory | 2 |
 
 Verdicts use **stratified bootstrap CI** — each perturbation family is resampled independently, and the worst-case CI lower bound wins. A model that survives typos but breaks under casing reports the *casing* stability number, not an aggregated average that hides the failure.
 

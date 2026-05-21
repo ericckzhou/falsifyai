@@ -13,7 +13,7 @@ are locked for the 0.1.x line.
 
 - **The launch wedge:** `falsifyai diff <baseline> <candidate>` returns exit
   code 5 (REGRESSION) when any case's verdict regressed between two runs.
-  This is the feature competitors do not match.
+  This is the project's defining wedge.
 - **The investigation workflow:** `run` → `replay` → `diff` is one
   falsification workflow, not three commands. Same mental model end-to-end.
 - **Replayable evidence:** every `falsifyai run` saves a self-contained

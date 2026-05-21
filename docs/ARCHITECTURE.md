@@ -170,7 +170,7 @@ That role creates predictable pressure to push more into the resolver:
 
 Each addition looks reasonable. The **cumulative** effect destroys what
 makes the current resolver trustworthy: it stops fitting in one screen,
-then in one head, then becomes a black box.
+then in one head, then stops being explainable at all.
 
 ### The trust test
 

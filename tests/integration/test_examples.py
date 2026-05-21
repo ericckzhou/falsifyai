@@ -176,17 +176,26 @@ def test_consistently_wrong_yaml_produces_consistently_wrong_verdict(monkeypatch
 def test_model_migration_yaml_is_a_valid_spec() -> None:
     spec, _ = load_spec(_EXAMPLES / "model_migration.yaml")
     assert spec.run.seed == 42
-    assert [c.id for c in spec.cases] == ["capital_factual", "definition_consistency"]
+    assert [c.id for c in spec.cases] == [
+        "factual_recall",
+        "structured_output",
+        "extraction",
+        "policy_summary",
+    ]
 
 
 def test_model_migration_yaml_diff_produces_regression(tmp_path, monkeypatch) -> None:
     """Run the spec twice with different MockAdapter responses; diff returns 5.
 
     Workflow demonstrated:
-    1. "Model A" (good): answers contain "Paris" and "plants" -> both STABLE.
-    2. "Model B" (degraded): answers miss both ground-truth keywords ->
-       CONSISTENTLY_WRONG on both cases.
-    3. diff(A, B) detects the regression and exits 5.
+    1. "Model A" (good): all four cases pass their contains invariants -> STABLE.
+    2. "Model B" (degraded): two cases (structured_output, extraction) lose
+       required values -> CONSISTENTLY_WRONG; the other two stay STABLE.
+    3. diff(A, B) detects 2 regressed cases (and 2 unchanged) -> exits 5.
+
+    This is the multi-case behavioral-pattern story the README walkthrough
+    teaches: a migration that breaks structured output and extraction but
+    preserves factual recall and definitions.
     """
     import argparse
 
@@ -199,21 +208,28 @@ def test_model_migration_yaml_diff_produces_regression(tmp_path, monkeypatch) ->
     def _run_args(store_path: str):
         return argparse.Namespace(spec_path=str(spec_path), store_path=store_path)
 
-    # Baseline run -- "good" model.
+    # Baseline run -- "good" model. All four contracts satisfied.
     spec, spec_hash = load_spec(spec_path)
     materialized = materialize(spec, spec_hash)
     good_responses = {
-        "capital_factual": "Paris is the capital of France.",
-        "definition_consistency": "Photosynthesis is the process by which plants make energy.",
+        "factual_recall": "Paris is the capital of France.",
+        "structured_output": '{"capital": "Tokyo"}',
+        "extraction": "alice@example.com, bob@example.com",
+        "policy_summary": ("Refunds are available within 30 days for unused items with a receipt."),
     }
     good_adapter = MockAdapter(response_map=_build_response_map(spec, materialized, good_responses))
     monkeypatch.setattr(cli_run, "build_adapter", lambda model: good_adapter)
     cli_run.cmd_run(_run_args(db_path))
 
-    # Candidate run -- "degraded" model that misses ground-truth keywords.
+    # Candidate run -- "degraded" model. Breaks structured_output (drops the
+    # quoted "capital" key) and extraction (refuses to list emails); preserves
+    # factual_recall and definition_consistency.
     bad_responses = {
-        "capital_factual": "I'm not sure what the capital is.",
-        "definition_consistency": "It's a biological process I can't fully define.",
+        "factual_recall": "Paris is the capital of France.",  # unchanged -> STABLE
+        "structured_output": "The capital is Tokyo.",  # missing '"capital"' -> CONSISTENTLY_WRONG
+        "extraction": "I cannot list email addresses.",  # missing both emails -> CONSISTENTLY_WRONG
+        # still mentions 30 days, unused, receipt -> STABLE (policy grounding preserved)
+        "policy_summary": ("Refunds within 30 days, item must be unused, receipt required."),
     }
     bad_adapter = MockAdapter(response_map=_build_response_map(spec, materialized, bad_responses))
     monkeypatch.setattr(cli_run, "build_adapter", lambda model: bad_adapter)
