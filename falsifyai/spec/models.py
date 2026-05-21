@@ -6,7 +6,7 @@ in user YAML are rejected loudly rather than silently ignored.
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 _STRICT = ConfigDict(extra="forbid")
 
@@ -115,3 +115,21 @@ class Spec(BaseModel):
     model: ModelConfig
     run: RunConfig
     cases: list[CaseSpec] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _no_duplicate_case_ids(self) -> "Spec":
+        """Reject specs with duplicate case ids.
+
+        Materialization derives per-case seeds from ``(session_seed, case_id)``,
+        so duplicate ids would produce identical perturbations for distinct
+        cases -- a silent footgun. Catch it at parse time.
+        """
+        seen: set[str] = set()
+        duplicates: set[str] = set()
+        for case in self.cases:
+            if case.id in seen:
+                duplicates.add(case.id)
+            seen.add(case.id)
+        if duplicates:
+            raise ValueError(f"Duplicate case ids: {sorted(duplicates)}")
+        return self
