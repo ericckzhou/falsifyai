@@ -16,6 +16,12 @@ Under the hood, it is a reliability evidence system for stochastic software.
 pip install falsifyai
 ```
 
+For the `semantic_equivalence` invariant (pulls PyTorch, ~1GB):
+
+```bash
+pip install "falsifyai[semantic]"
+```
+
 ---
 
 ## You upgraded your model. Did anything break?
@@ -26,7 +32,13 @@ The investigation takes three commands. Five minutes. One terminal.
 
 ### 1. Define what good looks like
 
-Open [`examples/model_migration.yaml`](examples/model_migration.yaml):
+If you `pip install`'d FalsifyAI, the examples aren't on disk yet. Grab one:
+
+```bash
+curl -O https://raw.githubusercontent.com/ericckzhou/falsifyai/main/examples/model_migration.yaml
+```
+
+Or `git clone https://github.com/ericckzhou/falsifyai` for all four. Then open [`examples/model_migration.yaml`](examples/model_migration.yaml):
 
 ```yaml
 falsify:
@@ -131,9 +143,12 @@ One command, two verdict-class downgrades, one number your CI can gate on.
 ```bash
 $ falsifyai replay --latest
 Loaded session 9a32...b1f0 · created_at 2026-05-21T... from .falsifyai/replays.db
-case: capital_factual  verdict: CONSISTENTLY_WRONG  confidence: 0.00 (CI: 0.00-0.00)
+case: factual_recall     verdict: STABLE              confidence: 0.94 (CI: 0.91-0.97)
+case: structured_output  verdict: CONSISTENTLY_WRONG  confidence: 0.00 (CI: 0.00-0.00)
+case: extraction         verdict: CONSISTENTLY_WRONG  confidence: 0.00 (CI: 0.00-0.00)
+case: policy_summary     verdict: STABLE              confidence: 0.92 (CI: 0.88-0.96)
 =================================================================
-1 case, verdict CONSISTENTLY_WRONG, ...
+4 cases, verdict CONSISTENTLY_WRONG, 0 FRAGILE, 2 CONSISTENTLY_WRONG
 ```
 
 Replay is read-only. The verdict shown is the one assigned at run time — never re-resolved. The same evidence that triggered the regression alert is preserved indefinitely.
@@ -146,7 +161,7 @@ Replay is read-only. The verdict shown is the one assigned at run time — never
 
 Five concepts, one screen each:
 
-**Perturbations** generate small input variations a real user might produce — typos, casing changes, paraphrases later. The MVP ships `typo_noise` (character-level mutations) and `casing_variant` (UPPER / lower / Title).
+**Perturbations** generate small input variations a real user might produce. The MVP ships `typo_noise` (character-level mutations) and `casing_variant` (UPPER / lower / Title).
 
 **Invariants** judge whether a perturbed output is still *"the same answer"* as the original. `contains` checks for required substrings; `semantic_equivalence` compares embedding cosine similarity to a threshold.
 

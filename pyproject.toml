@@ -44,14 +44,20 @@ dependencies = [
     "numpy>=2.1",
     "pydantic>=2.7",
     "pyyaml>=6.0",
-    "sentence-transformers>=3.0",
 ]
 
 [project.optional-dependencies]
+# The `semantic_equivalence` invariant uses sentence-transformers (which
+# pulls in PyTorch, ~1GB). Kept optional so `pip install falsifyai` stays
+# small. Install with `pip install "falsifyai[semantic]"` when needed.
+semantic = [
+    "sentence-transformers>=3.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "ruff>=0.6",
+    "sentence-transformers>=3.0",
 ]
 
 [project.urls]

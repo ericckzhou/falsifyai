@@ -368,7 +368,6 @@ dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
     { name = "pyyaml" },
-    { name = "sentence-transformers" },
 ]
 
 [package.optional-dependencies]
@@ -376,6 +375,10 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "sentence-transformers" },
+]
+semantic = [
+    { name = "sentence-transformers" },
 ]
 
 [package.metadata]
@@ -387,9 +390,10 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
-    { name = "sentence-transformers", specifier = ">=3.0" },
+    { name = "sentence-transformers", marker = "extra == 'dev'", specifier = ">=3.0" },
+    { name = "sentence-transformers", marker = "extra == 'semantic'", specifier = ">=3.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["semantic", "dev"]
 
 [[package]]
 name = "fastuuid"

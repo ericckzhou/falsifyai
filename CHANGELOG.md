@@ -135,9 +135,13 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 
 ### Known limitations
 
-- **`semantic_equivalence`** invariant requires `sentence-transformers`
-  at runtime (lazy-loaded on first call). The first real-LiteLLM run
-  with a semantic invariant downloads `all-MiniLM-L6-v2` (~80MB).
+- **`semantic_equivalence`** invariant requires `sentence-transformers`,
+  which is an **optional install** (pulls PyTorch, ~1GB):
+  `pip install "falsifyai[semantic]"`. Core `pip install falsifyai` stays
+  small; users hitting the semantic path without the extra get a friendly
+  ImportError with the install hint. The first real-LiteLLM run with a
+  semantic invariant additionally downloads the `all-MiniLM-L6-v2` model
+  (~80MB) lazily on the first `.embed()` call.
 - **`CONSISTENTLY_WRONG`** detection is currently string-match-only
   (`expected.contains` / `not_contains`). Embedding-based contradiction
   detection ships with the full `ConsistencyOracle` in Phase 1.
