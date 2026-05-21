@@ -35,6 +35,7 @@ The goal is **maximum useful signal**, not maximum data. More evidence is not in
 - **Replay artifacts.** Self-contained; carry the full materialized spec so they outlive the YAML file on disk.
 - **MVP scope.** 2 perturbation families, 2 invariants, 5 verdicts — locked in [plan.md §22.1](../plan.md) because *that is enough to tell the story*.
 - **Three-layer architectural separation.** *Evidence generation* (perturbation / materialization / execution) is architecturally distinct from *evidence interpretation* (invariants / verdict resolver / CLI compression), and both are distinct from *evidence preservation* (replay artifacts / stores). New work belongs in exactly one layer; don't let interpretation leak into generation under pressure.
+- **Resolver complexity is bounded.** The verdict resolver is the epistemic authority of the framework; its priority chain must stay compressible and predictable. Expand the consumer surface (replay / diff / future tools) when adding interpretation features, not the verdict logic. The trust test for any resolver change: *a competent user should be able to predict the resolver output from the inputs.*
 
 ### Anti-goals / anti-entropy infrastructure
 
@@ -47,6 +48,7 @@ FalsifyAI is **not** optimizing for any of these. When pressure pulls toward the
 - Metric proliferation
 - Exhaustive output verbosity
 - Configuration knobs for every behavior
+- **Resolver inflation** — accreting heuristics, thresholds, verdict types, or confidence semantics into the verdict resolver. Each addition seems reasonable; cumulative effect destroys predictability.
 
 The signal to watch: *does this addition help an engineer make a better decision, or does it crowd the surface where the actual decision lives?* If the latter, defer or rework.
 
