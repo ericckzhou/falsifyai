@@ -1,0 +1,20 @@
+falsify:
+  version: "1.0"
+  name: "minimal smoke test"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+
+run:
+  seed: 42
+
+cases:
+  - id: hello
+    input:
+      text: "Say hi."
+    perturbations:
+      - type: typo_noise
+    invariants:
+      - type: contains
+        values: ["hi"]
