@@ -1,15 +1,22 @@
-"""Plain-text terminal output for ``falsifyai run``.
+"""Plain-text terminal output for ``falsifyai run`` and ``falsifyai replay``.
 
 MVP scope: one row per case + a summary footer + the session id and store
 path so the user can find their saved artifact. No colors, no boxes, no
 JSON. Rich/colored output and ``--json`` land in Week 3 per
 [plan.md section 22.1](../../plan.md).
+
+The ``loaded_from`` parameter on ``render_session`` is what distinguishes
+the replay path: when set, an extra header line indicates the user is
+looking at a stored session rather than a fresh run. The detection of
+legacy artifacts (pre-PR-11, no CI evidence) lives in this module too --
+the artifact shape, not the consumer, determines what's renderable.
 """
 
 import sys
+from datetime import datetime
 from typing import TextIO
 
-from falsifyai.replay.models import ReplayArtifact
+from falsifyai.replay.models import CaseResult, ReplayArtifact
 from falsifyai.verdict.models import Verdict
 
 # Exit codes mapped to the MVP 5 verdicts per plan.md section 16.1.
@@ -35,29 +42,63 @@ def exit_code_for(verdict: Verdict) -> int:
     return _EXIT_CODES[verdict]
 
 
+def _is_legacy_case(case: CaseResult) -> bool:
+    """Pre-PR-11 artifact heuristic: nonzero verdict_confidence but no CI evidence.
+
+    The defaults from the dataclass extension (zero CI fields) trigger this
+    only when the case was constructed without PR #11's resolver -- i.e., it
+    was loaded from a pre-PR-11 replay store row. We require
+    ``verdict_confidence > 0`` so an INSUFFICIENT case (all zeros, legitimately)
+    doesn't get the legacy marker.
+    """
+    return (
+        case.verdict_confidence > 0.0
+        and case.stability == 0.0
+        and case.stability_ci_high == 0.0
+        and case.stability_ci_low == 0.0
+    )
+
+
 def render_session(
     artifact: ReplayArtifact,
     *,
     store_path: str,
     stream: TextIO | None = None,
+    loaded_from: datetime | None = None,
 ) -> None:
     """Print one row per case, then a summary footer.
 
     Per-case row format:
         case: <id>  verdict: <V>  confidence: <p> (CI: <lo>-<hi>)  worst: <family>?
 
-    The worst-case family is only shown for FRAGILE verdicts where one
-    perturbation family drove the verdict.
+    When ``loaded_from`` is set (replay path), an extra header line is
+    prepended indicating the session was loaded from the store.
+
+    Legacy case detection: cases without CI evidence (pre-PR-11 artifacts)
+    omit the misleading ``(CI: 0.00-0.00)`` and append ``(legacy)`` instead.
     """
     out = stream if stream is not None else sys.stdout
-    for case in artifact.case_results:
-        line = (
-            f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f} "
-            f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
+
+    if loaded_from is not None:
+        out.write(
+            f"Loaded session {artifact.session_id} · "
+            f"created_at {loaded_from.isoformat()} from {store_path}\n"
         )
-        if case.verdict is Verdict.FRAGILE and case.worst_case_family:
-            line += f"  worst: {case.worst_case_family}"
+
+    for case in artifact.case_results:
+        if _is_legacy_case(case):
+            line = (
+                f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
+                f"confidence: {case.verdict_confidence:.2f}  (legacy)"
+            )
+        else:
+            line = (
+                f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
+                f"confidence: {case.verdict_confidence:.2f} "
+                f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
+            )
+            if case.verdict is Verdict.FRAGILE and case.worst_case_family:
+                line += f"  worst: {case.worst_case_family}"
         out.write(line + "\n")
     out.write("=" * 65 + "\n")
     out.write(f"Session {artifact.session_id} -> {store_path}\n")

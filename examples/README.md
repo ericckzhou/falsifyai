@@ -36,6 +36,26 @@ dogfood tests in CI bypass the real model by injecting a `MockAdapter`
 through a test seam — see
 [`tests/integration/test_examples.py`](../tests/integration/test_examples.py).
 
+## Replaying a stored session
+
+Every `falsifyai run` saves a `ReplayArtifact` to the configured store
+(default `.falsifyai/replays.db`). To re-render a past session without
+re-running the model:
+
+```bash
+# Re-render the most recent session
+falsifyai replay --latest
+
+# Re-render a specific session by id
+falsifyai replay <session_id>
+```
+
+The replay command is **strictly read-only** — it never modifies the
+stored artifact and never re-resolves the verdict. The verdict displayed
+is the one assigned at `run` time. Exit codes mirror `run`, so you can
+gate CI on a known-good session: `falsifyai replay <known-good-id>`
+returns 0 if and only if the stored session was `STABLE`.
+
 ## Writing your own
 
 The spec language is locked for Phase 0; see

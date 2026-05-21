@@ -79,3 +79,119 @@ def test_render_footer_includes_falsifiability() -> None:
     render_session(artifact, store_path=":memory:", stream=buf)
     output = buf.getvalue()
     assert "falsifiability" in output
+
+
+# ---------------------------------------------------------------------------
+# PR #13: loaded_from header for replay + legacy artifact handling
+# ---------------------------------------------------------------------------
+
+
+def test_loaded_from_header_appears_when_set() -> None:
+    """Replay path prepends a 'Loaded session' line before per-case rows."""
+    from datetime import UTC, datetime
+
+    artifact = make_artifact(session_id="sess-loaded-1", verdict=Verdict.STABLE)
+    loaded_from = datetime(2026, 5, 21, 10, 0, 0, tzinfo=UTC)
+    buf = io.StringIO()
+    render_session(
+        artifact, store_path=".falsifyai/replays.db", stream=buf, loaded_from=loaded_from
+    )
+    output = buf.getvalue()
+    assert "Loaded session sess-loaded-1" in output
+    assert "2026-05-21T10:00:00" in output
+
+
+def test_loaded_from_none_keeps_run_output_unchanged() -> None:
+    """Regression guard: run path (loaded_from=None) gets PR #11's exact output."""
+    artifact = make_artifact(verdict=Verdict.STABLE)
+    without = io.StringIO()
+    explicit_none = io.StringIO()
+    render_session(artifact, store_path=":memory:", stream=without)
+    render_session(artifact, store_path=":memory:", stream=explicit_none, loaded_from=None)
+    assert without.getvalue() == explicit_none.getvalue()
+
+
+def test_legacy_case_renders_legacy_marker_instead_of_ci() -> None:
+    """A CaseResult with zero CI fields + nonzero verdict_confidence is pre-PR-11
+    and shouldn't display misleading (CI: 0.00-0.00)."""
+    from datetime import UTC, datetime
+
+    from falsifyai.execution.models import Execution, ModelRequest
+    from falsifyai.replay.models import (
+        CaseResult,
+        ReplayArtifact,
+        SessionVerdict,
+    )
+    from falsifyai.spec.materializer import MaterializedSpec
+    from falsifyai.spec.models import ModelConfig, RunConfig
+
+    req = ModelRequest(
+        provider="mock",
+        model="mock",
+        prompt="p",
+        temperature=0.0,
+        max_tokens=128,
+        seed=42,
+        timeout_seconds=30,
+    )
+    exec_ = Execution(
+        request=req,
+        output_text="o",
+        latency_ms=1.0,
+        prompt_tokens=1,
+        completion_tokens=1,
+        cached=False,
+        seed_provided=True,
+    )
+    legacy_case = CaseResult(
+        case_id="legacy_case",
+        original_input="p",
+        original_execution=exec_,
+        perturbed=[],
+        verdict=Verdict.STABLE,
+        verdict_confidence=0.83,  # nonzero -> not INSUFFICIENT, just no CI evidence
+        stability=0.0,  # default; pre-PR-11 artifact
+        stability_ci_low=0.0,
+        stability_ci_high=0.0,
+        per_family_stability={},
+        worst_case_family=None,
+    )
+    artifact = ReplayArtifact(
+        session_id="sess-legacy",
+        created_at=datetime(2026, 5, 21, tzinfo=UTC),
+        falsifyai_version="0.0.1",
+        spec_hash="x" * 64,
+        materialized_hash="y" * 64,
+        materialized=MaterializedSpec(
+            spec_hash="x" * 64,
+            materialized_hash="y" * 64,
+            session_seed=42,
+            falsifyai_version="0.0.1",
+            model=ModelConfig(provider="mock", model="mock"),
+            run=RunConfig(seed=42),
+            cases=[],
+        ),
+        case_results=[legacy_case],
+        session_verdict=SessionVerdict(
+            session_verdict=Verdict.STABLE,
+            confidence=0.83,
+            case_count=1,
+            fragile_count=0,
+            consistently_wrong_count=0,
+        ),
+    )
+    buf = io.StringIO()
+    render_session(artifact, store_path=":memory:", stream=buf)
+    output = buf.getvalue()
+    assert "legacy" in output.lower()
+    assert "CI:" not in output  # misleading CI column suppressed
+
+
+def test_non_legacy_case_still_shows_ci() -> None:
+    """make_artifact() returns a PR-11-era case; it should keep the CI column."""
+    artifact = make_artifact(verdict=Verdict.STABLE)
+    buf = io.StringIO()
+    render_session(artifact, store_path=":memory:", stream=buf)
+    output = buf.getvalue()
+    assert "CI:" in output
+    assert "legacy" not in output.lower()
