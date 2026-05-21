@@ -1,0 +1,20 @@
+falsify:
+  version: "1.0"
+  name: "unknown perturbation type"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+
+run:
+  seed: 42
+
+cases:
+  - id: x
+    input:
+      text: "hi"
+    perturbations:
+      - type: nonexistent_perturbation
+    invariants:
+      - type: contains
+        values: ["hi"]

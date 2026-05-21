@@ -1,0 +1,12 @@
+falsify:
+  version: "1.0"
+  name: "empty cases list"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+
+run:
+  seed: 42
+
+cases: []

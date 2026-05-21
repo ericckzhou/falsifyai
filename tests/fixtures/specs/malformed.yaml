@@ -1,0 +1,3 @@
+falsify:
+  version: "1.0"
+  name: "malformed yaml [unclosed bracket

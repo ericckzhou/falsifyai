@@ -1,0 +1,46 @@
+falsify:
+  version: "1.0"
+  name: "exercises all MVP fields"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.3
+  max_tokens: 256
+  seed: 7
+
+run:
+  replications: 3
+  parallel: 1
+  timeout_seconds: 60
+  seed: 12345
+  cache: true
+
+cases:
+  - id: capital_france
+    tags: [geography, factual]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+      not_contains: ["Lyon", "Marseille"]
+      reference: "Paris is the capital of France."
+    perturbations:
+      - type: typo_noise
+        count: 5
+        rate: 0.05
+      - type: casing
+        variants: [upper, lower, title]
+    invariants:
+      - type: contains
+        values: ["Paris"]
+        severity: critical
+        case_sensitive: false
+      - type: semantic_equivalence
+        threshold: 0.85
+        embedding_model: "local:all-MiniLM-L6-v2"
+        severity: high
+    verdict_config:
+      stable_threshold: 0.95
+      fragile_threshold: 0.5
+      use_worst_case_stability: true

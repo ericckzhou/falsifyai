@@ -1,0 +1,19 @@
+falsify:
+  version: "1.0"
+  name: "semantic_equivalence without threshold"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+
+run:
+  seed: 42
+
+cases:
+  - id: x
+    input:
+      text: "hi"
+    perturbations:
+      - type: typo_noise
+    invariants:
+      - type: semantic_equivalence
