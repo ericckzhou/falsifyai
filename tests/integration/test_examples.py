@@ -166,3 +166,69 @@ def test_consistently_wrong_yaml_produces_consistently_wrong_verdict(monkeypatch
 
     rc = cli_run.cmd_run(_args(spec_path))
     assert rc == 2  # CONSISTENTLY_WRONG -> FAILURE
+
+
+# ---------------------------------------------------------------------------
+# model_migration.yaml (PR #14)
+# ---------------------------------------------------------------------------
+
+
+def test_model_migration_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "model_migration.yaml")
+    assert spec.run.seed == 42
+    assert [c.id for c in spec.cases] == ["capital_factual", "definition_consistency"]
+
+
+def test_model_migration_yaml_diff_produces_regression(tmp_path, monkeypatch) -> None:
+    """Run the spec twice with different MockAdapter responses; diff returns 5.
+
+    Workflow demonstrated:
+    1. "Model A" (good): answers contain "Paris" and "plants" -> both STABLE.
+    2. "Model B" (degraded): answers miss both ground-truth keywords ->
+       CONSISTENTLY_WRONG on both cases.
+    3. diff(A, B) detects the regression and exits 5.
+    """
+    import argparse
+
+    import falsifyai.cli.diff as cli_diff_mod
+    from falsifyai.replay.sqlite_store import SQLiteStore
+
+    spec_path = _EXAMPLES / "model_migration.yaml"
+    db_path = str(tmp_path / "replays.db")
+
+    def _run_args(store_path: str):
+        return argparse.Namespace(spec_path=str(spec_path), store_path=store_path)
+
+    # Baseline run -- "good" model.
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+    good_responses = {
+        "capital_factual": "Paris is the capital of France.",
+        "definition_consistency": "Photosynthesis is the process by which plants make energy.",
+    }
+    good_adapter = MockAdapter(response_map=_build_response_map(spec, materialized, good_responses))
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: good_adapter)
+    cli_run.cmd_run(_run_args(db_path))
+
+    # Candidate run -- "degraded" model that misses ground-truth keywords.
+    bad_responses = {
+        "capital_factual": "I'm not sure what the capital is.",
+        "definition_consistency": "It's a biological process I can't fully define.",
+    }
+    bad_adapter = MockAdapter(response_map=_build_response_map(spec, materialized, bad_responses))
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: bad_adapter)
+    cli_run.cmd_run(_run_args(db_path))
+
+    # Retrieve both session ids (newest-first).
+    with SQLiteStore(db_path) as store:
+        sessions = list(store.query_sessions(limit=2))
+    candidate_id, baseline_id = sessions[0].session_id, sessions[1].session_id
+
+    rc = cli_diff_mod.cmd_diff(
+        argparse.Namespace(
+            baseline_session_id=baseline_id,
+            candidate_session_id=candidate_id,
+            store_path=db_path,
+        )
+    )
+    assert rc == 5  # REGRESSION detected -> launch wedge acceptance gate item
