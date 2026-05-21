@@ -96,10 +96,32 @@ def _summary_template(n: int, slug: str, title: str) -> str:
 > Branch: `dev` -> `main` -- Squash commit: `<sha>` -- Merged: YYYY-MM-DD
 > Paired plan: `dev_notes/plans/PR-{n}-{slug}.md`
 > Paired walkthrough: `dev_notes/walkthroughs/PR-{n}-{slug}.md`
+> PR URL: <url>
+>
+> Structure follows `dev_notes/STRUCTURE.md`.
 
 ## Headline
 
-<one sentence: what landed>
+<one sentence: what landed, in user-relevant terms>
+
+## Problem pressure
+
+<1-2 sentences: the gap this closes, why now>
+
+## Abstraction shipped
+
+<the new contract / Protocol / module, named explicitly. 1-2 sentences.>
+
+## Alternatives rejected
+
+- **<alt 1>**: <one-line reason rejected>
+- **<alt 2>**: <one-line reason rejected>
+
+## Architectural invariants
+
+<system-level contracts established by this PR. NOT coding style.>
+
+-
 
 ## Files touched
 
@@ -113,17 +135,14 @@ def _summary_template(n: int, slug: str, title: str) -> str:
 - Total suite:
 - Coverage:
 - LOC:
-
-## Conventions established
-
--
+- Network calls in tests:
 
 ## Status
 
 - Merged: YYYY-MM-DD
 - Squash SHA on main: `<sha>`
 
-## Next
+## What this unlocks
 
 -
 """
@@ -137,51 +156,72 @@ def _walkthrough_template(n: int, slug: str, title: str) -> str:
 > Paired plan: `dev_notes/plans/PR-{n}-{slug}.md`
 > Paired summary: `dev_notes/summaries/PR-{n}-{slug}.md`
 >
-> Junior-friendly walkthrough. Glossary at the bottom.
+> **Goal: teach WHY the subsystem emerged, not merely WHAT code was added.**
+> Junior-friendly. Structure follows `dev_notes/STRUCTURE.md`. Glossary at the bottom.
 
-## 1. Overview
+## 1. Problem pressure
 
-<1-2 paragraphs: what the PR does and where it sits in the roadmap>
+<what gap in the system created the demand for this work? Be concrete: what
+didn't exist, what was painful, what got blocked. This is the most important
+section -- everything else follows from it.>
 
 ## 2. Mental model
 
-<how this fits the bigger picture; junior-friendly framing>
+<the right way to think about this subsystem. Where does it sit in the
+falsificationist eval pipeline? What is its job in one sentence?>
 
-## 3. Concrete example
+## 3. The abstraction
 
-```python
-# input -> output example
-```
+<the contract / Protocol / shape introduced, named and motivated. What is the
+core type or interface, and what does it promise?>
 
-## 4. Files changed
+## 4. Why this shape
+
+<the tradeoffs taken. What was optimized for; what was optimized against. Why
+this shape and not a more obvious one.>
+
+## 5. Alternatives rejected
+
+### 5.1 <alternative name>
+
+<one paragraph: what the alternative was, why it was tempting, why it was
+rejected. High-signal for future engineers -- they will hit this same fork.>
+
+### 5.2 <alternative name>
+
+<...>
+
+## 6. Future layers unlocked
+
+<what this PR makes possible downstream. Be specific about which next PRs
+depend on this contract.>
+
+## 7. Architectural invariants
+
+<system-level contracts the codebase now guarantees. Violation = correctness
+bug, not lint failure. Coding style does NOT go here -- that lives in CLAUDE.md.>
+
+-
+
+## 8. Code walkthrough
+
+<uses code snippets to make the architecture concrete. Inline-define
+non-obvious Python idioms (`runtime_checkable`, `ClassVar`, `model_validator`,
+etc.). The code is here to illustrate the architecture, not to inventory it.>
+
+### 8.1 Files in this PR (navigation aid)
 
 | File | Purpose |
 |---|---|
 | | |
 
-## 5. Architecture
+### 8.2 <key file or shape>
 
-```
-<diagram>
-```
+<snippet + explanation>
 
-## 6. Code walkthrough
+## 9. Test strategy
 
-### 6.1 <first file>
-
-<explanation with snippets and inline definitions of non-obvious Python>
-
-## 7. Design decisions
-
-<non-obvious choices with rationale>
-
-## 8. Test strategy
-
-<what's tested, what isn't, why>
-
-## 9. Conventions established
-
--
+<what is tested, what is intentionally not, why>
 
 ## 10. Risks / known limitations
 
