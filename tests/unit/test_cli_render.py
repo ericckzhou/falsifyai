@@ -62,3 +62,20 @@ def test_render_includes_summary_counts() -> None:
     # SessionVerdict for FRAGILE artifact has fragile_count=1
     assert "1 case" in output
     assert "FRAGILE" in output
+
+
+def test_render_includes_ci_bounds_per_case() -> None:
+    """PR #11 evidence-density choice: CI width changes the engineer's decision."""
+    artifact = make_artifact(verdict=Verdict.STABLE)
+    buf = io.StringIO()
+    render_session(artifact, store_path=":memory:", stream=buf)
+    output = buf.getvalue()
+    assert "CI:" in output
+
+
+def test_render_footer_includes_falsifiability() -> None:
+    artifact = make_artifact(verdict=Verdict.STABLE)
+    buf = io.StringIO()
+    render_session(artifact, store_path=":memory:", stream=buf)
+    output = buf.getvalue()
+    assert "falsifiability" in output

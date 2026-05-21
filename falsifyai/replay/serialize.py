@@ -108,6 +108,8 @@ def _make_session_verdict(d: dict[str, Any]) -> SessionVerdict:
         case_count=d["case_count"],
         fragile_count=d["fragile_count"],
         consistently_wrong_count=d["consistently_wrong_count"],
+        # PR #11+ field; default preserves backward-compat reads.
+        falsifyai_falsifiability_score=d.get("falsifyai_falsifiability_score", 0.0),
     )
 
 
@@ -119,6 +121,13 @@ def _make_case_result(d: dict[str, Any]) -> CaseResult:
         perturbed=[_make_perturbed_run(p) for p in d["perturbed"]],
         verdict=Verdict(d["verdict"]),
         verdict_confidence=d["verdict_confidence"],
+        # PR #11+ fields; defaults preserve backward-compat reads of
+        # PR #6/#8 era artifacts that didn't carry these.
+        stability=d.get("stability", 0.0),
+        stability_ci_low=d.get("stability_ci_low", 0.0),
+        stability_ci_high=d.get("stability_ci_high", 0.0),
+        per_family_stability=dict(d.get("per_family_stability", {})),
+        worst_case_family=d.get("worst_case_family"),
     )
 
 

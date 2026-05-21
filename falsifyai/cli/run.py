@@ -12,6 +12,7 @@ inject ``MockAdapter`` without monkey-patching imports inside the package
 """
 
 import argparse
+import sys
 import uuid
 from datetime import UTC, datetime
 from importlib.metadata import version as _pkg_version
@@ -24,6 +25,12 @@ from falsifyai.execution.engine import ExecutionEngine
 from falsifyai.execution.errors import ExecutionError
 from falsifyai.execution.litellm_adapter import LiteLLMAdapter
 from falsifyai.execution.models import ModelRequest
+from falsifyai.falsifiability.score import (
+    LOW_FALSIFIABILITY_THRESHOLD,
+    case_falsifiability,
+    suite_falsifiability,
+)
+from falsifyai.invariants.base import Invariant
 from falsifyai.invariants.registry import build_invariant
 from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, PerturbedRun, ReplayArtifact
@@ -72,7 +79,11 @@ def _run_case(
     materialized_case_index: int,
     materialized: MaterializedSpec,
     engine: ExecutionEngine,
-) -> CaseResult:
+) -> tuple[CaseResult, list[Invariant]]:
+    """Run a single case end-to-end. Returns the CaseResult and the list of
+    runtime Invariant instances built from the case spec (the caller needs them
+    for falsifiability scoring).
+    """
     case_spec = spec.cases[materialized_case_index]
     mcase = materialized.cases[materialized_case_index]
 
@@ -112,15 +123,17 @@ def _run_case(
             )
         )
 
-    verdict, confidence = resolve_case(perturbed_runs)
-    return CaseResult(
+    case_result = resolve_case(
         case_id=case_spec.id,
         original_input=mcase.original_input,
         original_execution=original_exec,
-        perturbed=perturbed_runs,
-        verdict=verdict,
-        verdict_confidence=confidence,
+        perturbed_runs=perturbed_runs,
+        expected=case_spec.expected,
+        invariants=invariants,
+        stable_threshold=case_spec.verdict_config.stable_threshold,
+        case_seed=mcase.case_seed,
     )
+    return case_result, invariants
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -136,10 +149,23 @@ def cmd_run(args: argparse.Namespace) -> int:
     cache = InMemoryCache() if spec.run.cache else None
     engine = ExecutionEngine(adapter=adapter, cache=cache)
 
-    case_results = [
-        _run_case(spec, i, materialized, engine) for i in range(len(materialized.cases))
-    ]
-    session_verdict = resolve_session(case_results)
+    case_results: list[CaseResult] = []
+    case_falsifiability_scores: list[float] = []
+    for i in range(len(materialized.cases)):
+        case_result, invariants = _run_case(spec, i, materialized, engine)
+        case_results.append(case_result)
+        case_falsifiability_scores.append(case_falsifiability(invariants))
+
+    falsifiability_score = suite_falsifiability(case_falsifiability_scores)
+    session_verdict = resolve_session(case_results, falsifiability_score=falsifiability_score)
+
+    if falsifiability_score < LOW_FALSIFIABILITY_THRESHOLD:
+        print(
+            f"falsifyai: warning: low suite falsifiability "
+            f"({falsifiability_score:.2f} < {LOW_FALSIFIABILITY_THRESHOLD}); "
+            f"invariants may be too permissive to catch real failures.",
+            file=sys.stderr,
+        )
 
     artifact = ReplayArtifact(
         session_id=uuid.uuid4().hex,

@@ -134,3 +134,35 @@ def test_fragile_yaml_produces_fragile_verdict(monkeypatch) -> None:
 
     rc = cli_run.cmd_run(_args(spec_path))
     assert rc == 1  # FRAGILE -> DEGRADED
+
+
+# ---------------------------------------------------------------------------
+# consistently_wrong.yaml (PR #11)
+# ---------------------------------------------------------------------------
+
+
+def test_consistently_wrong_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "consistently_wrong.yaml")
+    assert spec.run.seed == 42
+    assert [c.id for c in spec.cases] == ["capital_of_france_hallucinated"]
+    assert spec.cases[0].expected.contains == ["Paris"]
+
+
+def test_consistently_wrong_yaml_produces_consistently_wrong_verdict(monkeypatch) -> None:
+    """Every output (baseline + perturbed) returns 'London' -- the wrong answer.
+
+    Because expected.contains: ["Paris"] is violated on EVERY output, the
+    resolver returns CONSISTENTLY_WRONG, not FRAGILE.
+    """
+    spec_path = _EXAMPLES / "consistently_wrong.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    responses = {
+        "capital_of_france_hallucinated": "London is the capital of France.",
+    }
+    adapter = MockAdapter(response_map=_build_response_map(spec, materialized, responses))
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 2  # CONSISTENTLY_WRONG -> FAILURE
