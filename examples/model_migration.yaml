@@ -16,8 +16,17 @@
 #   (STABLE -> FRAGILE, STABLE -> CONSISTENTLY_WRONG, or FRAGILE ->
 #   CONSISTENTLY_WRONG). This is the Phase 0 launch wedge.
 #
-# Three cases cover different reliability dimensions: factual recall,
-# definitional consistency under perturbation, and ground-truth grounding.
+# Four cases cover different reliability contracts:
+#
+#   factual_recall      simple sanity anchor (known fact)
+#   structured_output   must return a specific JSON shape
+#   extraction          must extract specific values from input
+#   policy_summary      grounded summarization (must preserve required terms)
+#
+# The mix is intentional: one obvious sanity case + three production-shaped
+# contracts. A migration regression then looks like a behavioral pattern
+# ("structured output and extraction broke; factual recall and policy
+# grounding held") rather than a single anecdotal failure.
 
 falsify:
   version: "1.0"
@@ -33,8 +42,8 @@ run:
   seed: 42
 
 cases:
-  - id: capital_factual
-    tags: ["geography", "factual", "migration"]
+  - id: factual_recall
+    tags: ["factual", "migration"]
     input:
       text: "What is the capital of France?"
     expected:
@@ -47,14 +56,44 @@ cases:
       - type: contains
         values: ["Paris"]
 
-  - id: definition_consistency
-    tags: ["biology", "definitional", "migration"]
+  - id: structured_output
+    tags: ["structured", "migration"]
     input:
-      text: "Briefly define photosynthesis."
+      text: 'Reply ONLY with a JSON object of the form {"capital": "<city>"}. What is the capital of Japan?'
+    expected:
+      contains: ['"capital"', "Tokyo"]
     perturbations:
       - type: typo_noise
         count: 2
       - type: casing
     invariants:
       - type: contains
-        values: ["plants"]
+        values: ['"capital"', "Tokyo"]
+
+  - id: extraction
+    tags: ["extraction", "migration"]
+    input:
+      text: "Extract only the email addresses from this text: Contact alice@example.com or bob@example.com for details. The deadline is Friday."
+    expected:
+      contains: ["alice@example.com", "bob@example.com"]
+    perturbations:
+      - type: typo_noise
+        count: 2
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["alice@example.com", "bob@example.com"]
+
+  - id: policy_summary
+    tags: ["policy", "summary", "migration"]
+    input:
+      text: "Summarize this refund policy in one sentence: Customers can request a refund within 30 days if the item is unused and the receipt is provided."
+    expected:
+      contains: ["30 days", "unused", "receipt"]
+    perturbations:
+      - type: typo_noise
+        count: 2
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["30 days", "unused", "receipt"]

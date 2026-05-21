@@ -36,8 +36,18 @@ class SentenceTransformerBackend:
     def embed(self, texts: list[str]) -> np.ndarray:
         if self._model is None:
             # Imported lazily so unit tests that only use MockEmbedder never
-            # pay the ~few-second sentence_transformers import cost.
-            from sentence_transformers import SentenceTransformer
+            # pay the ~few-second sentence_transformers import cost. The
+            # package is an optional install (`pip install "falsifyai[semantic]"`)
+            # because it pulls PyTorch; raise a friendly error if the user
+            # reached this path without it.
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError as exc:
+                raise ImportError(
+                    "The `semantic_equivalence` invariant requires "
+                    "sentence-transformers. Install it with: "
+                    'pip install "falsifyai[semantic]"'
+                ) from exc
 
             self._model = SentenceTransformer(self.model_name)
         embeddings = self._model.encode(texts, convert_to_numpy=True)

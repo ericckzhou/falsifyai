@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "falsifyai"
-version = "0.0.0"
-description = "Falsification-first reliability testing for AI systems."
+version = "0.1.0"
+description = "Falsification-first reliability testing for AI systems: perturb inputs, preserve replayable evidence, diff reliability across model changes."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -21,36 +21,51 @@ keywords = [
     "robustness",
     "falsification",
     "reliability",
+    "regression-testing",
+    "differential-testing",
+    "perturbation-testing",
 ]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
 ]
 dependencies = [
     "litellm>=1.50",
     "numpy>=2.1",
     "pydantic>=2.7",
     "pyyaml>=6.0",
-    "sentence-transformers>=3.0",
 ]
 
 [project.optional-dependencies]
+# The `semantic_equivalence` invariant uses sentence-transformers (which
+# pulls in PyTorch, ~1GB). Kept optional so `pip install falsifyai` stays
+# small. Install with `pip install "falsifyai[semantic]"` when needed.
+semantic = [
+    "sentence-transformers>=3.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "ruff>=0.6",
+    "sentence-transformers>=3.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/TBD/falsifyai"
-Repository = "https://github.com/TBD/falsifyai"
-Issues = "https://github.com/TBD/falsifyai/issues"
+Homepage = "https://github.com/ericckzhou/falsifyai"
+Repository = "https://github.com/ericckzhou/falsifyai"
+Documentation = "https://github.com/ericckzhou/falsifyai#readme"
+Issues = "https://github.com/ericckzhou/falsifyai/issues"
+Changelog = "https://github.com/ericckzhou/falsifyai/blob/main/CHANGELOG.md"
 
 [project.scripts]
 falsifyai = "falsifyai.cli.main:main"
