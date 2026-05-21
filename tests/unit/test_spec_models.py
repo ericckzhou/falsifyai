@@ -183,6 +183,16 @@ def test_casing_variant_rejects_unknown_variant() -> None:
         CasingVariantSpec.model_validate({"type": "casing", "variants": ["wonky"]})
 
 
+def test_duplicate_case_ids_rejected() -> None:
+    """Materializer derives seeds from case_id; duplicates would silently collide."""
+    data = _load_yaml("minimal.yaml")
+    # Duplicate the single case
+    duplicate = dict(data["cases"][0])
+    data["cases"] = [data["cases"][0], duplicate]
+    with pytest.raises(ValidationError, match="Duplicate case ids"):
+        Spec.model_validate(data)
+
+
 def test_falsify_version_locked_to_1_0() -> None:
     data = _load_yaml("minimal.yaml")
     data["falsify"]["version"] = "2.0"
