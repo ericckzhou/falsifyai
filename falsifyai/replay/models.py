@@ -17,7 +17,7 @@ Design notes:
   yet). Major-version refusal is a future PR.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from falsifyai.execution.models import Execution
@@ -41,8 +41,19 @@ class CaseResult:
     """The full record for one case in a session.
 
     Pairs the original execution (baseline) with one :class:`PerturbedRun`
-    per realized perturbation, plus the case-level resolved verdict and its
-    confidence.
+    per realized perturbation, plus the case-level resolved verdict and the
+    statistical evidence behind it.
+
+    The ``stability`` / ``stability_ci_low`` / ``stability_ci_high`` triple
+    is the **worst-case stratified** estimate per [plan.md section 12](../../plan.md):
+    each perturbation family is bootstrap-resampled separately, and we
+    surface the family with the lowest CI lower bound. ``per_family_stability``
+    preserves every family's point estimate so ``falsifyai diff`` can compare
+    distributions, not just point estimates.
+
+    For semantic continuity with PR #6/#8 era artifacts, ``verdict_confidence``
+    is populated equal to ``stability_ci_low`` (the honest "how confident
+    am I in this verdict?" number).
     """
 
     case_id: str
@@ -52,14 +63,24 @@ class CaseResult:
     verdict: Verdict
     verdict_confidence: float
 
+    # PR #11+ fields. Defaults preserve forward-compat construction from
+    # callers that haven't been updated yet (and backward-compat reads of
+    # PR #6/#8 era artifacts that didn't carry them).
+    stability: float = 0.0
+    stability_ci_low: float = 0.0
+    stability_ci_high: float = 0.0
+    per_family_stability: dict[str, float] = field(default_factory=dict)
+    worst_case_family: str | None = None
+
 
 @dataclass(frozen=True)
 class SessionVerdict:
     """Session-level roll-up of per-case verdicts.
 
-    The MVP verdict resolver (separate PR) is the source of these counts.
-    For PR #6 the writer (caller of ``ReplayStore.save_session``) supplies
-    them directly.
+    ``falsifyai_falsifiability_score`` is the mean per-case falsifiability
+    contribution (see ``falsifyai.falsifiability.score``). Low scores mean
+    the suite passes CI on weak assertions; the CLI warns when below
+    ``LOW_FALSIFIABILITY_THRESHOLD`` (0.5).
     """
 
     session_verdict: Verdict
@@ -67,6 +88,9 @@ class SessionVerdict:
     case_count: int
     fragile_count: int
     consistently_wrong_count: int
+
+    # PR #11+ field. Default preserves backward-compat reads of older artifacts.
+    falsifyai_falsifiability_score: float = 0.0
 
 
 @dataclass(frozen=True)

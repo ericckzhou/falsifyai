@@ -10,16 +10,17 @@ this directory is verified in CI via the dogfood tests in
 |---|---|---|
 | [`stable.yaml`](stable.yaml) | `STABLE` (exit 0) | A sane model under typo + casing perturbations; both MVP invariants (`contains` + `semantic_equivalence`). |
 | [`fragile.yaml`](fragile.yaml) | `FRAGILE` (exit 1) | Model drift under typo perturbation: baseline correct, perturbations wrong. |
+| [`consistently_wrong.yaml`](consistently_wrong.yaml) | `CONSISTENTLY_WRONG` (exit 2) | Confident hallucination: model gives the same wrong answer under every perturbation. The most dangerous production case ([plan §2.3](../plan.md)). |
 
 ## Coming in Week 2
 
 | Example | Verdict | Blocking feature |
 |---|---|---|
-| `consistently_wrong.yaml` | `CONSISTENTLY_WRONG` (exit 2) | `ConsistencyOracle` |
 | `model_migration.yaml` | regression (exit 5) | `falsifyai diff` |
 
-These two complete the [Phase 0 acceptance gate](../plan.md) example
-checklist. They ship alongside the features that consume them.
+This example completes the [Phase 0 acceptance gate](../plan.md) example
+checklist. It ships alongside the differential-testing feature that
+consumes it.
 
 ## Running locally
 

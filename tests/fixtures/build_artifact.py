@@ -175,6 +175,12 @@ def make_artifact(
         perturbed=perturbed_runs,
         verdict=verdict,
         verdict_confidence=0.92,
+        # PR #11 fields: realistic-but-fixed values for fixture stability.
+        stability=0.92,
+        stability_ci_low=0.88,
+        stability_ci_high=0.96,
+        per_family_stability={"typo_noise": 0.85, "casing_variant": 1.0},
+        worst_case_family="typo_noise",
     )
 
     materialized = _materialized_spec(_materialized_case(perturbations))
@@ -193,5 +199,6 @@ def make_artifact(
             case_count=1,
             fragile_count=1 if verdict is Verdict.FRAGILE else 0,
             consistently_wrong_count=1 if verdict is Verdict.CONSISTENTLY_WRONG else 0,
+            falsifyai_falsifiability_score=0.65,
         ),
     )

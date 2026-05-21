@@ -41,13 +41,24 @@ def render_session(
     store_path: str,
     stream: TextIO | None = None,
 ) -> None:
-    """Print one row per case, then a summary footer."""
+    """Print one row per case, then a summary footer.
+
+    Per-case row format:
+        case: <id>  verdict: <V>  confidence: <p> (CI: <lo>-<hi>)  worst: <family>?
+
+    The worst-case family is only shown for FRAGILE verdicts where one
+    perturbation family drove the verdict.
+    """
     out = stream if stream is not None else sys.stdout
     for case in artifact.case_results:
-        out.write(
+        line = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f}\n"
+            f"confidence: {case.verdict_confidence:.2f} "
+            f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
         )
+        if case.verdict is Verdict.FRAGILE and case.worst_case_family:
+            line += f"  worst: {case.worst_case_family}"
+        out.write(line + "\n")
     out.write("=" * 65 + "\n")
     out.write(f"Session {artifact.session_id} -> {store_path}\n")
     sv = artifact.session_verdict
@@ -55,5 +66,6 @@ def render_session(
         f"{sv.case_count} case{'s' if sv.case_count != 1 else ''}, "
         f"verdict {sv.session_verdict.value.upper()}, "
         f"{sv.fragile_count} FRAGILE, "
-        f"{sv.consistently_wrong_count} CONSISTENTLY_WRONG\n"
+        f"{sv.consistently_wrong_count} CONSISTENTLY_WRONG, "
+        f"falsifiability {sv.falsifyai_falsifiability_score:.2f}\n"
     )

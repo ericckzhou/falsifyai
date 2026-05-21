@@ -1,0 +1,38 @@
+# examples/consistently_wrong.yaml
+#
+# Demonstrates the CONSISTENTLY_WRONG verdict: a model that gives the same
+# factually wrong answer under every perturbation. Without this verdict,
+# such a model would be reported as STABLE -- the most dangerous false
+# positive in the framework (per plan.md section 2.3).
+#
+# The verdict resolver detects this via ground truth in `expected.contains`:
+# if the required value ("Paris") is missing from BOTH the baseline output
+# and every perturbed output, the model is consistently wrong.
+
+falsify:
+  version: "1.0"
+  name: "Consistently wrong model (confident hallucination)"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france_hallucinated
+    tags: ["geography", "factual", "hallucination-demo"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["Paris"]
