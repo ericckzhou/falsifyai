@@ -40,7 +40,14 @@ For each gate: state the answer in one sentence. If unclear or "no," that is a f
 
 FalsifyAI separates **evidence generation** (perturbation / materialization / execution) from **evidence interpretation** (invariants / verdict resolver / CLI compression) from **evidence preservation** (replay artifacts / stores). See [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and [`.claude/CLAUDE.md`](../../CLAUDE.md#design-philosophy-load-bearing).
 
-**Answer in one of**: generation, interpretation, preservation, consumer surface (CLI / diff / replay).
+**Answer in one of**: generation, interpretation, preservation, consumer surface (CLI / diff / replay), contributor infrastructure, maintainer infrastructure.
+
+**Precision note** — these classifications are load-bearing; don't blur them:
+
+- *Preservation* is the **replay artifact / store** system only. It is not "things that get committed and persist."
+- README / CHANGELOG / CONTRIBUTING / `.github/` templates → **consumer surface** (what a user or contributor reads on arrival).
+- `docs/ARCHITECTURE.md` / `docs/RELEASE.md` / `docs/DEMO.md` / `dev_notes/*` → **contributor infrastructure** (read by people who change the code).
+- `.claude/skills/*` / `.claude/CLAUDE.md` / maintainer tooling → **maintainer infrastructure** (read by future-you while operating the project).
 
 ### Gate 2 — Does it touch more than one layer?
 
@@ -58,7 +65,10 @@ If this change adds heuristics, thresholds, new verdict types, new confidence se
 
 FalsifyAI optimizes for **evidence density**, not volume. See the four pillars in [`.claude/CLAUDE.md`](../../CLAUDE.md#four-pillars).
 
-Ask: *would removing this output / field / row make the engineer's decision worse?* If the answer is no, the addition is volume, not density — cut it.
+Two sub-checks, in order:
+
+1. **Would removing this output / field / row make the engineer's decision worse?** If no, the addition is volume — cut it.
+2. **Does this addition crowd the decision surface, or does it sit behind it?** The *decision surface* is where the user actually makes a call (CLI output, exit codes, the README hook, the verdict table). Volume that lives *behind* the decision surface (architecture docs, release runbook, internal notes) is acceptable when each item earns its keep alone. Volume that *crowds* the decision surface is not. When a new doc / row / field is borderline, ask which side it lives on.
 
 ### Gate 5 — Are replay artifacts preserved, not recomputed?
 
