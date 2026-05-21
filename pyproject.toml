@@ -52,9 +52,8 @@ Homepage = "https://github.com/TBD/falsifyai"
 Repository = "https://github.com/TBD/falsifyai"
 Issues = "https://github.com/TBD/falsifyai/issues"
 
-# CLI entry point will be enabled once falsifyai/cli/main.py exists.
-# [project.scripts]
-# falsifyai = "falsifyai.cli.main:main"
+[project.scripts]
+falsifyai = "falsifyai.cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["falsifyai"]
