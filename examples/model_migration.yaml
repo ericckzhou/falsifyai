@@ -1,0 +1,60 @@
+# examples/model_migration.yaml
+#
+# Demonstrates the model-migration regression workflow:
+#
+#   1. Run this spec with your current model (model A):
+#        falsifyai run examples/model_migration.yaml
+#      Note the session id printed at the end.
+#
+#   2. Switch model providers / versions and run again:
+#        falsifyai run examples/model_migration.yaml
+#
+#   3. Diff the two sessions:
+#        falsifyai diff <session_A_id> <session_B_id>
+#
+#   The diff command exits 5 (REGRESSION) if any case's verdict regressed
+#   (STABLE -> FRAGILE, STABLE -> CONSISTENTLY_WRONG, or FRAGILE ->
+#   CONSISTENTLY_WRONG). This is the Phase 0 launch wedge.
+#
+# Three cases cover different reliability dimensions: factual recall,
+# definitional consistency under perturbation, and ground-truth grounding.
+
+falsify:
+  version: "1.0"
+  name: "Model migration regression test"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_factual
+    tags: ["geography", "factual", "migration"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["Paris"]
+
+  - id: definition_consistency
+    tags: ["biology", "definitional", "migration"]
+    input:
+      text: "Briefly define photosynthesis."
+    perturbations:
+      - type: typo_noise
+        count: 2
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["plants"]

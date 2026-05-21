@@ -1,7 +1,8 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Two subcommands so far: ``run`` (execute a spec)
-and ``replay`` (re-render a stored session). Week 2 adds ``diff``.
+Argparse-based dispatch. Three subcommands: ``run`` (execute a spec),
+``replay`` (re-render a stored session), and ``diff`` (compare two
+stored sessions and exit 5 on regression).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
@@ -18,6 +19,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
+from falsifyai.cli import diff as diff_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
 from falsifyai.cli.errors import CLIError
@@ -59,6 +61,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Default: .falsifyai/replays.db",
     )
 
+    diff_parser = subparsers.add_parser(
+        "diff",
+        help="Compare two stored sessions case-by-case. Exit 5 if any case regressed.",
+    )
+    diff_parser.add_argument("baseline_session_id", help="Baseline session id.")
+    diff_parser.add_argument("candidate_session_id", help="Candidate session id.")
+    diff_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path (both artifacts assumed in same store). "
+        "Default: .falsifyai/replays.db",
+    )
+
     return parser
 
 
@@ -75,6 +90,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_cmd.cmd_run(args)
         if args.command == "replay":
             return replay_cmd.cmd_replay(args)
+        if args.command == "diff":
+            return diff_cmd.cmd_diff(args)
     except CLIError as exc:
         print(f"falsifyai: error: {exc}", file=sys.stderr)
         return exc.exit_code

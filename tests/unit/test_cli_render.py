@@ -195,3 +195,88 @@ def test_non_legacy_case_still_shows_ci() -> None:
     output = buf.getvalue()
     assert "CI:" in output
     assert "legacy" not in output.lower()
+
+
+# ---------------------------------------------------------------------------
+# PR #14: render_diff
+# ---------------------------------------------------------------------------
+
+
+def test_render_diff_no_transitions_prints_summary() -> None:
+    from falsifyai.cli.diff import DiffReport
+    from falsifyai.cli.render import render_diff
+
+    report = DiffReport(
+        baseline_session_id="b1",
+        candidate_session_id="c1",
+        materialized_hash_mismatch=False,
+        transitions=[],
+        regressed_count=0,
+        improved_count=0,
+        unchanged_count=3,
+        other_change_count=0,
+        added_count=0,
+        removed_count=0,
+    )
+    buf = io.StringIO()
+    render_diff(report, store_path=":memory:", stream=buf)
+    output = buf.getvalue()
+    assert "no transitions" in output.lower()
+    assert "0 regressed" in output
+    assert "3 unchanged" in output
+
+
+def test_render_diff_with_regression_shows_transition_row() -> None:
+    from falsifyai.cli.diff import CaseTransition, DiffReport, TransitionKind
+    from falsifyai.cli.render import render_diff
+
+    transition = CaseTransition(
+        case_id="capital_of_france",
+        baseline_verdict=Verdict.STABLE,
+        candidate_verdict=Verdict.FRAGILE,
+        baseline_stability_ci_low=0.92,
+        candidate_stability_ci_low=0.45,
+        transition_kind=TransitionKind.REGRESSED,
+    )
+    report = DiffReport(
+        baseline_session_id="b1",
+        candidate_session_id="c1",
+        materialized_hash_mismatch=False,
+        transitions=[transition],
+        regressed_count=1,
+        improved_count=0,
+        unchanged_count=0,
+        other_change_count=0,
+        added_count=0,
+        removed_count=0,
+    )
+    buf = io.StringIO()
+    render_diff(report, store_path=":memory:", stream=buf)
+    output = buf.getvalue()
+    assert "capital_of_france" in output
+    assert "STABLE" in output and "FRAGILE" in output
+    assert "0.92" in output and "0.45" in output
+    assert "REGRESSED" in output
+    assert "1 regressed" in output
+
+
+def test_render_diff_materialized_hash_mismatch_prints_warning() -> None:
+    from falsifyai.cli.diff import DiffReport
+    from falsifyai.cli.render import render_diff
+
+    report = DiffReport(
+        baseline_session_id="b1",
+        candidate_session_id="c1",
+        materialized_hash_mismatch=True,
+        transitions=[],
+        regressed_count=0,
+        improved_count=0,
+        unchanged_count=0,
+        other_change_count=0,
+        added_count=0,
+        removed_count=0,
+    )
+    buf = io.StringIO()
+    render_diff(report, store_path=":memory:", stream=buf)
+    output = buf.getvalue()
+    assert "materialized_hash differs" in output

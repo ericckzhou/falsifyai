@@ -1,4 +1,4 @@
-"""Plain-text terminal output for ``falsifyai run`` and ``falsifyai replay``.
+"""Plain-text terminal output for ``falsifyai run``, ``replay``, and ``diff``.
 
 MVP scope: one row per case + a summary footer + the session id and store
 path so the user can find their saved artifact. No colors, no boxes, no
@@ -10,14 +10,24 @@ the replay path: when set, an extra header line indicates the user is
 looking at a stored session rather than a fresh run. The detection of
 legacy artifacts (pre-PR-11, no CI evidence) lives in this module too --
 the artifact shape, not the consumer, determines what's renderable.
+
+``render_diff`` is the diff CLI's render path (PR #14). It consumes a
+``DiffReport`` (consumer-side dataclass from cli/diff.py) and prints a
+compressed transition table: only rows where something changed are shown.
 """
 
 import sys
 from datetime import datetime
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 
 from falsifyai.replay.models import CaseResult, ReplayArtifact
 from falsifyai.verdict.models import Verdict
+
+if TYPE_CHECKING:
+    # Type-only import to avoid a circular import at runtime: cli/diff.py
+    # imports render. The DiffReport dataclass lives in diff.py because it
+    # is a consumer-side structure, not part of the persisted artifact schema.
+    from falsifyai.cli.diff import CaseTransition, DiffReport
 
 # Exit codes mapped to the MVP 5 verdicts per plan.md section 16.1.
 #   STABLE              -> 0  SUCCESS
@@ -109,4 +119,78 @@ def render_session(
         f"{sv.fragile_count} FRAGILE, "
         f"{sv.consistently_wrong_count} CONSISTENTLY_WRONG, "
         f"falsifiability {sv.falsifyai_falsifiability_score:.2f}\n"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Diff rendering (PR #14)
+# ---------------------------------------------------------------------------
+
+
+def _format_verdict_with_stability(verdict: Verdict | None, ci_low: float) -> str:
+    """Format ``STABLE (0.92)`` or ``-`` if the case is absent on one side."""
+    if verdict is None:
+        return "-"
+    return f"{verdict.value.upper()} ({ci_low:.2f})"
+
+
+def _format_transition_row(t: "CaseTransition") -> str:
+    """One row of the diff transition table.
+
+    Format: ``case: <id>  baseline: <V> (n.nn)  candidate: <V> (n.nn)  <KIND>``
+    """
+    baseline_str = _format_verdict_with_stability(t.baseline_verdict, t.baseline_stability_ci_low)
+    candidate_str = _format_verdict_with_stability(
+        t.candidate_verdict, t.candidate_stability_ci_low
+    )
+    return (
+        f"case: {t.case_id}  "
+        f"baseline: {baseline_str}  "
+        f"candidate: {candidate_str}  "
+        f"{t.transition_kind.value.upper()}"
+    )
+
+
+def render_diff(
+    report: "DiffReport",
+    *,
+    store_path: str,
+    stream: TextIO | None = None,
+) -> None:
+    """Print a compressed transition table for two stored sessions.
+
+    Only transitions != UNCHANGED are surfaced as rows. The summary footer
+    always shows the full counts (unchanged + regressed + improved + ...).
+    Evidence density: show what changed; report what didn't via counts only.
+    """
+    from falsifyai.cli.diff import TransitionKind
+
+    out = stream if stream is not None else sys.stdout
+
+    out.write(
+        f"Diff: baseline {report.baseline_session_id} -> candidate {report.candidate_session_id}\n"
+    )
+    out.write(f"Store: {store_path}\n")
+    if report.materialized_hash_mismatch:
+        out.write(
+            "note: materialized_hash differs between baseline and candidate; "
+            "comparisons may not be apples-to-apples.\n"
+        )
+    out.write("=" * 65 + "\n")
+
+    surfaced = [t for t in report.transitions if t.transition_kind is not TransitionKind.UNCHANGED]
+    if not surfaced:
+        out.write("(no transitions; all cases unchanged)\n")
+    else:
+        for t in surfaced:
+            out.write(_format_transition_row(t) + "\n")
+
+    out.write("=" * 65 + "\n")
+    out.write(
+        f"{report.regressed_count} regressed, "
+        f"{report.improved_count} improved, "
+        f"{report.unchanged_count} unchanged, "
+        f"{report.other_change_count} other, "
+        f"{report.added_count} added, "
+        f"{report.removed_count} removed\n"
     )
