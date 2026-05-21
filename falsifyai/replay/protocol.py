@@ -2,10 +2,10 @@
 
 The Protocol is the contract every store implementation must satisfy. Two
 impls ship in PR #6: ``InMemoryStore`` (ephemeral, also useful as a test
-double) and ``SQLiteStore`` (default; file-backed at ``.falsify/replays.db``).
+double) and ``SQLiteStore`` (default; file-backed at ``.falsifyai/replays.db``).
 
 MVP surface only — ``case_history`` and ``diff_sessions`` from plan.md
-section 18.1 are deferred to the Week 2 PRs that introduce ``falsify diff``
+section 18.1 are deferred to the Week 2 PRs that introduce ``falsifyai diff``
 and verdict-history queries.
 """
 

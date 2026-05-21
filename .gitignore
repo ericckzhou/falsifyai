@@ -47,8 +47,8 @@ coverage.xml
 # Linting
 .ruff_cache/
 
-# Falsify replay artifacts
-.falsify/
+# FalsifyAI replay artifacts
+.falsifyai/
 
 # IDE
 .vscode/

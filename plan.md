@@ -1,4 +1,4 @@
-# Falsify — Implementation Plan (v2 — Deep Revision)
+# FalsifyAI — Implementation Plan (v2 — Deep Revision)
 
 > Falsification-first reliability testing for AI systems.
 > *"Can this behavior survive falsification?"*
@@ -17,12 +17,12 @@ This revision is not a polish pass. It addresses ten substantive architectural f
 | 4 | Replay was broken for non-deterministic perturbations | Spec materialization: intention vs. instance (§8) |
 | 5 | No perturbation validity check → false `FRAGILE` verdicts | Validity protocol with bidirectional NLI (§9.3) |
 | 6 | `INVALID_EVAL` was ad-hoc | Meta-oracle architecture derives it rigorously (§11) |
-| 7 | No differential testing — the actual OSS killer feature | `falsify diff` as Phase 0 MVP deliverable (§14, §22.1) |
+| 7 | No differential testing — the actual OSS killer feature | `falsifyai diff` as Phase 0 MVP deliverable (§14, §22.1) |
 | 8 | Users could game the framework with trivial assertions | Falsifiability scoring (§15) |
 | 9 | Single replay mode | Three modes: exact / behavioral / resample (§8.3) |
 | 10 | SQLite was hard-coded, blocking future service-ification | `ReplayStore` protocol with pluggable backends (§19) |
 
-v1 also under-scoped MVP at 6–8 weeks. v2 ships a **3-week Phase 0 MVP** that includes the wedge features (`falsify diff` + `CONSISTENTLY_WRONG` + falsifiability scoring), not just an engine. Compression around the differentiator, not expansion of the timeline. See §22.
+v1 also under-scoped MVP at 6–8 weeks. v2 ships a **3-week Phase 0 MVP** that includes the wedge features (`falsifyai diff` + `CONSISTENTLY_WRONG` + falsifiability scoring), not just an engine. Compression around the differentiator, not expansion of the timeline. See §22.
 
 ---
 
@@ -50,7 +50,7 @@ v1 also under-scoped MVP at 6–8 weeks. v2 ships a **3-week Phase 0 MVP** that 
 20. [Research Risks](#20-research-risks)
 21. [Scalability Bottlenecks](#21-scalability-bottlenecks)
 22. [Roadmap (Aggressive + Extended)](#22-roadmap)
-23. [Testing Falsify Itself](#23-testing-falsify-itself)
+23. [Testing FalsifyAI Itself](#23-testing-falsifyai-itself)
 24. [OSS Wedge](#24-oss-wedge)
 25. [Weak Assumptions Challenged](#25-weak-assumptions-challenged)
 
@@ -64,7 +64,7 @@ Popper: a scientific theory is meaningful only if it forbids something. Strength
 
 Translation to AI evaluation:
 
-| Popperian Concept | Falsify Concept |
+| Popperian Concept | FalsifyAI Concept |
 |-------------------|-----------------|
 | Theory | Test case (input → expected behavior) |
 | Auxiliary hypotheses | Invariants + oracles |
@@ -91,7 +91,7 @@ Most eval frameworks collapse `untestable` into either `pass` or `fail`. This is
 - If your eval gives 100% on a trivial assertion, you have validated nothing.
 - If your oracles disagree, your verdict is noise.
 
-Falsify treats `INVALID_EVAL` as the **highest-priority verdict**. If the eval is broken, no other signal can be trusted.
+FalsifyAI treats `INVALID_EVAL` as the **highest-priority verdict**. If the eval is broken, no other signal can be trusted.
 
 ### 1.4 The Information-Theoretic View
 
@@ -253,7 +253,7 @@ Two cases with the same verdict but different confidences have different downstr
 
 4. **All storage is behind a `ReplayStore` protocol.** SQLite is the default impl; future Postgres/S3/in-memory are drop-in.
 
-5. **Cost ledger runs alongside execution.** Every API call is tracked. `falsify plan` shows estimate before execution.
+5. **Cost ledger runs alongside execution.** Every API call is tracked. `falsifyai plan` shows estimate before execution.
 
 ---
 
@@ -266,12 +266,12 @@ falsifyai/
 │   ├── __init__.py
 │   ├── cli/
 │   │   ├── main.py
-│   │   ├── run.py           # `falsify run`
-│   │   ├── plan.py          # `falsify plan` — cost estimate, no execution
-│   │   ├── replay.py        # `falsify replay [--exact|--resample]`
-│   │   ├── diff.py          # `falsify diff` — differential testing
-│   │   ├── inspect.py       # `falsify inspect <session>`
-│   │   ├── history.py       # `falsify history --case <id>`
+│   │   ├── run.py           # `falsifyai run`
+│   │   ├── plan.py          # `falsifyai plan` — cost estimate, no execution
+│   │   ├── replay.py        # `falsifyai replay [--exact|--resample]`
+│   │   ├── diff.py          # `falsifyai diff` — differential testing
+│   │   ├── inspect.py       # `falsifyai inspect <session>`
+│   │   ├── history.py       # `falsifyai history --case <id>`
 │   │   └── report.py        # `falsify report`
 │   ├── spec/
 │   │   ├── models.py        # Pydantic Spec + MaterializedSpec
@@ -337,7 +337,7 @@ falsifyai/
 │   │   ├── modes.py         # exact / behavioral / resample
 │   │   └── diff.py          # Session diff for differential testing
 │   ├── differential/
-│   │   └── runner.py        # `falsify diff` orchestration
+│   │   └── runner.py        # `falsifyai diff` orchestration
 │   └── reporting/
 │       ├── terminal.py
 │       ├── json_report.py
@@ -562,7 +562,7 @@ class VerdictResult:
 ## 6. YAML Spec Format
 
 ```yaml
-# eval.yaml — Falsify Spec v1.0
+# eval.yaml — FalsifyAI Spec v1.0
 falsify:
   version: "1.0"
   name: "RAG grounding robustness"
@@ -645,7 +645,7 @@ cases:
 
 # Differential testing config (NEW v2)
 differential:
-  enabled: false                 # `falsify diff` overrides
+  enabled: false                 # `falsifyai diff` overrides
   baseline_model:
     provider: openai
     model: gpt-4o-2024-05-13
@@ -666,7 +666,7 @@ output:
   format: [json, terminal]
   replay: true
   replay_store: sqlite           # "sqlite" | "postgres" | "memory" | custom
-  replay_path: .falsify/replays/
+  replay_path: .falsifyai/replays/
   ci_mode: true
   fail_on:
     - fragile
@@ -682,12 +682,12 @@ output:
 
 ## 7. Cost Model
 
-Cost is first-class. The CLI offers `falsify plan` (Terraform-style):
+Cost is first-class. The CLI offers `falsifyai plan` (Terraform-style):
 
 ```bash
-$ falsify plan eval.yaml
+$ falsifyai plan eval.yaml
 
-  Falsify Plan: eval.yaml
+  FalsifyAI Plan: eval.yaml
   
   Cases:                3
   Total executions:     90  (3 cases × 6 perturbations × 5 replications)
@@ -703,7 +703,7 @@ $ falsify plan eval.yaml
   
   Replay storage:       ~150 KB
   
-  Run with:  falsify run eval.yaml
+  Run with:  falsifyai run eval.yaml
 ```
 
 Cost ledger tracked per-session and persisted in replay artifact. Enables:
@@ -789,10 +789,10 @@ CREATE INDEX idx_case_verdicts_timestamp      ON case_verdicts(timestamp);
 ### 8.3 Three Replay Modes
 
 ```bash
-falsify replay <id>                # behavioral (default)
-falsify replay <id> --exact        # bit-exact; fails on any non-determinism
-falsify replay <id> --resample     # regenerate perturbations from spec
-falsify replay <id> --diff         # vs. current run of same spec
+falsifyai replay <id>                # behavioral (default)
+falsifyai replay <id> --exact        # bit-exact; fails on any non-determinism
+falsifyai replay <id> --resample     # regenerate perturbations from spec
+falsifyai replay <id> --diff         # vs. current run of same spec
 ```
 
 | Mode | Same outputs? | Same materialized spec? | Same verdict expected? |
@@ -1201,10 +1201,10 @@ Every AI team's most common question:
 
 No existing OSS tool answers this systematically. Promptfoo can run both, but doesn't diff verdicts. LangSmith traces don't compare. OpenAI Evals are benchmark-aggregated.
 
-`falsify diff` answers this in one command:
+`falsifyai diff` answers this in one command:
 
 ```bash
-falsify diff eval.yaml \
+falsifyai diff eval.yaml \
   --baseline openai:gpt-4o-2024-05-13 \
   --candidate openai:gpt-4o-2024-08-06
 ```
@@ -1323,7 +1323,7 @@ class ExitCode(IntEnum):
 ### 16.2 PR Comment Rendering (Phase 2)
 
 ```bash
-falsify run eval.yaml --pr-comment ./comment.md
+falsifyai run eval.yaml --pr-comment ./comment.md
 ```
 
 Produces Markdown for GitHub/GitLab PR comments. Includes:
@@ -1334,7 +1334,7 @@ Produces Markdown for GitHub/GitLab PR comments. Includes:
 
 ### 16.3 Trend Detection
 
-`falsify history --case <id>` queries the replay store:
+`falsifyai history --case <id>` queries the replay store:
 
 ```
 History for case `rag_grounding` (last 20 sessions):
@@ -1431,7 +1431,7 @@ class ReplayStore(Protocol):
 
 - **`SQLiteStore`** — default; file-based; perfect for local dev and small CI
 - **`PostgresStore`** — Phase 2; for shared team replay history
-- **`InMemoryStore`** — for testing Falsify itself; instant, no I/O
+- **`InMemoryStore`** — for testing FalsifyAI itself; instant, no I/O
 - **`S3Store`** — Phase 3; durable cloud storage for long-running teams
 
 All four conform to the same protocol. Spec config selects:
@@ -1439,7 +1439,7 @@ All four conform to the same protocol. Spec config selects:
 ```yaml
 output:
   replay_store: sqlite    # or "postgres", "s3", or plugin name
-  replay_path: .falsify/replays/
+  replay_path: .falsifyai/replays/
 ```
 
 Critical: **no SQLite-specific assumptions in core code**. All store access goes through the protocol.
@@ -1448,7 +1448,7 @@ Critical: **no SQLite-specific assumptions in core code**. All store access goes
 
 ## 19. Competitor Comparison
 
-| Dimension | **Falsify v2** | Promptfoo | DeepEval | LangSmith | OpenAI Evals | Hypothesis |
+| Dimension | **FalsifyAI v2** | Promptfoo | DeepEval | LangSmith | OpenAI Evals | Hypothesis |
 |-----------|----------------|-----------|----------|-----------|--------------|------------|
 | Philosophy | Falsificationist | Accuracy | LLM-judge metrics | Observability | Benchmarks | Property-based |
 | Perturbation testing | Core primitive (3 modes) | Basic variants | Limited | None | None | Generation+shrinking |
@@ -1457,7 +1457,7 @@ Critical: **no SQLite-specific assumptions in core code**. All store access goes
 | `CONSISTENTLY_WRONG` | Yes (v2) | No | No | No | No | N/A |
 | Statistical rigor | Stratified bootstrap | Point estimates | Scores | None | Aggregate | Statistical|
 | Per-type stability | Yes (v2) | No | No | No | No | N/A |
-| Differential testing | Native `falsify diff` (v2) | Manual | No | No | No | N/A |
+| Differential testing | Native `falsifyai diff` (v2) | Manual | No | No | No | N/A |
 | Falsifiability scoring | Yes (v2) | No | No | No | No | Implicit |
 | Spec materialization | Yes (v2) | No | No | No | No | Yes (replay) |
 | Three replay modes | Yes (v2) | Limited | No | Traces | Basic | DB-based |
@@ -1466,7 +1466,7 @@ Critical: **no SQLite-specific assumptions in core code**. All store access goes
 | Plugin entry points | Yes | Limited | No | No | No | Yes |
 | OSS | Yes | Yes | Yes | No (hosted) | Yes | Yes |
 
-**Strongest closest competitor**: Promptfoo. v2's `falsify diff` is the most pressing gap they don't fill.
+**Strongest closest competitor**: Promptfoo. v2's `falsifyai diff` is the most pressing gap they don't fill.
 **Philosophical cousin**: Hypothesis. We adopt their property-based mindset but apply it semantically rather than type-directed.
 **OpenAI Evals**: useful as a benchmark library; not a testing framework.
 
@@ -1494,7 +1494,7 @@ Critical: **no SQLite-specific assumptions in core code**. All store access goes
 | Bottleneck | Trigger | Mitigation |
 |-----------|---------|------------|
 | **API rate limits** | Large suites × replications | Async execution, configurable concurrency, exponential backoff with jitter |
-| **API cost** | Production CI | Content-addressed cache: `hash(model, input, temp=0)` → cached output. Pre-generated perturbation sets. `falsify plan` shows cost upfront. |
+| **API cost** | Production CI | Content-addressed cache: `hash(model, input, temp=0)` → cached output. Pre-generated perturbation sets. `falsifyai plan` shows cost upfront. |
 | **Oracle cost** | Many cases × many oracles | Local NLI is default. Lazy oracle evaluation (skip if invariants all pass for STABLE). |
 | **Storage growth** | Long-running CI | Configurable retention (`replay_retention_days`). Deduplication by materialized_hash. |
 | **Perturbation generation** | LLM paraphraser | Materialize once per spec_hash; cache materialized spec separately. |
@@ -1510,7 +1510,7 @@ Critical: **no SQLite-specific assumptions in core code**. All store access goes
 
 **Goal**: ship `pip install falsifyai==0.1.0` that demonstrates the **wedge**, not just the engine.
 
-The MVP optimizes for **narrative clarity over feature count**. Competitors (Promptfoo, DeepEval) can match an engine that runs perturbations and reports variance. They cannot match a tool that (a) catches confident hallucinations under perturbation (`CONSISTENTLY_WRONG`) and (b) flags model-migration regressions structurally (`falsify diff`). The MVP must show those two things or the launch is undifferentiated.
+The MVP optimizes for **narrative clarity over feature count**. Competitors (Promptfoo, DeepEval) can match an engine that runs perturbations and reports variance. They cannot match a tool that (a) catches confident hallucinations under perturbation (`CONSISTENTLY_WRONG`) and (b) flags model-migration regressions structurally (`falsifyai diff`). The MVP must show those two things or the launch is undifferentiated.
 
 The structuring principle: compress around the differentiator, do not expand the timeline.
 
@@ -1520,12 +1520,12 @@ The structuring principle: compress around the differentiator, do not expand the
 - **2 perturbation families**: `typo_noise` + `casing_variant` (≥2 makes bootstrap CI honest, not "stratified with N=1")
 - **2 invariants**: `contains` + `semantic_equivalence` (explicit threshold required)
 - SQLite replay store with `spec_hash` + `materialized_hash`
-- `falsify run` + `falsify replay`
+- `falsifyai run` + `falsifyai replay`
 - Bootstrap CI per perturbation type (aggregate also reported)
-- **Dogfooding from day one**: `examples/` are real cases tested in Falsify's own CI
+- **Dogfooding from day one**: `examples/` are real cases tested in FalsifyAI's own CI
 
 **Week 2 — It matters** (differentiation layer):
-- **`falsify diff`**: shared materialized spec across two model configs; per-case verdict-change table; exit code 5 (REGRESSION)
+- **`falsifyai diff`**: shared materialized spec across two model configs; per-case verdict-change table; exit code 5 (REGRESSION)
 - **`ConsistencyOracle`** (lightweight: embedding agreement + reference contradiction; defers heavyweight NLI implementation to Phase 1)
 - **`CONSISTENTLY_WRONG`** verdict wired into resolver
 - **Falsifiability scoring** per invariant + suite-mean warning (cheap to add; prevents users learning the wrong mental model — see §15, §25.6)
@@ -1534,7 +1534,7 @@ The structuring principle: compress around the differentiator, do not expand the
 **Week 3 — Others can use it** (OSS hardening, no polish):
 - JSON output + plain terminal output (rich/colored output deferred — not a wedge)
 - CI exit codes (0 / 1 / 2 / 4 / 5 / 6) per §16.1
-- README with one tutorial end-to-end + `falsify diff` example + `CONSISTENTLY_WRONG` example
+- README with one tutorial end-to-end + `falsifyai diff` example + `CONSISTENTLY_WRONG` example
 - GitHub Actions example workflow
 - PyPI release: `pip install falsifyai==0.1.0`
 
@@ -1545,8 +1545,8 @@ The structuring principle: compress around the differentiator, do not expand the
 - [ ] `examples/stable.yaml` triggers `STABLE`
 - [ ] `examples/fragile.yaml` triggers `FRAGILE`
 - [ ] `examples/consistently_wrong.yaml` triggers `CONSISTENTLY_WRONG`
-- [ ] `examples/model_migration.yaml` via `falsify diff` exits 5 (REGRESSION)
-- [ ] Falsify's own test suite passes in CI (self-testing milestone)
+- [ ] `examples/model_migration.yaml` via `falsifyai diff` exits 5 (REGRESSION)
+- [ ] FalsifyAI's own test suite passes in CI (self-testing milestone)
 - [ ] Deterministic reproduction verified: same seed → same `materialized_hash`
 - [ ] One worked tutorial in README, end-to-end
 - [ ] Demo GIF or video recorded
@@ -1557,10 +1557,10 @@ The structuring principle: compress around the differentiator, do not expand the
 - 1 more invariant: `schema_match`
 - Meta-oracle: invariant degeneration + oracle conflict detection (2 of the 4 detection classes from §11.2)
 - Stratified bootstrap proper (now ≥5 perturbation families to justify the term — fixes §22.1's honest "bootstrap CI" wording)
-- `falsify plan` (Terraform-style cost preview)
+- `falsifyai plan` (Terraform-style cost preview)
 - Full 8-verdict resolver: adds `INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, `AMBIGUOUS`
 - Hallucination + Grounding oracles (NLI; pulls in heavyweight `transformers` + `torch` as opt-in `[hallucination]` extra)
-- `falsify history` + `falsify inspect`
+- `falsifyai history` + `falsifyai inspect`
 
 ### 22.3 Phase 2 — OSS Ecosystem (+6 Weeks)
 
@@ -1587,14 +1587,14 @@ The structuring principle: compress around the differentiator, do not expand the
 
 - Web dashboard before v1.0
 - Distributed execution beyond async parallel
-- Cloud-hosted Falsify-as-a-service (consider as separate commercial product, not OSS core)
+- Cloud-hosted FalsifyAI-as-a-service (consider as separate commercial product, not OSS core)
 - Auth / multi-tenancy in OSS core
 - Custom embedding backends beyond `sentence-transformers` + provider APIs
 - Hand-rolled NLI models (defer to HuggingFace ecosystem)
 
 ---
 
-## 23. Testing Falsify Itself
+## 23. Testing FalsifyAI Itself
 
 The meta-problem: **a testing framework must be tested with high rigor, but its own outputs are by design uncertain.**
 
@@ -1663,12 +1663,12 @@ Use `hypothesis` library on the statistical engine:
 
 Ranked:
 
-1. **`falsify diff`** — model migration is universal pain. No competitor solves it. Ships in v0.1 (Phase 0 MVP).
+1. **`falsifyai diff`** — model migration is universal pain. No competitor solves it. Ships in v0.1 (Phase 0 MVP).
 2. **`INVALID_EVAL` via meta-oracle** — the philosophical hook. "Your eval might be broken" is the conversation that pulls research-oriented users.
 3. **`CONSISTENTLY_WRONG` verdict** — production safety teams care about this specifically. Differentiates from accuracy-focused tools.
 4. **Falsifiability scoring** — surfaces test suite quality. Self-reinforcing: users improve their tests over time.
 5. **Zero-API-cost MVP** — only requires their own model key. No additional services.
-6. **`pip install falsifyai` + `falsify run`** — pytest-like UX wins adoption.
+6. **`pip install falsifyai` + `falsifyai run`** — pytest-like UX wins adoption.
 7. **Plugin entry points** — community-contributed perturbations/oracles. Drives ecosystem.
 
 ---
@@ -1709,7 +1709,7 @@ Ranked:
 
 ### 25.9 Assumption: SQLite is good enough forever.
 
-**Will be wrong.** Team-scale + cloud-deployed Falsify needs Postgres or S3. **v2 abstracts storage behind `ReplayStore` protocol** so backends are pluggable without core refactor.
+**Will be wrong.** Team-scale + cloud-deployed FalsifyAI needs Postgres or S3. **v2 abstracts storage behind `ReplayStore` protocol** so backends are pluggable without core refactor.
 
 ### 25.10 Assumption: YAML is the right spec format.
 
@@ -1726,10 +1726,10 @@ This v2 plan is **substantively different from v1**, not a polish. Key shifts:
 3. Statistical analysis is stratified — worst-case stability drives verdicts.
 4. `INVALID_EVAL` is rigorously derived by a meta-oracle, not ad-hoc.
 5. Perturbation validity is required, not optional.
-6. `falsify diff` ships in Phase 0 MVP — the launch story needs it from day one.
+6. `falsifyai diff` ships in Phase 0 MVP — the launch story needs it from day one.
 7. Falsifiability scoring stops users from gaming the framework.
 8. Storage is abstracted for future service-ification.
-9. A 3-week Phase 0 MVP is locked, with `falsify diff` + `CONSISTENTLY_WRONG` + falsifiability scoring + dogfooding inside it, not deferred. An 8-item acceptance gate replaces "PyPI release" as the ship criterion.
+9. A 3-week Phase 0 MVP is locked, with `falsifyai diff` + `CONSISTENTLY_WRONG` + falsifiability scoring + dogfooding inside it, not deferred. An 8-item acceptance gate replaces "PyPI release" as the ship criterion.
 10. Ten weak assumptions are explicitly challenged.
 
 **Estimated complexity**: HIGH

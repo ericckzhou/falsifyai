@@ -19,7 +19,7 @@ class ExecutionCache(Protocol):
 
 
 class InMemoryCache:
-    """Process-local dict cache. Reset between ``falsify run`` invocations.
+    """Process-local dict cache. Reset between ``falsifyai run`` invocations.
 
     Returned executions are marked ``cached=True`` regardless of how they
     were originally stored, so callers can always tell hit from miss.

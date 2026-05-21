@@ -1,10 +1,10 @@
-# Falsify — Project Context for Claude
+# FalsifyAI — Project Context for Claude
 
 > Project-scoped instructions. Extends, does not replace, user-global `~/.claude/CLAUDE.md`.
 
 ## What this project is
 
-**Falsify** is a falsification-first reliability testing framework for AI systems. Status: **pre-MVP scaffold**. No implementation code yet — only directory layout and configuration. Full design lives in [plan.md](../plan.md).
+**FalsifyAI** is a falsification-first reliability testing framework for AI systems. Status: **pre-MVP scaffold**. No implementation code yet — only directory layout and configuration. Full design lives in [plan.md](../plan.md).
 
 ## Naming (locked — do not change without confirmation)
 
@@ -12,11 +12,13 @@
 |---|---|
 | PyPI package | `falsifyai` |
 | Python import | `import falsifyai` |
-| CLI binary | `falsify` (e.g. `falsify run eval.yaml`) |
-| Brand / prose name | "Falsify" |
+| CLI binary | `falsifyai` (e.g. `falsifyai run eval.yaml`) |
+| Brand / prose name | "FalsifyAI" |
 | Repo / folder | `falsifyai` |
 | Plugin entry-point groups | `falsifyai.perturbations`, `falsifyai.invariants`, `falsifyai.oracles`, `falsifyai.adapters`, `falsifyai.reporters`, `falsifyai.stores` |
-| Replay cache dir | `.falsify/` (matches CLI name, like `.git` / `.pytest_cache`) |
+| Replay cache dir | `.falsifyai/` (matches CLI name, like `.git` / `.pytest_cache`) |
+
+**Background on the rename**: the original plan used `falsify` for the CLI binary, the `.falsify/` cache dir, and "Falsify" in prose. That collided with the existing `studio-11-co/falsify` project in the AI eval space. Renamed to `falsifyai` / `.falsifyai/` / "FalsifyAI" for full namespace consistency before any public release.
 
 ## Toolchain
 
@@ -71,13 +73,13 @@ All subpackages have empty `__init__.py` files only — no implementation yet.
 - **Spec materialization** separates intention (YAML) from instance (realized perturbations) — see [plan.md §8](../plan.md).
 - **Meta-oracle is the sole source of `INVALID_EVAL`** — see [plan.md §11.2](../plan.md).
 - **Perturbation validity is required** (bidirectional NLI default) — see [plan.md §9.3](../plan.md).
-- **`falsify diff` is a Phase 1 deliverable**, not Phase 2 — see [plan.md §14](../plan.md).
+- **`falsifyai diff` is a Phase 1 deliverable**, not Phase 2 — see [plan.md §14](../plan.md).
 - **Storage behind `ReplayStore` protocol** — SQLite default, no SQLite-specific code in core — see [plan.md §18](../plan.md).
 - **Falsifiability scoring is required** for every invariant — see [plan.md §15](../plan.md).
 
 ## Scope discipline
 
-- **Phase 0 MVP is locked**: 3 weeks, single launch as `falsifyai==0.1.0`. See [plan.md §22.1](../plan.md). Includes `falsify diff`, `CONSISTENTLY_WRONG`, falsifiability scoring, and dogfooding from Week 1. Compression around the differentiator, not expansion of timeline.
+- **Phase 0 MVP is locked**: 3 weeks, single launch as `falsifyai==0.1.0`. See [plan.md §22.1](../plan.md). Includes `falsifyai diff`, `CONSISTENTLY_WRONG`, falsifiability scoring, and dogfooding from Week 1. Compression around the differentiator, not expansion of timeline.
 - **MVP verdict set**: `STABLE`, `FRAGILE`, `CONSISTENTLY_WRONG`, `INSUFFICIENT`, `INVALID_EVAL` (5 verdicts; full 8 in Phase 1).
 - **MVP perturbations**: `typo_noise` + `casing_variant` only (2 families — required for honest bootstrap CI).
 - **MVP invariants**: `contains` + `semantic_equivalence`.
