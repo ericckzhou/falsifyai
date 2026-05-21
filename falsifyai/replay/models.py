@@ -1,6 +1,6 @@
 """Persisted replay artifact shape.
 
-A :class:`ReplayArtifact` is the immutable record of one ``falsify run``
+A :class:`ReplayArtifact` is the immutable record of one ``falsifyai run``
 invocation. Everything needed to reconstruct what happened — the materialized
 inputs, every execution, every invariant judgment, and the resolved verdict —
 lives inside a single artifact so a saved session is **self-contained**:
@@ -71,7 +71,7 @@ class SessionVerdict:
 
 @dataclass(frozen=True)
 class ReplayArtifact:
-    """Self-contained snapshot of one ``falsify run`` invocation.
+    """Self-contained snapshot of one ``falsifyai run`` invocation.
 
     Identity:
     - ``session_id``: uuid4 assigned at save time; unique per save.

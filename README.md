@@ -1,4 +1,4 @@
-# Falsify
+# FalsifyAI
 
 > Falsification-first reliability testing for AI systems.
 > *"Can this behavior survive falsification?"*
@@ -16,7 +16,7 @@ Once published. Not yet available on PyPI.
 ## Quick start (planned)
 
 ```bash
-falsify run eval.yaml
+falsifyai run eval.yaml
 ```
 
 See [plan.md §22.1](plan.md) for the 2-week MVP scope.
