@@ -1,0 +1,24 @@
+falsify:
+  version: "1.0"
+  name: "CLI run smoke test"
+
+model:
+  provider: mock
+  model: mock-model
+  temperature: 0.0
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: typo_noise
+        count: 3
+    invariants:
+      - type: contains
+        values: ["Paris"]
