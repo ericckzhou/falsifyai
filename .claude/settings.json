@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "PowerShell(uv:*)",
+      "PowerShell(uv sync*)",
+      "PowerShell(uv run:*)",
+      "PowerShell(uv add:*)",
+      "PowerShell(uv lock*)",
+      "PowerShell(uv tree*)",
+      "PowerShell(uv pip list*)",
+      "PowerShell(py -m uv:*)",
+      "PowerShell(py --version)",
+      "PowerShell(py -c:*)",
+      "Bash(uv:*)",
+      "Bash(uv sync*)",
+      "Bash(uv run:*)",
+      "Bash(uv add:*)",
+      "Bash(uv lock*)",
+      "Bash(uv tree*)"
+    ]
+  }
+}
