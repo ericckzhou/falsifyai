@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+title: FalsifyAI
+message: >-
+  If you use FalsifyAI in research or evaluation work, please cite it
+  using the metadata below.
+type: software
+authors:
+  - given-names: Eric
+    family-names: Zhou
+    email: ericckzhou@gmail.com
+repository-code: https://github.com/ericckzhou/falsifyai
+url: https://github.com/ericckzhou/falsifyai
+abstract: >-
+  Replayable, inspectable evidence for reliability claims about
+  stochastic systems. Falsification-first testing for LLMs: perturb
+  inputs, preserve evidence, diff reliability across model changes.
+keywords:
+  - reliability
+  - falsification
+  - evidence-infrastructure
+  - replayable-evidence
+  - stochastic-software
+  - LLM
+  - adversarial-robustness
+  - perturbation-testing
+  - reliability-testing
+  - AI-safety
+license: Apache-2.0
+version: 0.1.0
+date-released: '2026-05-21'
