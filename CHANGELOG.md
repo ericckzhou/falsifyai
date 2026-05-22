@@ -8,6 +8,33 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`falsifyai history <case_id>`** — temporal view of one case across
+  all saved sessions in the store. One row per session, newest-first,
+  showing verdict + CI + worst perturbation family (when FRAGILE).
+  Flags:
+  - `--limit N` caps the number of sessions returned (default 20).
+    `--limit 0` means unlimited.
+  - `--store-path PATH` mirrors `run` / `replay` / `inspect` / `diff`.
+
+  Exit codes:
+  - `0` on render success (regardless of verdict mix — history is
+    informational, not a CI gate)
+  - `3` (ERROR) when the case_id matches zero sessions, or when an
+    artifact contains the same case_id more than once (treated as
+    malformed evidence; the row renders as `<malformed: N matches>`
+    so the anomaly isn't silent)
+
+  Phase C of the validation campaign. Pure consumer surface — reads
+  `case.verdict` from preserved artifacts via
+  `ReplayStore.query_sessions(case_id=...)`; never re-resolves, never
+  aggregates, never infers trends. The reader sees raw timeline data
+  and draws their own conclusions.
+
+  No spec_hash filtering by default: case identity transcends spec
+  evolution, which is what makes the temporal view interesting in the
+  first place (a model migration that changed `spec.model` still
+  produces sessions for the same case_ids).
+
 - **`paraphrase` perturbation family** — LLM-driven semantic-preserving
   rewrites with embedding-similarity validity gating. Third perturbation
   family after `typo_noise` and `casing_variant`, but the first to test a

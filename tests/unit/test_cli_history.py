@@ -15,10 +15,8 @@ import pytest
 
 from falsifyai.cli.errors import CLIError, InfrastructureError
 from falsifyai.replay.in_memory_store import InMemoryStore
-from falsifyai.replay.models import CaseResult
 from falsifyai.verdict.models import Verdict
 from tests.fixtures.build_artifact import make_artifact
-
 
 # ---------------------------------------------------------------------------
 # Test fixture helpers

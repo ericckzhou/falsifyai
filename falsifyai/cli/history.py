@@ -84,8 +84,7 @@ def _render_malformed_row(
     sid_short = artifact.session_id[:8]
     created_at = artifact.created_at.isoformat()
     stream.write(
-        f"  {sid_short}  {created_at}  "
-        f"<malformed: {match_count} matches for case_id {case_id!r}>\n"
+        f"  {sid_short}  {created_at}  <malformed: {match_count} matches for case_id {case_id!r}>\n"
     )
 
 
