@@ -1,0 +1,100 @@
+name: Publish to PyPI
+
+# Fires on any v-prefixed tag pushed to the repo. The release flow is:
+#   1. Bump pyproject.toml + falsifyai/__init__.py to the new version
+#   2. Land that bump on main (typically as part of the dev -> main promotion)
+#   3. git tag v<version> && git push origin v<version>
+#   4. This workflow builds, validates, and publishes via Trusted Publisher OIDC
+#
+# Trusted Publisher (OIDC) authentication: no API tokens stored in the repo.
+# PyPI is configured to trust this specific workflow file in this specific
+# repository under the `pypi` environment. See docs/RELEASE.md for the
+# one-time PyPI-side setup steps.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Trusted Publishing requires id-token: write. No other permissions needed.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    name: Build + publish (Python 3.13)
+    runs-on: ubuntu-latest
+    # Environment name must match what PyPI's Trusted Publisher config expects.
+    # The `pypi` environment can be configured in GitHub repo settings to
+    # require manual approval as an extra gate before each publish.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/falsifyai/
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      - name: Sync dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Verify tag version matches pyproject.toml
+        # Catches the "forgot to bump pyproject.toml before tagging" mistake.
+        # Tag must be `v<version>` and `<version>` must exactly match the
+        # version declared in pyproject.toml. Mismatch -> fail fast, no upload.
+        run: |
+          uv run python <<'EOF'
+          import os, re, sys
+          tag_ref = os.environ["GITHUB_REF"]  # e.g. refs/tags/v0.2.0
+          assert tag_ref.startswith("refs/tags/v"), f"unexpected ref: {tag_ref}"
+          tag_version = tag_ref.removeprefix("refs/tags/v")
+          with open("pyproject.toml", encoding="utf-8") as f:
+              content = f.read()
+          m = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if m is None:
+              sys.exit("could not find version in pyproject.toml")
+          pyproject_version = m.group(1)
+          if tag_version != pyproject_version:
+              sys.exit(
+                  f"version mismatch: tag=v{tag_version}, "
+                  f"pyproject.toml={pyproject_version}. "
+                  "Bump pyproject.toml before tagging."
+              )
+          print(f"version check OK: {tag_version}")
+          EOF
+
+      - name: Run tests one more time
+        # Defense in depth. Main's CI already ran these on the merge that
+        # preceded the tag, but tagging is a separate event and we want the
+        # published wheel to be backed by a passing test run on the exact
+        # commit the tag points at.
+        run: uv run pytest -q
+
+      - name: Build sdist + wheel
+        run: |
+          rm -rf dist/
+          uv build
+
+      - name: Validate distributions
+        run: uv run --with twine twine check dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # No `password` parameter -> the action uses OIDC Trusted Publishing.
+        # No long-lived secrets in the repo.

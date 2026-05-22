@@ -24,6 +24,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `errors='backslashreplace'` so model-emitted Unicode (e.g. ` `
   narrow no-break space) escapes rather than crashes on non-UTF-8
   terminals.
+- **Automated PyPI publishing via Trusted Publisher (OIDC).**
+  `.github/workflows/publish.yml` fires on any `v*` tag push: verifies
+  tag-vs-`pyproject.toml` version match, re-runs the full test suite,
+  builds sdist + wheel, validates with `twine check`, and publishes
+  via `pypa/gh-action-pypi-publish`. No long-lived API tokens stored
+  in the repo. Requires one-time PyPI-side Trusted Publisher
+  configuration before first use — see
+  [`docs/RELEASE.md`](docs/RELEASE.md). The manual `twine upload` flow
+  remains available as a fallback.
 
 ### Notes
 
