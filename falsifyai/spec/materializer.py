@@ -22,6 +22,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from importlib.metadata import version as _pkg_version
+from typing import TYPE_CHECKING
 
 from falsifyai.perturbation import PerturbedInput, build_perturbation
 from falsifyai.spec.models import (
@@ -32,6 +33,14 @@ from falsifyai.spec.models import (
     Spec,
     VerdictConfig,
 )
+
+if TYPE_CHECKING:
+    # Type-only imports. Paraphrase perturbations need a ModelAdapter and
+    # EmbeddingBackend at materialization-time, but the materializer itself
+    # only forwards them to build_perturbation — it doesn't import the
+    # execution or invariants packages at runtime when not needed.
+    from falsifyai.execution.adapter import ModelAdapter
+    from falsifyai.invariants.base import EmbeddingBackend
 
 
 @dataclass(frozen=True)
@@ -73,17 +82,37 @@ class MaterializedSpec:
     cases: list[MaterializedCase]
 
 
-def materialize(spec: Spec, spec_hash: str) -> MaterializedSpec:
+def materialize(
+    spec: Spec,
+    spec_hash: str,
+    *,
+    adapter: "ModelAdapter | None" = None,
+    embedder: "EmbeddingBackend | None" = None,
+) -> MaterializedSpec:
     """Realize all perturbations in ``spec`` and return a MaterializedSpec.
 
     Determinism: the same ``(spec, spec_hash)`` input produces an identical
-    MaterializedSpec — same realized perturbation texts, same
-    ``materialized_hash``. Case order in the YAML is preserved but each
-    case's seed is derived from its ``id``, so reordering cases in the
-    source YAML doesn't change individual case seeds.
+    MaterializedSpec for pure perturbations (typo_noise, casing_variant).
+    For perturbations that call external services (paraphrase), determinism
+    relies on the realized output being persisted in
+    ``MaterializedCase.realized_perturbations``; replay reads from there
+    rather than regenerating.
+
+    Args:
+        spec: parsed spec.
+        spec_hash: sha256 of the source YAML bytes.
+        adapter: ModelAdapter for perturbations that need an LLM
+            (paraphrase). Required when the spec contains a paraphrase
+            perturbation; ignored otherwise.
+        embedder: EmbeddingBackend for perturbations that need validity
+            checks (paraphrase). If None and paraphrase is in the spec,
+            ``SentenceTransformerBackend()`` is constructed (lazy-loaded).
     """
     session_seed = spec.run.seed
-    cases = [_materialize_case(case, session_seed) for case in spec.cases]
+    cases = [
+        _materialize_case(case, session_seed, adapter=adapter, embedder=embedder, primary_model=spec.model)
+        for case in spec.cases
+    ]
     return MaterializedSpec(
         spec_hash=spec_hash,
         materialized_hash=_compute_materialized_hash(cases),
@@ -95,11 +124,23 @@ def materialize(spec: Spec, spec_hash: str) -> MaterializedSpec:
     )
 
 
-def _materialize_case(case: CaseSpec, session_seed: int) -> MaterializedCase:
+def _materialize_case(
+    case: CaseSpec,
+    session_seed: int,
+    *,
+    adapter: "ModelAdapter | None" = None,
+    embedder: "EmbeddingBackend | None" = None,
+    primary_model: "ModelConfig | None" = None,
+) -> MaterializedCase:
     case_seed = _derive_case_seed(session_seed, case.id)
     realized: list[PerturbedInput] = []
     for index, perturbation_spec in enumerate(case.perturbations):
-        perturbation = build_perturbation(perturbation_spec)
+        perturbation = build_perturbation(
+            perturbation_spec,
+            primary_model=primary_model,
+            adapter=adapter,
+            embedder=embedder,
+        )
         per_perturbation_seed = _derive_perturbation_seed(case_seed, index)
         realized.extend(perturbation.apply(case.input.text, seed=per_perturbation_seed))
     return MaterializedCase(

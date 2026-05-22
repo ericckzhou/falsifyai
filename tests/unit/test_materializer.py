@@ -259,3 +259,75 @@ def test_end_to_end_with_full_yaml() -> None:
     # full.yaml has typo_noise (count=5) + casing (3 variants) = 8 perturbations
     assert len(case.realized_perturbations) == 8
     assert case.case_id == "capital_france"
+
+
+# --- Paraphrase integration through materializer ----------------------------
+
+
+def test_materialize_with_paraphrase_calls_adapter_and_persists_results() -> None:
+    """A spec containing a paraphrase perturbation triggers LLM calls at
+    materialization time and persists the realized paraphrases.
+
+    Uses MockAdapter + MockEmbedder so no real network or model load.
+    """
+    from tests.fixtures.mock_adapter import MockAdapter
+    from tests.fixtures.mock_embedder import MockEmbedder
+
+    spec = _make_spec(
+        cases_data=[
+            {
+                "id": "case_p",
+                "input": {"text": "What is the capital of France?"},
+                "perturbations": [{"type": "paraphrase", "count": 3, "similarity_threshold": 0.5}],
+                "invariants": [{"type": "contains", "values": ["Paris"]}],
+            }
+        ]
+    )
+    # MockAdapter cycles through three responses
+    responses = iter([
+        "Which city is the capital of France?",
+        "Tell me the capital of France.",
+        "Name France's capital city.",
+    ])
+    adapter = MockAdapter()
+    original_execute = adapter.execute
+
+    def stateful_execute(request):
+        adapter.default_response = next(responses, "fallback")
+        return original_execute(request)
+
+    adapter.execute = stateful_execute  # type: ignore[method-assign]
+
+    # Embedder maps every text to the same unit vector -> cosine = 1.0 always
+    all_texts = ["What is the capital of France?",
+                 "Which city is the capital of France?",
+                 "Tell me the capital of France.",
+                 "Name France's capital city."]
+    embedder = MockEmbedder(response_map={t: [1.0, 0.0, 0.0] for t in all_texts})
+
+    result = materialize(spec, spec_hash="abc", adapter=adapter, embedder=embedder)
+
+    case = result.cases[0]
+    # All three paraphrases passed validity -> all three preserved
+    assert len(case.realized_perturbations) == 3
+    # The adapter was called exactly 3 times (one per accepted paraphrase)
+    assert adapter.call_count == 3
+    # Each perturbation has the paraphrase lineage type
+    for pi in case.realized_perturbations:
+        assert pi.lineage.perturbation_type == "paraphrase"
+
+
+def test_materialize_with_paraphrase_without_adapter_raises() -> None:
+    """Materializing a paraphrase spec without an adapter raises ValueError."""
+    spec = _make_spec(
+        cases_data=[
+            {
+                "id": "case_p",
+                "input": {"text": "What is the capital of France?"},
+                "perturbations": [{"type": "paraphrase", "count": 1}],
+                "invariants": [{"type": "contains", "values": ["Paris"]}],
+            }
+        ]
+    )
+    with pytest.raises(ValueError, match=r"(?i)paraphrase.*adapter"):
+        materialize(spec, spec_hash="abc")  # no adapter
