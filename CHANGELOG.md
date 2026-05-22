@@ -4,6 +4,39 @@ All notable changes to FalsifyAI are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`falsifyai inspect <session_id>`** — per-case deep-dive over a stored
+  session's preserved evidence. Default render shows verdict + perturbation
+  count for every case, plus worst-perturbation evidence (perturbed input,
+  output excerpt, failing invariant) for non-STABLE cases. Flags:
+  - `--case <case_id>` expands one case to show every perturbation
+  - `--full` disables output truncation (default truncates outputs >400
+    chars to head-200 + tail-100 with an explicit marker)
+  - `--store-path PATH` mirrors `run` / `replay` / `diff`
+  Exit codes mirror `replay`: STABLE→0, FRAGILE→1, CONSISTENTLY_WRONG→2,
+  ERROR (missing session, unknown case_id)→3.
+- Pre-PR-11 legacy artifacts render `(legacy)` instead of misleading
+  zero-CI numbers (same heuristic as `replay`).
+- cp1252-safe rendering: `inspect` reconfigures stdout to
+  `errors='backslashreplace'` so model-emitted Unicode (e.g. ` `
+  narrow no-break space) escapes rather than crashes on non-UTF-8
+  terminals.
+
+### Notes
+
+This is the first Phase 1 feature. Selected by evidence — the Phase 0
+validation campaign produced its first regression (`policy_summary`
+STABLE→FRAGILE on `openai/gpt-oss-120b` via Groq), and the immediate user
+need was *"why did it regress?"* — a question the 0.1.0 CLI couldn't
+answer. `inspect` makes the replay artifact's preserved evidence legible.
+
+The artifact format, resolver behavior, and CLI subcommand contracts for
+`run`/`replay`/`diff` are unchanged. `inspect` is pure consumer surface
+(reads from the artifact, never re-resolves).
+
 ## [0.1.0] — 2026-05-21
 
 **Phase 0 MVP.** First public release. Spec language and verdict semantics

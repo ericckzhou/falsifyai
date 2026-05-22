@@ -295,7 +295,8 @@ ASCII fallback (for PyPI / mobile readers):
   execute  ────────────────────────▶ judge ────────────▶ resolve ───────┘
                                                             │
                                        ┌── falsifyai run    │
-                                       │── falsifyai replay │  (consumers read
+                                       │── falsifyai replay │
+                                       │── falsifyai inspect│  (consumers read
                                        └── falsifyai diff   │   the artifact)
 ```
 
@@ -311,6 +312,7 @@ Three subcommands, one workflow:
 falsifyai run <spec.yaml> [--store-path PATH]
 falsifyai replay <session_id> [--store-path PATH]
 falsifyai replay --latest      [--store-path PATH]
+falsifyai inspect <session_id> [--case CASE_ID] [--full] [--store-path PATH]
 falsifyai diff <baseline_id> <candidate_id> [--store-path PATH]
 ```
 
@@ -416,9 +418,9 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 
 **0.1.0 (this release) — Phase 0 MVP.** Spec language, perturbation runtime, materializer, invariants, execution adapter, replay store, real verdict resolver (stratified bootstrap CI, CONSISTENTLY_WRONG, falsifiability scoring), and the three-command CLI (`run` + `replay` + `diff`).
 
-**Phase 1 priorities** (selected by evidence from real-world validation runs, not roadmap completeness):
+**Phase 1 in progress** (selected by evidence from real-world validation runs, not roadmap completeness):
 
-- `falsifyai inspect <session_id>` — make the replay artifact legible. Per-case deep-dive surfacing every perturbed input, every model output, every invariant judgment. Consumer-surface only; the artifact already contains the data.
+- ✅ **`falsifyai inspect <session_id>`** *(shipped)* — makes the replay artifact legible. Per-case deep-dive surfacing every perturbed input, every model output, every invariant judgment. `--case <case_id>` expands one case; `--full` disables truncation. Consumer-surface only; the artifact already contained the data.
 - Hardened replay artifacts — cross-run lineage, immutable evidence semantics, and (eventually) signed bundles for cross-org transfer. These strengthen the existing artifact guarantees; the core differentiator remains the artifact's predictable semantics, not the wrapping.
 - Canonical failure demos — real model migrations like the Pair 3 regression above, packaged as downloadable evidence bundles you can re-open and inspect.
 - Paraphrase perturbation — informed by what `inspect` reveals about existing brittle contracts.

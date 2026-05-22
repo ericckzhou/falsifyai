@@ -69,6 +69,28 @@ is the one assigned at `run` time. Exit codes mirror `run`, so you can
 gate CI on a known-good session: `falsifyai replay <known-good-id>`
 returns 0 if and only if the stored session was `STABLE`.
 
+## Inspecting evidence in a stored session
+
+When `replay` tells you a case is `FRAGILE` but you want to see *why*,
+`falsifyai inspect` surfaces the underlying evidence:
+
+```bash
+# Default: per-case verdict + count + worst-perturbation evidence
+falsifyai inspect <session_id>
+
+# Drill into one case to see every perturbation
+falsifyai inspect <session_id> --case <case_id>
+
+# Disable output truncation (default truncates long outputs)
+falsifyai inspect <session_id> --case <case_id> --full
+```
+
+The default render shows the perturbed input, model output excerpt, and
+failing invariant for the worst perturbation in each non-STABLE case —
+enough to reconstruct verdict reasoning without consulting docs. Like
+`replay`, `inspect` is strictly read-only and never re-resolves a
+verdict.
+
 ## Writing your own
 
 The spec language is locked for Phase 0; see

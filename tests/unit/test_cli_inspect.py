@@ -11,17 +11,15 @@ are expected to fail until cli/inspect.py is implemented.
 
 import argparse
 from dataclasses import replace
-from datetime import UTC, datetime
 
 import pytest
 
 from falsifyai.cli.errors import CLIError, InfrastructureError
 from falsifyai.invariants.base import InvariantResult, Severity
 from falsifyai.replay.in_memory_store import InMemoryStore
-from falsifyai.replay.models import CaseResult, PerturbedRun, ReplayArtifact, SessionVerdict
+from falsifyai.replay.models import ReplayArtifact
 from falsifyai.verdict.models import Verdict
 from tests.fixtures.build_artifact import make_artifact
-
 
 # ---------------------------------------------------------------------------
 # Test fixture helpers
@@ -47,6 +45,7 @@ def _args(
 def _patched_store(monkeypatch: pytest.MonkeyPatch, store: InMemoryStore) -> InMemoryStore:
     """Replace inspect._build_store so cmd_inspect sees the fixture-populated store."""
     from falsifyai.cli import inspect as inspect_module
+
     monkeypatch.setattr(inspect_module, "_build_store", lambda _path: store)
     return store
 
@@ -444,6 +443,8 @@ def test_inspect_surfaces_missing_payload_field_explicitly(monkeypatch, capsys) 
     inspect_module.cmd_inspect(_args(session_id=stripped.session_id))
     out = capsys.readouterr().out
     # The output must explicitly mark the missing data, not silently omit it
-    assert ("no invariant" in out.lower()) or ("not preserved" in out.lower()) or (
-        "missing" in out.lower()
+    assert (
+        ("no invariant" in out.lower())
+        or ("not preserved" in out.lower())
+        or ("missing" in out.lower())
     )

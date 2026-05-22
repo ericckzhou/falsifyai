@@ -26,6 +26,7 @@ Invariants (load-bearing — see PR-19 plan and ``docs/EVIDENCE.md`` for context
 """
 
 import argparse
+import contextlib
 import sys
 from typing import TextIO
 
@@ -159,12 +160,13 @@ def _render_case_default(case: CaseResult, *, full: bool, stream: TextIO) -> Non
     # context, since the failure is in the baseline itself. The original execution
     # is what the reader needs to inspect.
     if case.verdict is Verdict.CONSISTENTLY_WRONG:
+        baseline_text = _truncate_output(case.original_execution.output_text, full=full)
         stream.write(f"  baseline input:   {case.original_input}\n")
+        stream.write(f"  baseline output:  {baseline_text}\n")
         stream.write(
-            f"  baseline output:  {_truncate_output(case.original_execution.output_text, full=full)}\n"
+            "    (CONSISTENTLY_WRONG: baseline already violates the contract; "
+            "perturbations did not change that)\n"
         )
-        stream.write("    (CONSISTENTLY_WRONG: baseline already violates the contract; "
-                     "perturbations did not change that)\n")
         return
 
     # FRAGILE: render worst-perturbation evidence
@@ -172,7 +174,9 @@ def _render_case_default(case: CaseResult, *, full: bool, stream: TextIO) -> Non
     if worst is None:
         stream.write("    <no worst perturbation identifiable in preserved evidence>\n")
         return
-    for line in _render_perturbed_evidence(worst, full=full, failed_invariant_label="failing invariant"):
+    for line in _render_perturbed_evidence(
+        worst, full=full, failed_invariant_label="failing invariant"
+    ):
         stream.write(line + "\n")
 
 
@@ -233,12 +237,10 @@ def _render_session(
     spaces (``\\u202f``) frequently appears in LLM completions and would
     otherwise raise ``UnicodeEncodeError`` mid-render.
     """
-    try:
+    # Test streams (capsys) or wrapped streams may not support reconfigure;
+    # fall back to default behavior in those cases.
+    with contextlib.suppress(AttributeError, ValueError):
         stream.reconfigure(errors="backslashreplace")  # type: ignore[union-attr]
-    except (AttributeError, ValueError):
-        # Test streams (capsys) or wrapped streams may not support reconfigure;
-        # fall back to default behavior in those cases.
-        pass
 
     stream.write(
         f"Inspecting session {artifact.session_id} | "
@@ -252,9 +254,7 @@ def _render_session(
         target = next((c for c in artifact.case_results if c.case_id == case_id), None)
         if target is None:
             available = ", ".join(c.case_id for c in artifact.case_results) or "<none>"
-            raise InfrastructureError(
-                f"unknown case_id: {case_id!r} (available: {available})"
-            )
+            raise InfrastructureError(f"unknown case_id: {case_id!r} (available: {available})")
         _render_case_expanded(target, full=full, stream=stream)
     else:
         for case in artifact.case_results:
