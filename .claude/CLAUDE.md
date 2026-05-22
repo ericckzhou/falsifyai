@@ -84,6 +84,7 @@ Layered: `main` ← `dev` ← topic branches. The two arrows are different PRs.
 - **Active development branch is `dev`.** Never commit directly to `main`.
 - **Topic branches branch off `dev` and PR back to `dev`** (squash-merge on completion). Small, focused changes can commit directly on `dev`; larger or riskier changes earn a topic branch.
 - **`main` ← `dev` is a separate PR**, opened at strategic moments: tagged releases, public repositioning, milestone shipping. It is not a per-PR event. Work can accumulate on `dev` across multiple topic-branch merges before a single `dev → main` promotion ships them all.
+- **After every `dev → main` squash-merge, reset `dev` to match `main` before starting the next topic branch:** `git checkout dev && git fetch origin && git reset --hard origin/main && git push --force-with-lease origin dev`. This prevents *ghost-history conflicts* on subsequent `dev → main` PRs. The squash collapses many dev commits into one main commit, but git can't see the content-equivalence without help — the unreset dev keeps the individual commits which then collide with main's squashed version on the next promotion attempt. Not losing work; the granular history is already preserved in `dev_notes/{plans,summaries,walkthroughs}/`.
 - CI runs on PRs to both `dev` and `main`. `main` is what the public README shows; `dev` is the working integration branch.
 - If you find yourself on `main` mid-session, switch to `dev` before staging changes.
 

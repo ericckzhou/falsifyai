@@ -248,3 +248,125 @@ def test_model_migration_yaml_diff_produces_regression(tmp_path, monkeypatch) ->
         )
     )
     assert rc == 5  # REGRESSION detected -> launch wedge acceptance gate item
+
+
+# ---------------------------------------------------------------------------
+# falsifyai inspect <session_id> (PR #19)
+# ---------------------------------------------------------------------------
+
+
+def test_fragile_yaml_inspect_surfaces_worst_perturbation_evidence(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    """End-to-end: run fragile.yaml -> retrieve session -> inspect -> assert evidence.
+
+    Verifies the dogfood flow:
+    1. ``cmd_run`` against the fragile example produces a FRAGILE session.
+    2. The stored artifact contains the per-case evidence trail.
+    3. ``cmd_inspect <session_id>`` surfaces the worst-perturbation evidence
+       (perturbed input + output excerpt + failing invariant) in its default
+       output — the trust test from the PR-19 plan.
+
+    The acceptance criterion: a reader looking at the inspect output should be
+    able to reconstruct why the verdict was FRAGILE without consulting docs.
+    """
+    import argparse
+
+    import falsifyai.cli.inspect as cli_inspect_mod
+    from falsifyai.replay.sqlite_store import SQLiteStore
+
+    spec_path = _EXAMPLES / "fragile.yaml"
+    db_path = str(tmp_path / "replays.db")
+
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    case = materialized.cases[0]
+    response_map: dict[str, str] = {case.original_input: "Paris is the capital of France."}
+    for pi in case.realized_perturbations:
+        response_map[pi.text] = "I'm not sure."
+    adapter = MockAdapter(response_map=response_map)
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(argparse.Namespace(spec_path=str(spec_path), store_path=db_path))
+    assert rc == 1  # FRAGILE -> DEGRADED
+
+    with SQLiteStore(db_path) as store:
+        sessions = list(store.query_sessions(limit=1))
+    session_id = sessions[0].session_id
+
+    capsys.readouterr()  # discard run's output
+
+    rc = cli_inspect_mod.cmd_inspect(
+        argparse.Namespace(
+            session_id=session_id,
+            case=None,
+            full=False,
+            store_path=db_path,
+        )
+    )
+    assert rc == 1  # FRAGILE -> DEGRADED (mirrors run)
+
+    out = capsys.readouterr().out
+    # Session header
+    assert session_id in out
+    assert "Inspecting session" in out
+    # Per-case header with verdict + count
+    assert "capital_of_france_fragile" in out
+    assert "FRAGILE" in out
+    assert "perturbations:" in out
+    # Worst-perturbation evidence (the trust-test substance)
+    assert "perturbed input:" in out
+    assert "output excerpt:" in out
+    assert "failing invariant:" in out
+    # The mock response is the failing output
+    assert "I'm not sure" in out
+
+
+def test_fragile_yaml_inspect_case_flag_shows_all_perturbations(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    """`falsifyai inspect <id> --case <case_id>` expands every perturbation."""
+    import argparse
+
+    import falsifyai.cli.inspect as cli_inspect_mod
+    from falsifyai.replay.sqlite_store import SQLiteStore
+
+    spec_path = _EXAMPLES / "fragile.yaml"
+    db_path = str(tmp_path / "replays.db")
+
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    case = materialized.cases[0]
+    response_map: dict[str, str] = {case.original_input: "Paris is the capital of France."}
+    for pi in case.realized_perturbations:
+        response_map[pi.text] = "I'm not sure."
+    adapter = MockAdapter(response_map=response_map)
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    cli_run.cmd_run(argparse.Namespace(spec_path=str(spec_path), store_path=db_path))
+
+    with SQLiteStore(db_path) as store:
+        sessions = list(store.query_sessions(limit=1))
+    session_id = sessions[0].session_id
+
+    capsys.readouterr()
+
+    cli_inspect_mod.cmd_inspect(
+        argparse.Namespace(
+            session_id=session_id,
+            case="capital_of_france_fragile",
+            full=False,
+            store_path=db_path,
+        )
+    )
+    out = capsys.readouterr().out
+    # Expanded view shows baseline + every perturbation, indexed
+    assert "baseline input:" in out
+    assert "baseline output:" in out
+    # fragile.yaml has 5 typo samples, so [1] through [5] should appear
+    assert "[1]" in out
+    assert "[5]" in out
+    # Every perturbation is from the typo_noise family
+    assert out.count("typo_noise") >= 5

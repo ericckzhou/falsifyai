@@ -80,7 +80,7 @@ The five operations of the system, stated in these terms:
 - **`replay`** re-presents preserved evidence without re-deriving the
   claim
 - **`diff`** compares two preserved (claim + evidence) pairs
-- **`inspect`** (Phase 1) will expand preserved evidence on demand
+- **`inspect`** expands preserved evidence on demand for legibility
 
 Perturbation engines are **replaceable** evidence generators —
 different families (paraphrase, retrieval, ordering) all feed the
@@ -130,10 +130,8 @@ where the claim is derived:
        ┌─────────────┼─────────────┐
        ▼             ▼             ▼
    ┌───────┐   ┌──────────┐   ┌─────────┐
-   │ diff  │   │ inspect* │   │ archive │
+   │ diff  │   │ inspect  │   │ archive │
    └───────┘   └──────────┘   └─────────┘
-
-* inspect is Phase 1.
 ```
 
 Generation flows forward only. Preservation is read-only after save.
@@ -422,17 +420,24 @@ This works without re-executing the model. It does not require API
 access. It works after the model has been deprecated or the provider
 has been changed. The artifact is sufficient.
 
-### 9.2 Inspection *(Phase 1)*
+### 9.2 Inspection
 
-`falsifyai inspect <session_id>` will surface the per-case
-deep-dive: every perturbed input, every model output, every invariant
-judgment. This is the consumer surface that makes the preserved
-evidence *legible*. The artifact already contains the data; the
-inspect view is presentation.
+`falsifyai inspect <session_id>` surfaces the per-case deep-dive:
+every perturbed input, every model output, every invariant judgment.
+This is the consumer surface that makes the preserved evidence
+*legible*. The artifact already contains the data; the inspect view is
+presentation.
 
-Without `inspect`, the data is reachable only via direct query of the
-replay store. With `inspect`, the artifact becomes a first-class
-evidentiary document a human can read.
+Default render shows the verdict + perturbation count for every case,
+plus the worst-perturbation evidence for non-STABLE cases. `--case
+<case_id>` expands one case to every perturbation; `--full` disables
+output truncation. Per the no-synthesis rule: if a field is missing in
+the preserved payload, inspect names the gap (`<no invariant results
+preserved>`) rather than fabricating a default.
+
+Before `inspect` shipped, this data was reachable only via direct
+query of the replay store. With `inspect`, the artifact became a
+first-class evidentiary document a human can read.
 
 ### 9.3 Diff
 
