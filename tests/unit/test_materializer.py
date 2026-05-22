@@ -284,11 +284,13 @@ def test_materialize_with_paraphrase_calls_adapter_and_persists_results() -> Non
         ]
     )
     # MockAdapter cycles through three responses
-    responses = iter([
-        "Which city is the capital of France?",
-        "Tell me the capital of France.",
-        "Name France's capital city.",
-    ])
+    responses = iter(
+        [
+            "Which city is the capital of France?",
+            "Tell me the capital of France.",
+            "Name France's capital city.",
+        ]
+    )
     adapter = MockAdapter()
     original_execute = adapter.execute
 
@@ -299,10 +301,12 @@ def test_materialize_with_paraphrase_calls_adapter_and_persists_results() -> Non
     adapter.execute = stateful_execute  # type: ignore[method-assign]
 
     # Embedder maps every text to the same unit vector -> cosine = 1.0 always
-    all_texts = ["What is the capital of France?",
-                 "Which city is the capital of France?",
-                 "Tell me the capital of France.",
-                 "Name France's capital city."]
+    all_texts = [
+        "What is the capital of France?",
+        "Which city is the capital of France?",
+        "Tell me the capital of France.",
+        "Name France's capital city.",
+    ]
     embedder = MockEmbedder(response_map={t: [1.0, 0.0, 0.0] for t in all_texts})
 
     result = materialize(spec, spec_hash="abc", adapter=adapter, embedder=embedder)

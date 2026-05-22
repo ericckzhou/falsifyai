@@ -70,8 +70,7 @@ def build_perturbation(
             )
         if adapter is None:
             raise ValueError(
-                "paraphrase perturbation requires a ModelAdapter; "
-                "the materializer must supply one"
+                "paraphrase perturbation requires a ModelAdapter; the materializer must supply one"
             )
         # Embedder: default to SentenceTransformerBackend (lazy) if absent.
         # Match the SemanticEquivalenceInvariant convention.

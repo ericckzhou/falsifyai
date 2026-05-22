@@ -110,7 +110,9 @@ def materialize(
     """
     session_seed = spec.run.seed
     cases = [
-        _materialize_case(case, session_seed, adapter=adapter, embedder=embedder, primary_model=spec.model)
+        _materialize_case(
+            case, session_seed, adapter=adapter, embedder=embedder, primary_model=spec.model
+        )
         for case in spec.cases
     ]
     return MaterializedSpec(

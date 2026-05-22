@@ -203,7 +203,7 @@ This is the evidence FalsifyAI exists to produce. The CLI compresses it into one
 
 ### Five concepts, one screen each
 
-**Perturbations** generate small input variations a real user might produce. The MVP ships `typo_noise` (character-level mutations) and `casing_variant` (UPPER / lower / Title).
+**Perturbations** generate small input variations a real user might produce. Three families ship: `typo_noise` (character-level mutations), `casing_variant` (UPPER / lower / Title), and `paraphrase` (LLM-generated semantic-preserving rewrites, validity-gated via embedding similarity). The first two test character-level robustness; paraphrase tests semantic robustness — an orthogonal pressure axis.
 
 **Invariants** judge whether a perturbed output is still *"the same answer"* as the original. `contains` checks for required substrings; `semantic_equivalence` compares embedding cosine similarity to a threshold.
 
@@ -421,9 +421,9 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 **Phase 1 in progress** (selected by evidence from real-world validation runs, not roadmap completeness):
 
 - ✅ **`falsifyai inspect <session_id>`** *(shipped)* — makes the replay artifact legible. Per-case deep-dive surfacing every perturbed input, every model output, every invariant judgment. `--case <case_id>` expands one case; `--full` disables truncation. Consumer-surface only; the artifact already contained the data.
+- ✅ **`paraphrase` perturbation family** *(shipped)* — LLM-generated semantic-preserving rewrites with embedding-similarity validity gating. Tests semantic robustness as an orthogonal pressure axis to the character-level families. Configurable per-spec (`count`, `similarity_threshold`, `max_attempts`, optional `model` override).
 - Hardened replay artifacts — cross-run lineage, immutable evidence semantics, and (eventually) signed bundles for cross-org transfer. These strengthen the existing artifact guarantees; the core differentiator remains the artifact's predictable semantics, not the wrapping.
 - Canonical failure demos — real model migrations like the Pair 3 regression above, packaged as downloadable evidence bundles you can re-open and inspect.
-- Paraphrase perturbation — informed by what `inspect` reveals about existing brittle contracts.
 
 Each addition is evaluated against: *does this preserve evidence density, resolver predictability, and the discipline that makes the artifact trustworthy?* See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/EVIDENCE.md`](docs/EVIDENCE.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the discipline.
 

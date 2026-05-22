@@ -12,6 +12,7 @@ this directory is verified in CI via the dogfood tests in
 | [`fragile.yaml`](fragile.yaml) | `FRAGILE` (exit 1) | Model drift under typo perturbation: baseline correct, perturbations wrong. |
 | [`consistently_wrong.yaml`](consistently_wrong.yaml) | `CONSISTENTLY_WRONG` (exit 2) | Confident hallucination: model gives the same wrong answer under every perturbation. The most dangerous production case ([plan §2.3](../plan.md)). |
 | [`model_migration.yaml`](model_migration.yaml) | regression (exit 5) | Model-migration safety: run twice with different models, then `falsifyai diff <session_A> <session_B>` flags regressions. The Phase 0 launch wedge per [plan §22.1](../plan.md). |
+| [`paraphrase.yaml`](paraphrase.yaml) | `STABLE` (exit 0) | Paraphrase perturbation family (Phase B): LLM-generated semantic-preserving rewrites with embedding-similarity validity gating. Tests semantic robustness as an axis orthogonal to character-level typo/casing. |
 
 ## Running locally
 

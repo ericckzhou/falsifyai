@@ -42,8 +42,7 @@ def _identical_embedding_map(texts: list[str]) -> dict[str, list[float]]:
 
 def _orthogonal_embedding_map(originals: list[str], perturbed: list[str]) -> dict[str, list[float]]:
     """Originals on x-axis, perturbed on y-axis -> cosine similarity 0.0."""
-    return {**{t: [1.0, 0.0, 0.0] for t in originals},
-            **{t: [0.0, 1.0, 0.0] for t in perturbed}}
+    return {**{t: [1.0, 0.0, 0.0] for t in originals}, **{t: [0.0, 1.0, 0.0] for t in perturbed}}
 
 
 # ---------------------------------------------------------------------------
@@ -80,15 +79,15 @@ def test_apply_produces_requested_count_when_all_valid() -> None:
     # Override execute to return the next paraphrase in sequence
     adapter.response_map = {}  # ignore prompt-keyed lookups
     original_execute = adapter.execute
+
     def stateful_execute(request):
         # Inject a fresh paraphrase per call by mutating default_response
         adapter.default_response = next(response_iter, "I cannot paraphrase.")
         return original_execute(request)
+
     adapter.execute = stateful_execute  # type: ignore[method-assign]
 
-    embedder = MockEmbedder(
-        response_map=_identical_embedding_map([_ORIG] + _GOOD_PARAPHRASES)
-    )
+    embedder = MockEmbedder(response_map=_identical_embedding_map([_ORIG] + _GOOD_PARAPHRASES))
     p = Paraphrase(
         count=3,
         similarity_threshold=0.5,
@@ -114,9 +113,11 @@ def test_apply_lineage_includes_sample_index_and_requested_count() -> None:
     adapter = MockAdapter(default_response="placeholder")
     adapter.response_map = {}
     original_execute = adapter.execute
+
     def stateful_execute(request):
         adapter.default_response = next(response_iter, "Cannot.")
         return original_execute(request)
+
     adapter.execute = stateful_execute  # type: ignore[method-assign]
 
     embedder = MockEmbedder(response_map=_identical_embedding_map([_ORIG] + _GOOD_PARAPHRASES))
@@ -145,9 +146,11 @@ def test_apply_each_paraphrase_triggers_a_distinct_llm_call() -> None:
     adapter = MockAdapter(default_response="placeholder")
     adapter.response_map = {}
     original_execute = adapter.execute
+
     def stateful_execute(request):
         adapter.default_response = next(response_iter, "Cannot.")
         return original_execute(request)
+
     adapter.execute = stateful_execute  # type: ignore[method-assign]
 
     embedder = MockEmbedder(response_map=_identical_embedding_map([_ORIG] + _GOOD_PARAPHRASES))
@@ -184,15 +187,17 @@ def test_apply_retries_when_paraphrase_fails_validity() -> None:
     adapter = MockAdapter()
     adapter.response_map = {}
     original_execute = adapter.execute
+
     def stateful_execute(request):
         adapter.default_response = next(responses, "Cannot.")
         return original_execute(request)
+
     adapter.execute = stateful_execute  # type: ignore[method-assign]
 
     embedder = MockEmbedder(
         response_map={
             _ORIG: [1.0, 0.0, 0.0],  # x-axis
-            bad: [0.0, 1.0, 0.0],   # y-axis -> cos similarity 0 vs original
+            bad: [0.0, 1.0, 0.0],  # y-axis -> cos similarity 0 vs original
             good: [1.0, 0.0, 0.0],  # parallel -> cos similarity 1
         }
     )
@@ -255,9 +260,11 @@ def test_apply_records_attempts_used_per_sample() -> None:
     adapter = MockAdapter()
     adapter.response_map = {}
     original_execute = adapter.execute
+
     def stateful_execute(request):
         adapter.default_response = next(responses, "Cannot.")
         return original_execute(request)
+
     adapter.execute = stateful_execute  # type: ignore[method-assign]
 
     embedder = MockEmbedder(
@@ -333,24 +340,32 @@ def test_validate_rejects_low_similarity_paraphrase() -> None:
 
 def test_validate_threshold_is_configurable() -> None:
     """A 0.7 similarity passes at threshold=0.6 but fails at threshold=0.85."""
-    from falsifyai.perturbation.paraphrase import Paraphrase
-
     # Construct vectors with cosine similarity ~ 0.7
     import numpy as np
+
+    from falsifyai.perturbation.paraphrase import Paraphrase
 
     v1 = np.array([1.0, 0.0, 0.0])
     v2 = np.array([0.7, 0.7141428, 0.0])  # cos angle ~ 0.7
     embedder = MockEmbedder(response_map={"A": list(v1), "B": list(v2)})
 
     lenient = Paraphrase(
-        count=1, similarity_threshold=0.6, max_attempts=1,
-        model_config=_model_config(), adapter=MockAdapter(), embedder=embedder,
+        count=1,
+        similarity_threshold=0.6,
+        max_attempts=1,
+        model_config=_model_config(),
+        adapter=MockAdapter(),
+        embedder=embedder,
     )
     assert lenient.validate("A", "B").is_valid is True
 
     strict = Paraphrase(
-        count=1, similarity_threshold=0.85, max_attempts=1,
-        model_config=_model_config(), adapter=MockAdapter(), embedder=embedder,
+        count=1,
+        similarity_threshold=0.85,
+        max_attempts=1,
+        model_config=_model_config(),
+        adapter=MockAdapter(),
+        embedder=embedder,
     )
     assert strict.validate("A", "B").is_valid is False
 
@@ -391,7 +406,9 @@ def test_paraphrase_spec_model_override_takes_precedence() -> None:
     from falsifyai.perturbation import build_perturbation
     from falsifyai.spec.models import ParaphrasePerturbationSpec
 
-    override = ModelConfig(provider="groq", model="paraphraser-override", temperature=0.5, max_tokens=128)
+    override = ModelConfig(
+        provider="groq", model="paraphraser-override", temperature=0.5, max_tokens=128
+    )
     spec = ParaphrasePerturbationSpec(type="paraphrase", count=2, model=override)
     primary = _model_config()
     instance = build_perturbation(
