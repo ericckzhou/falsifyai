@@ -40,8 +40,60 @@ into one inspectable record.
 
 The CLI compresses; **the artifact preserves the receipts**. Every
 architectural decision in this document is in service of producing an
-artifact that holds up under inspection — by a future engineer, by an
-auditor, or by the framework's own `replay` and `diff` consumers.
+artifact that holds up under inspection — by a future engineer
+revisiting the migration, by a teammate reviewing the regression, or
+(in compliance-sensitive contexts) by an auditor reading the evidence
+six months later.
+
+The framework is **protocol** at the preservation layer (replay
+artifact semantics, identity, guarantees — see
+[`EVIDENCE.md`](EVIDENCE.md)) and **implementation** at the generation
+and interpretation layers (perturbations, invariants, the resolver).
+That distinction matters strategically: protocols standardize;
+implementations iterate. The replay artifact is the part that's
+positioned to stabilize over time.
+
+---
+
+## The core terms
+
+The system is organized around three concepts. Naming them explicitly
+prevents the architecture from drifting away from what it actually is.
+
+**Stochastic software** produces meaningfully different outputs under
+identical inputs due to probabilistic inference, retrieval
+variability, tool interactions, or adaptive behavior. LLMs are the
+common case today; future AI systems extend the category.
+
+**A reliability claim** is a bounded statement about how a stochastic
+system behaves under specified perturbation pressure, judged by
+specified invariants. *"This case is STABLE under typo_noise and
+casing"* is a reliability claim. *"This model is reliable"* is not —
+unfalsifiable and unbounded.
+
+**Reliability evidence** is the preserved, replayable proof
+supporting a reliability claim. Without evidence, claims are
+anecdotes. With evidence, claims become inspectable. The replay
+artifact is reliability evidence in physical form.
+
+Operational consequences for the architecture:
+
+- **Perturbations** generate reliability evidence (in service of a
+  claim that doesn't yet exist).
+- **Invariants + resolver** derive a reliability claim from generated
+  evidence.
+- **The replay artifact** preserves the claim alongside its evidence,
+  so the claim can be re-rendered, inspected, or falsified later.
+- **`replay`** re-presents preserved evidence without re-deriving the
+  claim.
+- **`diff`** compares two preserved (claim + evidence) pairs.
+- **`inspect`** (Phase 1) will expand the preserved evidence on
+  demand for legibility.
+
+Perturbation engines are **replaceable** evidence generators.
+Different families (paraphrase, retrieval, ordering) all feed the
+same preservation protocol. The artifact is what stays the same as
+generation evolves.
 
 ---
 
@@ -289,17 +341,19 @@ holds.
 
 FalsifyAI's product positioning — *"evidence infrastructure for
 reliability claims about stochastic systems"* — depends on the resolver
-staying explainable. Resolver predictability is what makes the evidence
-*auditable*. An opaque resolver produces unfalsifiable claims; a
-predictable one produces defensible claims. The discipline is in
-service of the artifact, not vice-versa.
+staying explainable. Predictability is what makes the artifact's
+claims *defensible by a careful reader*. An opaque resolver produces
+unfalsifiable claims; a predictable one produces claims that stand on
+their own evidence. The discipline is in service of the artifact, not
+vice-versa.
 
 The moment users can't predict the verdict from the inputs, the
 framework stops being *disciplined* and starts being *opinionated*.
-Those are different products. The compliance-aware reader of an
-artifact (whether that's a future engineer or an auditor) needs to be
-able to reconstruct the verdict's reasoning from the inputs alone —
-that's what makes the artifact stand on its own.
+Those are different products. A careful reader of the artifact — a
+future engineer revisiting the migration, a teammate reviewing the
+regression, an auditor in a compliance-sensitive context — must be
+able to reconstruct the verdict's reasoning from the inputs alone.
+That's what makes the artifact stand on its own.
 
 This is the single biggest entropy risk in the codebase between 0.1.0 and
 1.0. Naming it here is the operational defense.
@@ -343,6 +397,25 @@ When the gravity pulls toward these, **resist**:
 The signal to watch: *"does this addition help an engineer make a better
 decision, or does it crowd the surface where the actual decision lives?"*
 If the latter, defer or rework.
+
+### What compression is *not*
+
+"Evidence compression" does not mean *less data* or *less visibility*.
+The artifact preserves the full evidence trail — every perturbed input,
+every output, every judgment. What the CLI compresses is the *decision
+surface*: one row per case, one summary per session, one exit code per
+run. The headline tells you *whether to look*; the artifact tells you
+*what to look at*. This is **prioritized visibility**, not reduced
+visibility.
+
+Operationally, the win is:
+
+- Faster decisions in CI gates (one exit code, no thresholds to tune)
+- Lower cognitive load on engineers reviewing migration regressions
+- Bounded inspection surfaces — a careful reader knows where to look
+  and roughly how long it will take
+- The deep view exists when needed (`replay` today, `inspect` Phase 1);
+  it just doesn't crowd the moment of decision
 
 ---
 

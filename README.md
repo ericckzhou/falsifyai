@@ -38,7 +38,21 @@ Think of it the way you'd think of:
 
 The category isn't new. The domain is. FalsifyAI is the stochastic-systems analogue of an evidence layer you already know.
 
-The novelty isn't *that* we preserve evidence — it's *what* we preserve: every perturbed input, every model output, every invariant judgment, the verdict, the materialized spec, and the cryptographic identity that ties them together. The CLI compresses; **the artifact preserves the receipts**.
+The novelty isn't *that* we preserve evidence — it's *what* we preserve: every perturbed input, every model output, every invariant judgment, the verdict, the materialized spec, and the identity that ties them together. The CLI compresses; **the artifact preserves the receipts**.
+
+---
+
+## The core terms
+
+Three definitions that anchor everything else in this document:
+
+**Stochastic software** produces meaningfully different outputs under identical inputs due to probabilistic inference, retrieval variability, tool interactions, or adaptive behavior. LLMs are the most common case today; future AI systems will extend the category.
+
+**A reliability claim** is a bounded statement about how a stochastic system behaves under specified perturbation pressure, judged by specified invariants. *"This case is STABLE under typo_noise and casing"* is a reliability claim. *"This model is reliable"* is not — it's unfalsifiable and unbounded.
+
+**Reliability evidence** is the preserved, replayable proof supporting a reliability claim. Without evidence, claims are anecdotes. With evidence, claims become inspectable.
+
+In one sentence: FalsifyAI is a tool for producing **reliability evidence** that supports bounded **reliability claims** about **stochastic software**. The replay artifact is the durable object; everything else exists to produce, interpret, or consume one.
 
 ---
 
@@ -168,7 +182,9 @@ case: policy_summary     verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  wor
 
 Replay is **read-only**. The verdict shown is the one assigned at run time — never re-resolved. The same evidence that triggered the regression alert is preserved indefinitely, even if the model is later deprecated, the API endpoint changes, or your spec evolves.
 
-**That's the whole product.** `run` → `replay` → `diff` is one falsification workflow that ends in a preserved, inspectable evidence artifact. Not three commands. One pipeline producing one durable record.
+**Without replay artifacts, this entire workflow is anecdotes.** *"The new model failed our eval on Tuesday"* is unverifiable by Friday — the API may have changed, your harness may have been refactored, your colleague may want proof.
+
+**With replay artifacts, the workflow produces inspectable evidence.** Re-open the artifact six months from now and the claim still stands on its own. **That's the whole product.** `run` → `replay` → `diff` is one falsification workflow that ends in a preserved, inspectable evidence artifact. Not three commands. One pipeline producing one durable record.
 
 ---
 
@@ -220,6 +236,20 @@ The architectural discipline: **a competent user must be able to predict the res
 This isn't just an aesthetic choice. It's what makes the evidence *auditable*. An opaque resolver produces unfalsifiable claims; a predictable one produces defensible claims. The discipline is in service of the evidence — it's why an auditor (or a future you) can trust what's in the artifact.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full discussion and the architectural rules that protect predictability as the project grows.
+
+---
+
+## What FalsifyAI is not
+
+The category clarity above implies things FalsifyAI deliberately is not, and is not aspiring to become:
+
+- **Not a prompt optimization suite.** No prompt tuning, no automated A/B over wordings. The spec is authored deliberately; the framework tests what's authored.
+- **Not a telemetry platform.** No streaming, no production dashboards, no time-series. The artifact is per-run preserved evidence, not a continuous-monitoring data point.
+- **Not a generalized observability product.** The CLI compresses; the artifact preserves. That's *prioritized visibility*, not less visibility — the headline tells you whether to look, the artifact tells you what to look at. There is no firehose drill-down.
+- **Not a workflow orchestrator.** No DAG runner, no pipeline engine. The three commands (`run` / `replay` / `diff`) are the entire surface.
+- **Not an AI governance suite.** Governance platforms consume reliability evidence; FalsifyAI produces it. Different layer.
+
+These exclusions matter because they keep the surface compressible. Adding any of the above corrupts the discipline — *evidence density* requires *evidence boundaries*.
 
 ---
 
@@ -389,7 +419,7 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 **Phase 1 priorities** (selected by evidence from real-world validation runs, not roadmap completeness):
 
 - `falsifyai inspect <session_id>` — make the replay artifact legible. Per-case deep-dive surfacing every perturbed input, every model output, every invariant judgment. Consumer-surface only; the artifact already contains the data.
-- Hardened replay artifacts — signed bundles, cross-run lineage, immutable evidence semantics. The defensibility play: positioning the artifact as standardizable evidence infrastructure.
+- Hardened replay artifacts — cross-run lineage, immutable evidence semantics, and (eventually) signed bundles for cross-org transfer. These strengthen the existing artifact guarantees; the core differentiator remains the artifact's predictable semantics, not the wrapping.
 - Canonical failure demos — real model migrations like the Pair 3 regression above, packaged as downloadable evidence bundles you can re-open and inspect.
 - Paraphrase perturbation — informed by what `inspect` reveals about existing brittle contracts.
 

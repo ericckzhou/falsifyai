@@ -41,18 +41,112 @@ It *is*:
   output, every invariant judgment)
 - The exact configuration that produced the evidence (the materialized
   spec, with seed-determined perturbation strings preserved verbatim)
-- The cryptographic identity that ties the above together
+- The deterministic identity that ties the above together
   (`spec_hash`, `materialized_hash`, `session_id`)
 
 One run produces one artifact. One artifact preserves one run forever.
 
 ---
 
-## 2. What it preserves
+## 2. The core terms
+
+Three definitions anchor everything else in this document. The
+[`ARCHITECTURE.md`](ARCHITECTURE.md) "Core terms" section carries the
+same definitions for the system-design audience; they are restated
+here because this document is intentionally self-contained.
+
+**Stochastic software** produces meaningfully different outputs under
+identical inputs due to probabilistic inference, retrieval
+variability, tool interactions, or adaptive behavior. LLMs are the
+common case today; future AI systems extend the category.
+
+**A reliability claim** is a bounded statement about how a stochastic
+system behaves under specified perturbation pressure, judged by
+specified invariants. *"This case is STABLE under typo_noise and
+casing"* is a reliability claim. *"This model is reliable"* is not —
+unfalsifiable and unbounded.
+
+**Reliability evidence** is the preserved, replayable proof
+supporting a reliability claim. Without evidence, claims are
+anecdotes; with evidence, claims become inspectable. The replay
+artifact is reliability evidence in physical form.
+
+The five operations of the system, stated in these terms:
+
+- **Perturbations** generate reliability evidence
+- **Invariants + resolver** derive a reliability claim from generated
+  evidence
+- **The replay artifact** preserves the (claim + evidence) pair
+- **`replay`** re-presents preserved evidence without re-deriving the
+  claim
+- **`diff`** compares two preserved (claim + evidence) pairs
+- **`inspect`** (Phase 1) will expand preserved evidence on demand
+
+Perturbation engines are **replaceable** evidence generators —
+different families (paraphrase, retrieval, ordering) all feed the
+same preservation protocol. The artifact is the part that's
+positioned to stabilize.
+
+---
+
+## 3. The canonical lifecycle
+
+The artifact is produced by a single linear pipeline. Naming the
+stages explicitly clarifies which inputs flow into the artifact and
+where the claim is derived:
+
+```
+                ┌──────────┐
+                │   spec   │   (authored YAML)
+                └────┬─────┘
+                     ▼
+        ┌────────────────────────┐
+        │ materialized           │   evidence
+        │ perturbations          │   generation
+        │ (seed-determined)      │
+        └────────────┬───────────┘
+                     ▼
+        ┌────────────────────────┐
+        │ execution evidence     │
+        │ (raw model outputs)    │
+        └────────────┬───────────┘
+                     ▼
+        ┌────────────────────────┐
+        │ invariant evaluation   │   evidence
+        │ (per-output judgments) │   interpretation
+        └────────────┬───────────┘
+                     ▼
+        ┌────────────────────────┐
+        │ resolver verdict       │   ← the reliability claim
+        │ (priority chain)       │
+        └────────────┬───────────┘
+                     ▼
+        ┌────────────────────────┐
+        │   REPLAY ARTIFACT      │   evidence
+        │   (the durable record) │   preservation
+        └────────────┬───────────┘
+                     ▼
+       ┌─────────────┼─────────────┐
+       ▼             ▼             ▼
+   ┌───────┐   ┌──────────┐   ┌─────────┐
+   │ diff  │   │ inspect* │   │ archive │
+   └───────┘   └──────────┘   └─────────┘
+
+* inspect is Phase 1.
+```
+
+Generation flows forward only. Preservation is read-only after save.
+The arrow from artifact into `diff`/`inspect`/`archive` represents
+consumers reading the preserved evidence — they do not re-derive the
+claim, they re-present it.
+
+---
+
+## 4. What it preserves
 
 The canonical contents of an artifact, by category:
 
-### 2.1 Identity
+### 4.1 Identity
 
 - `session_id` — UUID4 assigned at save time. Uniquely identifies *this
   invocation*.
@@ -72,7 +166,7 @@ at?"*. Two runs of the same spec at different times produce identical
 distinguishes *"same evaluation, different invocation"* from
 *"different evaluation"* in one glance.
 
-### 2.2 The materialized spec
+### 4.2 The materialized spec
 
 The full set of realized perturbations and their lineage:
 
@@ -87,7 +181,7 @@ edited, or renamed; the artifact must remain self-contained. A reader
 six months later, with only the artifact, must be able to reconstruct
 exactly what inputs the model saw.
 
-### 2.3 Observations
+### 4.3 Observations
 
 For every input (original and each perturbation) the model produced:
 
@@ -99,7 +193,7 @@ For every input (original and each perturbation) the model produced:
 Observations are immutable. They are what the model *did*, not what we
 think it should have done.
 
-### 2.4 Judgments
+### 4.4 Judgments
 
 For every observation, every invariant that was configured:
 
@@ -115,7 +209,7 @@ differently by a different invariant. The artifact preserves which
 invariant was used and what it returned, so a reader can audit the
 judgment, not just accept it.
 
-### 2.5 The verdict
+### 4.5 The verdict
 
 For each case:
 
@@ -132,7 +226,7 @@ per-case verdicts via the documented priority chain.
 The verdict is *the claim*. The rest of the artifact is *what the
 claim rests on*.
 
-### 2.6 Falsifiability scoring
+### 4.6 Falsifiability scoring
 
 The suite falsifiability score and per-case contributions. This is a
 meta-property of the spec: how restrictive is the set of invariants?
@@ -143,13 +237,13 @@ model's behavior.
 
 ---
 
-## 3. What the artifact guarantees
+## 5. What the artifact guarantees
 
-These are the protocol-level guarantees the artifact makes to its
-readers. They are what makes evidence *evidence* rather than
-*opinion*.
+Four protocol-level guarantees make the evidence *evidence* rather
+than *opinion*. These are load-bearing — they are what makes the
+artifact stand on its own.
 
-### 3.1 Immutability after save
+### 5.1 Immutability after save
 
 Once saved, the artifact is never modified. Verdicts are not
 re-resolved on read. Outputs are not re-judged on read. Replay shows
@@ -161,7 +255,7 @@ verdict-as-stored, not verdict-as-computed. The
 [`ARCHITECTURE.md`](ARCHITECTURE.md) section on the resolver explains
 why this matters.
 
-### 3.2 Self-containment
+### 5.2 Self-containment
 
 The artifact contains everything needed to reconstruct the run's
 evidence trail. It does not depend on:
@@ -174,7 +268,7 @@ A reader with only the artifact and the FalsifyAI version that
 produced it can render the original `falsifyai run` output verbatim
 and inspect every input, output, and judgment.
 
-### 3.3 Deterministic identity
+### 5.3 Deterministic identity
 
 `spec_hash` and `materialized_hash` are deterministic functions of
 inputs. Two runs with the same source YAML and the same `run.seed`
@@ -182,7 +276,7 @@ produce the same hashes. This is what makes `falsifyai diff` a
 meaningful operation: identity is anchored on the inputs, not on the
 wall-clock invocation.
 
-### 3.4 Resolver predictability
+### 5.4 Resolver predictability
 
 The verdict assigned to a case is deterministically derivable from
 the case's invariant results and falsifiability contributions, via a
@@ -196,28 +290,49 @@ evidence-system guarantee:
 > resolver's reasoning from the evidence alone.*
 
 If the resolver becomes a black box, the artifact stops being
-auditable, and the entire evidence claim collapses into "trust us."
-The discipline described in [`ARCHITECTURE.md`](ARCHITECTURE.md) — no
-hidden thresholds, no opaque heuristics, priority chain fits on one
-screen — exists to keep this guarantee true.
-
-### 3.5 *(Intended, Phase 1)* Cryptographic provenance
-
-Signed artifact bundles with content-addressable identity, suitable
-for archival and inter-org transfer. Today (0.1.0), the artifact has
-strong *deterministic* identity (sha256 hashes) but is not signed.
-Phase 1 plans to add cryptographic signatures and an export format
-(`.falsifyai-bundle`) that bundles the artifact with its lineage for
-portability.
-
-This section will be updated when that work lands. The current
-artifact is suitable for use within a single trust boundary
-(one team, one repo, one CI system). Cross-org evidence transfer
-needs the signed format.
+defensible by a careful reader, and the entire evidence claim
+collapses into "trust us." The discipline described in
+[`ARCHITECTURE.md`](ARCHITECTURE.md) — no hidden thresholds, no
+opaque heuristics, priority chain fits on one screen — exists to keep
+this guarantee true.
 
 ---
 
-## 4. The verdict as a claim
+## 6. Supporting infrastructure for cross-org evidence transfer *(intended, Phase 1)*
+
+The four guarantees in section 5 are **load-bearing** semantics —
+what makes the evidence trustworthy *within* a single team, repo, or
+CI system. They are the core of what the artifact *is*.
+
+For evidence transferred *across* organizational boundaries — handed
+to an external reader, archived for cross-quarter retention,
+exchanged between teams that don't share infrastructure — additional
+supporting infrastructure is planned:
+
+- **Cryptographic signatures** so a recipient can verify the artifact
+  came from a specific producer
+- **A bundled export format** (`.falsifyai-bundle`) packaging the
+  artifact with its lineage for portability
+- **Content-addressable identity** so the artifact's content alone
+  determines its identity
+
+This work is planned for Phase 1.
+
+**Important framing: signing does not define the artifact's value.**
+The four core guarantees in section 5 do. Signing makes the evidence
+portable across trust boundaries; it does not make it evidence in the
+first place. A reliability claim with predictable semantics is the
+contract; cryptographic provenance strengthens portability of that
+contract.
+
+Today (0.1.0), the artifact has strong *deterministic* identity
+(sha256 hashes) but is not signed. The current artifact is suitable
+for use within a single trust boundary. This section will be revised
+when the Phase 1 work lands.
+
+---
+
+## 7. The verdict as a claim
 
 Each of the five verdicts is *a claim*, with a specific epistemic
 shape. The artifact preserves the basis for the claim; the verdict
@@ -242,19 +357,60 @@ specific contract drifts under this specific kind of pressure." A
 reader can decide whether that drift matters for their use case.
 
 This narrowness is *the discipline*. A vague verdict like "score:
-0.73" would be easier to compute but impossible to audit. A precise
-claim with preserved evidence is harder to fake.
+0.73" would be easier to compute but impossible to inspect carefully.
+A precise claim with preserved evidence is harder to fake.
 
 ---
 
-## 5. What "replayable" operationally means
+## 8. Claim boundaries
+
+A reliability claim is bounded by the configuration that produced it.
+Stating those boundaries explicitly is the anti-overclaim discipline
+that makes the claim defensible.
+
+A `STABLE` verdict on a case asserts the claim:
+
+- Under **the perturbations configured** (and no others)
+- Judged by **the invariants configured** (and no others)
+- Within **the sampling budget configured** (and no further sampling)
+- For **the model configuration specified** in the spec
+- **At the time of the run** (the artifact preserves the timestamp
+  and the materialized inputs verbatim)
+
+It does NOT assert:
+
+- *"The model is universally safe."*
+- *"The model is correct on this task in general."*
+- *"This case will hold under future perturbations we haven't tested."*
+- *"This claim is invariant to model updates or provider changes."*
+- *"The invariants used are complete or sufficient for this task."*
+
+Similarly, `FRAGILE` does NOT assert:
+
+- *"The model is unusable."*
+- *"This task is impossible for the model."*
+- *"All inputs of this shape will fail."*
+
+It asserts only: *"this specific contract drifts under this specific
+kind of pressure, in this specific configuration, at this specific
+time."*
+
+Naming the boundaries is what makes the artifact honest. The verdict
+says what it says and no more. A reader who needs a stronger claim
+must configure stronger invariants or more diverse perturbations and
+generate new evidence. The artifact does not silently extrapolate
+beyond what it tested.
+
+---
+
+## 9. What "replayable" operationally means
 
 "Replayable" is a specific operational guarantee, not a vague
 synonym for "saved."
 
 The replay artifact supports three operations:
 
-### 5.1 Re-rendering
+### 9.1 Re-rendering
 
 `falsifyai replay <session_id>` reproduces the original
 `falsifyai run` console output byte-for-byte (modulo timestamps that
@@ -265,7 +421,7 @@ This works without re-executing the model. It does not require API
 access. It works after the model has been deprecated or the provider
 has been changed. The artifact is sufficient.
 
-### 5.2 Inspection *(Phase 1)*
+### 9.2 Inspection *(Phase 1)*
 
 `falsifyai inspect <session_id>` will surface the per-case
 deep-dive: every perturbed input, every model output, every invariant
@@ -277,7 +433,7 @@ Without `inspect`, the data is reachable only via direct query of the
 replay store. With `inspect`, the artifact becomes a first-class
 evidentiary document a human can read.
 
-### 5.3 Diff
+### 9.3 Diff
 
 `falsifyai diff <baseline_id> <candidate_id>` compares two
 artifacts case-by-case. The regression criterion is a **binary
@@ -291,12 +447,12 @@ change preserved as evidence.
 
 ---
 
-## 6. What the artifact is NOT (anti-scope)
+## 10. What the artifact is NOT (anti-scope)
 
 The artifact deliberately excludes things it could plausibly contain
 but shouldn't:
 
-### 6.1 No metric aggregations
+### 10.1 No metric aggregations
 
 The artifact stores per-family stability distributions and per-case
 verdicts. It does *not* store "overall reliability score" or
@@ -307,7 +463,7 @@ the verdict legible.
 A consumer who wants a single number can compute one. The artifact
 doesn't bake one in.
 
-### 6.2 No telemetry payload
+### 10.2 No telemetry payload
 
 The artifact is not designed to feed an observability platform. It
 contains evidence about one run, not a stream of events. Tools that
@@ -315,7 +471,14 @@ want continuous reliability monitoring should *consume* artifacts
 over time; they should not treat the artifact as a data point in a
 time-series.
 
-### 6.3 No external state
+**To be clear: this is not anti-observability.** Production
+observability is valuable and the artifact composes with it — a
+governance platform or compliance dashboard is a *natural consumer*
+of artifacts over time. The point is that the artifact itself is
+*per-run preserved evidence*, not a streaming primitive. Different
+layer.
+
+### 10.3 No external state
 
 The artifact does not contain customer-identifiable data beyond what
 the spec puts into the input. It does not log API keys, credentials,
@@ -323,7 +486,7 @@ environment variables, or filesystem paths. The materialized spec
 contains the inputs the model saw — nothing about the operator who
 ran the test.
 
-### 6.4 No model weights
+### 10.4 No model weights
 
 The artifact identifies the model by `provider` + `model` string. It
 does not preserve the model itself. If the model is later
@@ -339,11 +502,11 @@ produced.
 
 ---
 
-## 7. Format evolution and stability
+## 11. Format evolution and stability
 
 The artifact format evolves under the following discipline:
 
-### 7.1 Within a major version (0.x.y, 1.x.y)
+### 11.1 Within a major version (0.x.y, 1.x.y)
 
 - Adding fields is backward-compatible. Old readers skip unknown
   fields gracefully.
@@ -353,7 +516,7 @@ The artifact format evolves under the following discipline:
   within a major version — two builds of the same major version
   produce identical hashes for identical inputs.
 
-### 7.2 Across major versions
+### 11.2 Across major versions
 
 - The `falsifyai_version` field is required so readers can detect
   format generations and refuse incompatible artifacts cleanly.
@@ -361,11 +524,11 @@ The artifact format evolves under the following discipline:
   older builds from reading newer-format artifacts. Newer builds
   may choose to read older artifacts with caveats.
 
-### 7.3 What changes carefully vs. freely
+### 11.3 What changes carefully vs. freely
 
 - **Changes carefully:** verdict semantics, priority chain, hash
   derivation, the set of preserved fields, what counts as a
-  regression in `diff`.
+  regression in `diff`, the claim shape of each verdict.
 - **Changes freely:** the CLI rendering of the verdict, the
   formatting of the diff output, new consumer commands (`inspect`,
   `history`), additional optional invariants and perturbations.
@@ -376,7 +539,7 @@ is a free change.
 
 ---
 
-## 8. Future: standardization aspirations
+## 12. Future: standardization aspirations
 
 The replay artifact is positioned to become a standardizable format
 for AI reliability evidence — the stochastic-systems analogue of
@@ -392,7 +555,8 @@ The conditions for that standardization to be useful:
    FalsifyAI must adopt the format, demonstrating the schema is
    useful beyond a single implementation.
 3. **Cryptographic provenance** — signed bundles with verifiable
-   identity, suitable for cross-organization transfer.
+   identity, suitable for cross-organization transfer (see section
+   6).
 4. **A reference specification** — a numbered, citable document that
    describes the format precisely enough that an independent
    implementer can produce conformant artifacts.
@@ -407,7 +571,7 @@ discipline that makes it possible is being established now.
 
 ---
 
-## 9. See also
+## 13. See also
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — *how the code is organized to
   produce the artifact*. The structural counterpart to this document.
