@@ -143,9 +143,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     except SpecLoadError as exc:
         raise SpecError(f"failed to load spec: {exc}") from exc
 
-    materialized = materialize(spec, spec_hash)
-
+    # Build the adapter BEFORE materialization. Most perturbations are pure
+    # functions of (input, seed) and don't need it, but paraphrase calls the
+    # LLM at materialization-time to produce its rewrites. The same adapter
+    # is then reused by the execution engine below.
     adapter = build_adapter(spec.model)
+
+    materialized = materialize(spec, spec_hash, adapter=adapter)
+
     cache = InMemoryCache() if spec.run.cache else None
     engine = ExecutionEngine(adapter=adapter, cache=cache)
 

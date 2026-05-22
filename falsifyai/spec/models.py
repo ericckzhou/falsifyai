@@ -70,8 +70,30 @@ class CasingVariantSpec(BaseModel):
     variants: list[CasingVariant] = Field(default_factory=lambda: ["upper", "lower", "title"])
 
 
+class ParaphrasePerturbationSpec(BaseModel):
+    """Semantic-preserving rewrite via LLM. Phase B per validation campaign.
+
+    Generates `count` paraphrases of the case input by calling an LLM. Each
+    paraphrase is validated against the original via embedding cosine
+    similarity; only paraphrases at or above `similarity_threshold` are kept.
+    If a generation attempt fails validation, the perturbation retries up to
+    `max_attempts` times per missing paraphrase before giving up.
+
+    `model` is optional — when None, paraphrase generation reuses the spec's
+    primary model. Override when the system-under-test is the spec.model
+    (e.g. model-migration testing) to avoid the self-paraphrase paradox.
+    """
+
+    model_config = _STRICT
+    type: Literal["paraphrase"]
+    count: int = Field(default=3, ge=1)
+    model: ModelConfig | None = None
+    similarity_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    max_attempts: int = Field(default=3, ge=1)
+
+
 PerturbationSpec = Annotated[
-    TypoNoiseSpec | CasingVariantSpec,
+    TypoNoiseSpec | CasingVariantSpec | ParaphrasePerturbationSpec,
     Field(discriminator="type"),
 ]
 
