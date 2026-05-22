@@ -9,6 +9,40 @@ invariant, new CLI command, new verdict resolver tweak), this is the
 document to read first. The architectural constraints described here are
 load-bearing — they're what keep the project coherent as it grows.
 
+For the **protocol semantics** of the replay artifact itself — what
+guarantees it makes, what its verdicts mean as claims, what
+"replayability" operationally implies — see
+[`EVIDENCE.md`](EVIDENCE.md). This document describes how the code is
+organized to produce that artifact; that document describes what the
+artifact *is*.
+
+---
+
+## What kind of system is this?
+
+FalsifyAI is **evidence infrastructure for reliability claims about
+stochastic systems**. The conceptual lineage:
+
+| Domain | Evidence infrastructure |
+|---|---|
+| Software supply chain | SBOM (CycloneDX, SPDX) |
+| Static analysis findings | SARIF |
+| Build provenance | Sigstore / in-toto |
+| Security events | Audit logs |
+| **Stochastic-system reliability** | **FalsifyAI replay artifact** |
+
+The novelty isn't *that* we preserve evidence — many tools do — it's
+*what* we preserve and what we guarantee about it: the full materialized
+spec, every perturbed input, every model output, every invariant
+judgment, the verdict assigned at run time, and the cryptographic
+identity (`spec_hash`, `materialized_hash`, `session_id`) that ties them
+into one inspectable record.
+
+The CLI compresses; **the artifact preserves the receipts**. Every
+architectural decision in this document is in service of producing an
+artifact that holds up under inspection — by a future engineer, by an
+auditor, or by the framework's own `replay` and `diff` consumers.
+
 ---
 
 ## The three-layer separation
@@ -19,8 +53,8 @@ piece of behavior lives in exactly one of them.
 | Layer | What it does | Where it lives |
 |---|---|---|
 | **Evidence generation** | Produces inputs and observations from a spec. | `falsifyai.spec.materializer`, `falsifyai.perturbation`, `falsifyai.execution` |
-| **Evidence interpretation** | Judges observations and compresses them into a verdict. | `falsifyai.invariants`, `falsifyai.verdict`, `falsifyai.falsifiability`, `falsifyai.cli.render` |
-| **Evidence preservation** | Persists the full evidence trail so it outlives the run. | `falsifyai.replay` (artifact, store, serializer) |
+| **Evidence interpretation** | Judges observations and compresses them into a verdict (which is *a claim about the evidence*). | `falsifyai.invariants`, `falsifyai.verdict`, `falsifyai.falsifiability`, `falsifyai.cli.render` |
+| **Evidence preservation** — *the durable product* | Persists the full evidence trail so it outlives the run. The replay artifact is the system's central object; the other two layers exist to produce and feed it. | `falsifyai.replay` (artifact, store, serializer) |
 
 The CLI subcommands (`falsifyai run` / `replay` / `diff`) are **consumers
 of these layers**, not a fourth layer:
@@ -152,12 +186,56 @@ seed.
 
 ---
 
+## The replay artifact as central object
+
+The replay artifact is the system's *durable product*. The generation
+and interpretation layers exist to produce one. Every architectural
+decision in those layers — the materialized spec, the priority-chain
+verdict resolver, the stratified per-family CI — is in service of
+producing an artifact that holds up under later inspection.
+
+What the artifact preserves (canonically — see
+[`EVIDENCE.md`](EVIDENCE.md) for the protocol-semantics version):
+
+- **Identity** — `session_id` (UUID), `spec_hash`, `materialized_hash`,
+  `created_at_iso`, FalsifyAI version
+- **The full materialized spec** — every realized perturbation string
+  with its seed and lineage, sufficient to reconstruct the exact inputs
+  even if the source YAML changes later
+- **Every model output** — original and perturbed, raw, no
+  post-processing
+- **Every invariant judgment** — invariant name, target output, pass /
+  fail, evidence details, severity
+- **The verdict** — assigned at run time by the deterministic priority
+  chain, never re-resolved on read
+- **Per-perturbation-family stability distributions** — stratified
+  bootstrap CI per family, so the worst-case CI is attributable
+
+The artifact is the thing the CLI compresses *from*, not the thing it
+produces incidentally. Treating it as the system's primary output (and
+the verdict as one compressed view of it) is what makes the project
+*evidence infrastructure* rather than another eval framework.
+
+**This framing has architectural consequences.** Any future work should
+ask: *does this strengthen the artifact, or does it bypass it?* New
+consumers (`inspect`, `history`, eventual standardized exporters) read
+from the artifact. New generation layers (paraphrase, retrieval) feed
+into it. The artifact's schema and guarantees evolve carefully and
+backward-compatibly; consumer surfaces can iterate freely.
+
+---
+
 ## The resolver as inference engine
 
 After PR #11, the verdict resolver is the **epistemic authority** of the
 framework. It is the layer that says *"this case is FRAGILE,"* and the
 credibility of every downstream claim (replay, diff, CI gate, model
 migration decision) rests on that judgment.
+
+The verdict is *a claim about the evidence*. The artifact is the
+evidence the claim rests on. The resolver is what makes the second into
+the first — and its discipline is what determines whether the claim is
+defensible.
 
 That role creates predictable pressure to push more into the resolver:
 
@@ -209,11 +287,19 @@ holds.
 
 ### Why this matters
 
-FalsifyAI's product positioning — *"a framework for making disciplined
+FalsifyAI's product positioning — *"evidence infrastructure for
 reliability claims about stochastic systems"* — depends on the resolver
-staying explainable. The moment users can't predict the verdict from the
-inputs, the framework stops being *disciplined* and starts being
-*opinionated*. Those are different products. We want the first.
+staying explainable. Resolver predictability is what makes the evidence
+*auditable*. An opaque resolver produces unfalsifiable claims; a
+predictable one produces defensible claims. The discipline is in
+service of the artifact, not vice-versa.
+
+The moment users can't predict the verdict from the inputs, the
+framework stops being *disciplined* and starts being *opinionated*.
+Those are different products. The compliance-aware reader of an
+artifact (whether that's a future engineer or an auditor) needs to be
+able to reconstruct the verdict's reasoning from the inputs alone —
+that's what makes the artifact stand on its own.
 
 This is the single biggest entropy risk in the codebase between 0.1.0 and
 1.0. Naming it here is the operational defense.
@@ -311,6 +397,11 @@ this table.
 
 ## Further reading
 
+- [`EVIDENCE.md`](EVIDENCE.md) — protocol semantics for the replay
+  artifact: what it preserves, what guarantees it makes, what its
+  verdicts mean as claims. The companion to this document; this one
+  describes *how the code is organized*, that one describes *what the
+  artifact is*.
 - [`plan.md`](../plan.md) — the full design plan (more detail than this
   document; older).
 - [`README.md`](../README.md) — the workflow walkthrough.
