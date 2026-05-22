@@ -2,7 +2,7 @@
 
 > **FalsifyAI produces replayable, inspectable evidence that AI systems behave reliably under realistic pressure.**
 
-Most evaluation tools produce metrics. FalsifyAI produces **evidence** — durable, structured artifacts that survive the run and let you *prove* (not just claim) that a model migration is safe.
+Most evaluation tools produce metrics. FalsifyAI produces **evidence** — durable, structured artifacts that survive the run and let you *support* reliability claims about a model migration with preserved, inspectable proof.
 
 [![CI](https://github.com/ericckzhou/falsifyai/actions/workflows/ci.yml/badge.svg)](https://github.com/ericckzhou/falsifyai/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
@@ -36,7 +36,7 @@ Think of it the way you'd think of:
 | Security events | **Audit logs** — preserved, inspectable, defensible after the fact |
 | **Stochastic-system reliability** | **FalsifyAI replay artifact** — preserved, inspectable, defensible evidence that a model behaved reliably under realistic pressure |
 
-The category isn't new. The domain is. FalsifyAI is the stochastic-systems analogue of an evidence layer you already know.
+The underlying pattern isn't new. Applying it to stochastic-system reliability is. FalsifyAI is the stochastic-systems analogue of an evidence layer you already know.
 
 The novelty isn't *that* we preserve evidence — it's *what* we preserve: every perturbed input, every model output, every invariant judgment, the verdict, the materialized spec, and the identity that ties them together. The CLI compresses; **the artifact preserves the receipts**.
 
@@ -46,7 +46,7 @@ The novelty isn't *that* we preserve evidence — it's *what* we preserve: every
 
 Three definitions that anchor everything else in this document:
 
-**Stochastic software** produces meaningfully different outputs under identical inputs due to probabilistic inference, retrieval variability, tool interactions, or adaptive behavior. LLMs are the most common case today; future AI systems will extend the category.
+**Stochastic software** can produce meaningfully different outputs for equivalent requests due to probabilistic inference, retrieval variability, tool interactions, or adaptive behavior. LLMs are the most common case today; future AI systems will extend the category.
 
 **A reliability claim** is a bounded statement about how a stochastic system behaves under specified perturbation pressure, judged by specified invariants. *"This case is STABLE under typo_noise and casing"* is a reliability claim. *"This model is reliable"* is not — it's unfalsifiable and unbounded.
 
@@ -184,7 +184,7 @@ Replay is **read-only**. The verdict shown is the one assigned at run time — n
 
 **Without replay artifacts, this entire workflow is anecdotes.** *"The new model failed our eval on Tuesday"* is unverifiable by Friday — the API may have changed, your harness may have been refactored, your colleague may want proof.
 
-**With replay artifacts, the workflow produces inspectable evidence.** Re-open the artifact six months from now and the claim still stands on its own. **That's the whole product.** `run` → `replay` → `diff` is one falsification workflow that ends in a preserved, inspectable evidence artifact. Not three commands. One pipeline producing one durable record.
+**With replay artifacts, the workflow produces inspectable evidence.** Re-open the artifact six months from now and the claim still stands on its own. **That's the whole product.** `run` → `replay` → `diff` is one falsification workflow that ends in a preserved, inspectable evidence artifact. Not three commands — one evidence workflow producing one durable record.
 
 ---
 
@@ -219,7 +219,7 @@ This is the evidence FalsifyAI exists to produce. The CLI compresses it into one
 
 Verdicts use **stratified bootstrap CI** — each perturbation family is resampled independently, and the worst-case CI lower bound wins. A model that survives typos but breaks under casing reports the *casing* stability number, not an aggregated average that hides the failure. The verdict is *a claim*, and the artifact is what the claim rests on.
 
-**Replay artifacts** are the system's promise that claims are *inspectable evidence*, not anecdotes. They preserve the full evidence trail per session as described above. The verdict shown on replay is the one assigned at run time — replay never re-resolves. The CLI compresses; the artifact preserves the receipts.
+**Replay artifacts** are the system's promise that claims are *inspectable evidence*, not anecdotes. They preserve the full evidence trail per session as described above. The verdict shown on replay is the one assigned at run time — replay never re-resolves.
 
 **Diff** compares two artifacts case-by-case. The regression criterion is a **binary verdict-class downgrade** — `STABLE → FRAGILE`, `STABLE → CONSISTENTLY_WRONG`, or `FRAGILE → CONSISTENTLY_WRONG`. A competent user can predict the exit code from the two verdicts; there are no hidden thresholds. *That predictability is the whole point* — see "Resolver predictability" below.
 

@@ -60,8 +60,8 @@ positioned to stabilize over time.
 The system is organized around three concepts. Naming them explicitly
 prevents the architecture from drifting away from what it actually is.
 
-**Stochastic software** produces meaningfully different outputs under
-identical inputs due to probabilistic inference, retrieval
+**Stochastic software** can produce meaningfully different outputs
+for equivalent requests due to probabilistic inference, retrieval
 variability, tool interactions, or adaptive behavior. LLMs are the
 common case today; future AI systems extend the category.
 
@@ -92,8 +92,9 @@ Operational consequences for the architecture:
 
 Perturbation engines are **replaceable** evidence generators.
 Different families (paraphrase, retrieval, ordering) all feed the
-same preservation protocol. The artifact is what stays the same as
-generation evolves.
+same preservation protocol. The artifact is the layer intended to
+evolve most conservatively over time — generation iterates around a
+stable preservation core.
 
 ---
 

@@ -55,8 +55,8 @@ Three definitions anchor everything else in this document. The
 same definitions for the system-design audience; they are restated
 here because this document is intentionally self-contained.
 
-**Stochastic software** produces meaningfully different outputs under
-identical inputs due to probabilistic inference, retrieval
+**Stochastic software** can produce meaningfully different outputs
+for equivalent requests due to probabilistic inference, retrieval
 variability, tool interactions, or adaptive behavior. LLMs are the
 common case today; future AI systems extend the category.
 
@@ -84,8 +84,9 @@ The five operations of the system, stated in these terms:
 
 Perturbation engines are **replaceable** evidence generators —
 different families (paraphrase, retrieval, ordering) all feed the
-same preservation protocol. The artifact is the part that's
-positioned to stabilize.
+same preservation protocol. The artifact is the layer intended to
+evolve most conservatively over time — generation iterates around a
+stable preservation core.
 
 ---
 
@@ -298,7 +299,7 @@ this guarantee true.
 
 ---
 
-## 6. Supporting infrastructure for cross-org evidence transfer *(intended, Phase 1)*
+## 6. Portability infrastructure (not core guarantees) *(intended, Phase 1)*
 
 The four guarantees in section 5 are **load-bearing** semantics —
 what makes the evidence trustworthy *within* a single team, repo, or
