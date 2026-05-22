@@ -297,7 +297,8 @@ ASCII fallback (for PyPI / mobile readers):
                                        ┌── falsifyai run    │
                                        │── falsifyai replay │
                                        │── falsifyai inspect│  (consumers read
-                                       └── falsifyai diff   │   the artifact)
+                                       │── falsifyai diff   │   the artifact)
+                                       └── falsifyai history│
 ```
 
 A future feature touches exactly one layer. Adaptive evidence collection is interpretation, not generation. A new perturbation family is generation, not interpretation. A new verdict shape is interpretation, not preservation. The separation is what keeps the resolver explainable as the project grows — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and the philosophy section of [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -314,6 +315,7 @@ falsifyai replay <session_id> [--store-path PATH]
 falsifyai replay --latest      [--store-path PATH]
 falsifyai inspect <session_id> [--case CASE_ID] [--full] [--store-path PATH]
 falsifyai diff <baseline_id> <candidate_id> [--store-path PATH]
+falsifyai history <case_id> [--limit N] [--store-path PATH]
 ```
 
 | Exit code | Meaning |
@@ -422,6 +424,7 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 
 - ✅ **`falsifyai inspect <session_id>`** *(shipped)* — makes the replay artifact legible. Per-case deep-dive surfacing every perturbed input, every model output, every invariant judgment. `--case <case_id>` expands one case; `--full` disables truncation. Consumer-surface only; the artifact already contained the data.
 - ✅ **`paraphrase` perturbation family** *(shipped)* — LLM-generated semantic-preserving rewrites with embedding-similarity validity gating. Tests semantic robustness as an orthogonal pressure axis to the character-level families. Configurable per-spec (`count`, `similarity_threshold`, `max_attempts`, optional `model` override).
+- ✅ **`falsifyai history <case_id>`** *(shipped)* — temporal view of one case across saved sessions. Newest-first, one row per session, showing verdict + CI + worst family per row. Reads `case.verdict` from preserved artifacts; no aggregation, no trend inference, no reinterpretation.
 - Hardened replay artifacts — cross-run lineage, immutable evidence semantics, and (eventually) signed bundles for cross-org transfer. These strengthen the existing artifact guarantees; the core differentiator remains the artifact's predictable semantics, not the wrapping.
 - Canonical failure demos — real model migrations like the Pair 3 regression above, packaged as downloadable evidence bundles you can re-open and inspect.
 
