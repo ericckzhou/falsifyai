@@ -4,6 +4,12 @@ The maintainer-facing process for cutting a new FalsifyAI release. Releases
 are infrequent enough that the steps will be forgotten between them; this
 is the canonical reference.
 
+> **Automation status (added 2026-05-22).** Publishing to PyPI is now
+> automated by `.github/workflows/publish.yml` using PyPI Trusted Publisher
+> (OIDC) — no API tokens are stored in the repo. The workflow fires on any
+> `v*` tag pushed to the repo. The manual `twine upload` steps below are
+> preserved as a fallback in case the automation needs to be bypassed.
+
 ## Versioning convention
 
 FalsifyAI follows [Semantic Versioning 2.0.0](https://semver.org/).
@@ -77,28 +83,59 @@ If `twine check` fails, the most common causes are:
 - Long-description encoding issues (rare with `readme = "README.md"`).
 - Invalid classifiers.
 
-## Tag
+## Tag (triggers automated publish)
 
 ```bash
 # Create an annotated tag matching the version.
 git tag -a v0.1.0 -m "Release 0.1.0"
 
-# Push the tag.
+# Push the tag. This fires .github/workflows/publish.yml.
 git push origin v0.1.0
 ```
 
-## Upload
+The workflow:
 
-PyPI credentials live in `~/.pypirc` or as `TWINE_USERNAME` +
-`TWINE_PASSWORD` env vars. Use `__token__` as the username with an API
-token for the password (recommended over basic auth).
+1. Verifies the tag version matches `pyproject.toml`'s declared version
+   (fail-fast on mismatch — catches the "forgot to bump pyproject.toml"
+   mistake).
+2. Re-runs the full test suite on the tagged commit.
+3. Builds sdist + wheel via `uv build`.
+4. Validates the distributions with `twine check`.
+5. Publishes to PyPI via Trusted Publisher OIDC (no API token needed).
+
+Watch the run at
+`https://github.com/ericckzhou/falsifyai/actions/workflows/publish.yml`.
+
+### One-time PyPI Trusted Publisher setup
+
+This needs to be done once on the PyPI side before the workflow can
+publish. Repo maintainers only.
+
+1. Go to https://pypi.org/manage/project/falsifyai/settings/publishing/.
+2. "Add a trusted publisher" → GitHub.
+3. Fill in:
+   - **PyPI Project Name:** `falsifyai`
+   - **Owner:** `ericckzhou`
+   - **Repository name:** `falsifyai`
+   - **Workflow name:** `publish.yml`
+   - **Environment name:** `pypi`
+4. Optionally configure the `pypi` environment in GitHub repo settings
+   (Settings → Environments → New environment → `pypi`) to require
+   manual approval as an extra gate before each publish.
+
+### Manual upload (fallback)
+
+If the workflow is broken or needs to be bypassed, the manual path
+still works. PyPI credentials live in `~/.pypirc` or as
+`TWINE_USERNAME` + `TWINE_PASSWORD` env vars. Use `__token__` as the
+username with an API token for the password.
 
 ```bash
 # Test on TestPyPI first if it's a meaningful release.
-uv run twine upload --repository testpypi dist/*
+uv run --with twine twine upload --repository testpypi dist/*
 
 # Real upload.
-uv run twine upload dist/*
+uv run --with twine twine upload dist/*
 ```
 
 After upload, verify:
