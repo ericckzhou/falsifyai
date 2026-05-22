@@ -465,3 +465,104 @@ def test_paraphrase_yaml_lineage_carries_paraphrase_metadata(monkeypatch) -> Non
         assert params["requested_count"] == 3
         assert "attempts_used" in params
         assert "validity_score" in params
+
+
+# ---------------------------------------------------------------------------
+# falsifyai history <case_id> (PR #24)
+# ---------------------------------------------------------------------------
+
+
+def test_history_against_repeated_runs(tmp_path, monkeypatch, capsys) -> None:
+    """End-to-end: run stable.yaml twice, then `history <case_id>` shows both
+    sessions in newest-first order.
+
+    Verifies the dogfood flow:
+    1. Two ``cmd_run`` invocations against the same spec produce two
+       distinct sessions sharing the same case_id.
+    2. ``cmd_history <case_id>`` against the SQLite store surfaces both
+       sessions, newest-first (decision Y1).
+    3. Exit code 0 on render success regardless of verdict mix (E1).
+    """
+    import argparse
+
+    import falsifyai.cli.history as cli_history_mod
+    from falsifyai.replay.sqlite_store import SQLiteStore
+
+    spec_path = _EXAMPLES / "stable.yaml"
+    db_path = str(tmp_path / "replays.db")
+
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    responses = {
+        "capital_of_france": "Paris is the capital of France.",
+        "define_photosynthesis": (
+            "Photosynthesis is the process by which plants convert light into chemical energy."
+        ),
+    }
+    adapter = MockAdapter(response_map=_build_response_map(spec, materialized, responses))
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    # Run twice — two distinct sessions, same case_ids
+    monkeypatch.setattr(sem.SentenceTransformerBackend, "embed", _deterministic_embed)
+    cli_run.cmd_run(_args(spec_path, store_path=db_path))
+    cli_run.cmd_run(_args(spec_path, store_path=db_path))
+
+    with SQLiteStore(db_path) as store:
+        sessions = list(store.query_sessions(limit=5))
+    assert len(sessions) == 2  # two saved runs against the same spec
+    newer_id, older_id = sessions[0].session_id, sessions[1].session_id
+
+    capsys.readouterr()  # discard run output
+
+    rc = cli_history_mod.cmd_history(
+        argparse.Namespace(
+            case_id="capital_of_france",
+            limit=20,
+            store_path=db_path,
+        )
+    )
+    assert rc == 0  # E1: render-success exit code
+
+    out = capsys.readouterr().out
+    # Both session prefixes appear
+    assert newer_id[:8] in out
+    assert older_id[:8] in out
+    # Newest-first ordering: the newer session_id appears before the older
+    assert out.find(newer_id[:8]) < out.find(older_id[:8])
+    # Verdict (STABLE) and case_id present
+    assert "STABLE" in out
+    assert "capital_of_france" in out
+    # Footer shows the count
+    assert "2 sessions matched" in out
+
+
+def test_history_unknown_case_raises_infrastructure_error(tmp_path, monkeypatch) -> None:
+    """A case_id that matches zero sessions raises InfrastructureError → exit 3."""
+    import argparse
+
+    import falsifyai.cli.history as cli_history_mod
+    from falsifyai.cli.errors import InfrastructureError
+
+    spec_path = _EXAMPLES / "stable.yaml"
+    db_path = str(tmp_path / "replays.db")
+
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+    responses = {
+        "capital_of_france": "Paris.",
+        "define_photosynthesis": "Plants convert light.",
+    }
+    adapter = MockAdapter(response_map=_build_response_map(spec, materialized, responses))
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+    monkeypatch.setattr(sem.SentenceTransformerBackend, "embed", _deterministic_embed)
+    cli_run.cmd_run(_args(spec_path, store_path=db_path))
+
+    with pytest.raises(InfrastructureError):
+        cli_history_mod.cmd_history(
+            argparse.Namespace(
+                case_id="does_not_exist",
+                limit=20,
+                store_path=db_path,
+            )
+        )
