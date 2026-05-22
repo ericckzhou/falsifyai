@@ -61,6 +61,15 @@ _PARAPHRASE_PROMPT = (
     "Rewritten:"
 )
 
+# OpenAI / Groq / most LLM provider APIs constrain the `seed` parameter to
+# int32 range. The materializer's `_derive_perturbation_seed` produces 64-bit
+# values via sha256, which overflow. We modulo the per-call seed below to
+# fit. Two-step is fine — paraphrase determinism doesn't depend on the API
+# honoring the seed; the variation hint inside the prompt already makes each
+# call cache-distinct (and the materialized output is what guarantees
+# replay-stability).
+_MAX_API_SEED = 2**31 - 1
+
 
 @dataclass(frozen=True)
 class Paraphrase:
@@ -151,8 +160,10 @@ class Paraphrase:
             input=input_text,
         )
         # Per-call seed varies so adapters that honor `seed` see distinct
-        # calls; max_attempts is bounded so the arithmetic stays small.
-        per_call_seed = seed + sample_index * self.max_attempts + attempt
+        # calls. Modulo by _MAX_API_SEED so the value fits int32 (Groq /
+        # OpenAI API requirement). Deterministic mapping is preserved
+        # (same input -> same output).
+        per_call_seed = (seed + sample_index * self.max_attempts + attempt) % _MAX_API_SEED
         return ModelRequest(
             provider=self.model_config.provider,
             model=self.model_config.model,

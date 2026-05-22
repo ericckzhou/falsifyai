@@ -138,6 +138,39 @@ def test_apply_lineage_includes_sample_index_and_requested_count() -> None:
         assert pi.lineage.params["model"] == "mock-paraphraser"
 
 
+def test_apply_per_call_seed_fits_in_int32() -> None:
+    """Per-call seed must fit in int32 — Groq/OpenAI APIs reject larger.
+
+    Regression test for the bug surfaced during manual smoke testing
+    (2026-05-22): materializer-derived seeds are 64-bit sha256 hashes,
+    which overflow int32 when passed to provider APIs. paraphrase must
+    modulo the seed before passing to ModelRequest.
+    """
+    from falsifyai.perturbation.paraphrase import Paraphrase
+
+    good = "Which city is the capital of France?"
+    adapter = MockAdapter(default_response=good)
+    embedder = MockEmbedder(response_map={_ORIG: [1.0, 0.0, 0.0], good: [1.0, 0.0, 0.0]})
+    p = Paraphrase(
+        count=2,
+        similarity_threshold=0.5,
+        max_attempts=2,
+        model_config=_model_config(),
+        adapter=adapter,
+        embedder=embedder,
+    )
+    # Pass a seed near 2**64-1 (sha256 produces values in this range)
+    huge_seed = 17683174008603890650  # the exact value that broke the smoke test
+    p.apply(_ORIG, seed=huge_seed)
+    # Every recorded API call's seed must fit in int32 (signed).
+    int32_max = 2**31 - 1
+    for call in adapter.calls:
+        assert call.seed is not None
+        assert 0 <= call.seed <= int32_max, (
+            f"per-call seed {call.seed} overflows int32 ({int32_max})"
+        )
+
+
 def test_apply_each_paraphrase_triggers_a_distinct_llm_call() -> None:
     """The MockAdapter should record one call per accepted paraphrase."""
     from falsifyai.perturbation.paraphrase import Paraphrase
