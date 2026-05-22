@@ -95,9 +95,10 @@ def _select_worst_perturbation(case: CaseResult) -> PerturbedRun | None:
 
 
 def _render_invariant_result(result, *, label_prefix: str = "invariant") -> str:
-    """One-line invariant judgment summary."""
+    """One-line invariant judgment summary. Uses ASCII-only punctuation so the
+    output is identical across terminal encodings (no cp1252 surprises)."""
     status = "PASS" if result.passed else "FAIL"
-    return f"    {label_prefix}: {result.invariant_name} {status} — {result.details}"
+    return f"    {label_prefix}: {result.invariant_name} {status} -- {result.details}"
 
 
 def _render_perturbed_evidence(
@@ -224,11 +225,25 @@ def _render_session(
     full: bool,
     stream: TextIO,
 ) -> None:
-    """Top-level inspect render: header + per-case content."""
+    """Top-level inspect render: header + per-case content.
+
+    Reconfigures stdout's error handler to ``backslashreplace`` so non-UTF-8
+    terminals (e.g., Windows cp1252) escape unprintable characters in model
+    outputs rather than crashing. Model-emitted Unicode like narrow no-break
+    spaces (``\\u202f``) frequently appears in LLM completions and would
+    otherwise raise ``UnicodeEncodeError`` mid-render.
+    """
+    try:
+        stream.reconfigure(errors="backslashreplace")  # type: ignore[union-attr]
+    except (AttributeError, ValueError):
+        # Test streams (capsys) or wrapped streams may not support reconfigure;
+        # fall back to default behavior in those cases.
+        pass
+
     stream.write(
-        f"Inspecting session {artifact.session_id} · "
-        f"created_at {artifact.created_at.isoformat()} · "
-        f"falsifyai {artifact.falsifyai_version} · "
+        f"Inspecting session {artifact.session_id} | "
+        f"created_at {artifact.created_at.isoformat()} | "
+        f"falsifyai {artifact.falsifyai_version} | "
         f"store {store_path}\n"
     )
     stream.write("=" * 65 + "\n")

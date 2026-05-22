@@ -1,8 +1,9 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Three subcommands: ``run`` (execute a spec),
-``replay`` (re-render a stored session), and ``diff`` (compare two
-stored sessions and exit 5 on regression).
+Argparse-based dispatch. Four subcommands: ``run`` (execute a spec),
+``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
+over preserved evidence), and ``diff`` (compare two stored sessions and
+exit 5 on regression).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
@@ -20,6 +21,7 @@ import sys
 from collections.abc import Sequence
 
 from falsifyai.cli import diff as diff_cmd
+from falsifyai.cli import inspect as inspect_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
 from falsifyai.cli.errors import CLIError
@@ -61,6 +63,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Default: .falsifyai/replays.db",
     )
 
+    inspect_parser = subparsers.add_parser(
+        "inspect",
+        help="Per-case deep-dive over a stored session's preserved evidence.",
+    )
+    inspect_parser.add_argument(
+        "session_id",
+        nargs="?",
+        default=None,
+        help="Session id to inspect.",
+    )
+    inspect_parser.add_argument(
+        "--case",
+        default=None,
+        help="Drill into one case_id, expanding every perturbation. "
+        "Default behavior shows worst-perturbation evidence per case.",
+    )
+    inspect_parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Disable output truncation. Default truncates long model outputs "
+        "to head-200 + tail-100 chars.",
+    )
+    inspect_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
     diff_parser = subparsers.add_parser(
         "diff",
         help="Compare two stored sessions case-by-case. Exit 5 if any case regressed.",
@@ -90,6 +120,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_cmd.cmd_run(args)
         if args.command == "replay":
             return replay_cmd.cmd_replay(args)
+        if args.command == "inspect":
+            return inspect_cmd.cmd_inspect(args)
         if args.command == "diff":
             return diff_cmd.cmd_diff(args)
     except CLIError as exc:

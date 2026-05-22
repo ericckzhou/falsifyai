@@ -381,6 +381,45 @@ def test_inspect_does_not_import_resolver() -> None:
     )
 
 
+def test_inspect_does_not_crash_on_unicode_model_outputs(monkeypatch) -> None:
+    """LLM outputs routinely contain Unicode (e.g. U+202F narrow no-break space)
+    that non-UTF-8 terminals (Windows cp1252) cannot encode. inspect must
+    escape rather than crash. Regression test for a bug surfaced during
+    manual trust-testing against the Pair 3 oai-oss-120b session.
+    """
+    import io
+
+    from falsifyai.cli import inspect as inspect_module
+
+    # Build an artifact whose model output contains a narrow no-break space.
+    base = _make_fragile_artifact()
+    case = base.case_results[0]
+    unicode_output = "Customers can request a refund within 30 days."
+    bad_run = replace(
+        case.perturbed[0],
+        execution=replace(case.perturbed[0].execution, output_text=unicode_output),
+    )
+    new_case = replace(case, perturbed=[bad_run, *case.perturbed[1:]])
+    artifact = replace(base, case_results=[new_case])
+
+    store = InMemoryStore()
+    store.save_session(artifact)
+    _patched_store(monkeypatch, store)
+
+    # Simulate a cp1252 terminal by wrapping a BytesIO with that encoding.
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252", newline="")
+    monkeypatch.setattr("sys.stdout", stream)
+    try:
+        rc = inspect_module.cmd_inspect(_args(session_id=artifact.session_id))
+    finally:
+        stream.flush()
+    assert rc == 1  # FRAGILE
+    output = raw.getvalue().decode("cp1252")
+    # The narrow no-break space must be escaped, not crash. Either form is acceptable:
+    assert "\\u202f" in output or "?" in output or "30" in output
+
+
 def test_inspect_surfaces_missing_payload_field_explicitly(monkeypatch, capsys) -> None:
     """§12.3 no-synthesis rule: if a field is absent, surface the gap, don't fabricate.
 
