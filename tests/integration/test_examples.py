@@ -370,3 +370,98 @@ def test_fragile_yaml_inspect_case_flag_shows_all_perturbations(
     assert "[5]" in out
     # Every perturbation is from the typo_noise family
     assert out.count("typo_noise") >= 5
+
+
+# ---------------------------------------------------------------------------
+# paraphrase.yaml (PR #22)
+# ---------------------------------------------------------------------------
+
+
+def test_paraphrase_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "paraphrase.yaml")
+    assert spec.run.seed == 42
+    assert [c.id for c in spec.cases] == ["capital_of_france_paraphrase"]
+    assert spec.cases[0].perturbations[0].type == "paraphrase"
+    assert spec.cases[0].perturbations[0].count == 3
+
+
+def test_paraphrase_yaml_produces_stable_verdict(monkeypatch) -> None:
+    """Run paraphrase.yaml end-to-end through MockAdapter.
+
+    The adapter responds to BOTH paraphrase generation prompts (those
+    containing "Rewritten:") and execution prompts (the paraphrased inputs).
+    The embedding backend is monkey-patched to a constant-vector embedder so
+    every paraphrase passes the validity gate.
+    """
+    spec_path = _EXAMPLES / "paraphrase.yaml"
+
+    # Constant-vector embedder: all texts -> same unit vector -> cosine 1.0
+    def _constant_embed(self, texts: list[str]) -> np.ndarray:  # noqa: ANN001
+        return np.tile(np.array([1.0, 0.0, 0.0]), (len(texts), 1))
+
+    monkeypatch.setattr(sem.SentenceTransformerBackend, "embed", _constant_embed)
+
+    # MockAdapter with a callable default_response that distinguishes
+    # paraphrase-generation prompts (contain "Rewritten:") from execution
+    # prompts (everything else — the perturbed text itself).
+    def _responder(prompt: str) -> str:
+        if "Rewritten:" in prompt:
+            # Paraphrase generation — return a semantically-equivalent rewrite.
+            # The exact text doesn't matter; only that it differs from baseline
+            # so the perturbation is meaningful.
+            return "Which city serves as France's capital?"
+        # Execution: the baseline or perturbed input arrives as the prompt.
+        # Return the correct answer.
+        return "Paris is the capital of France."
+
+    # MockAdapter's response_map keys on exact prompts; we want callable
+    # behavior so we use a callable default_response by sentinel.
+    adapter = MockAdapter()
+    adapter.response_map = {}
+    original_execute = adapter.execute
+
+    def stateful_execute(request):
+        adapter.default_response = _responder(request.prompt)
+        return original_execute(request)
+
+    adapter.execute = stateful_execute  # type: ignore[method-assign]
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 0  # STABLE -> SUCCESS — "Paris" appears in every output
+
+
+def test_paraphrase_yaml_lineage_carries_paraphrase_metadata(monkeypatch) -> None:
+    """After materialize+execute, the realized perturbations carry the
+    paraphrase-specific lineage fields documented in PR-22."""
+    spec_path = _EXAMPLES / "paraphrase.yaml"
+
+    def _constant_embed(self, texts: list[str]) -> np.ndarray:  # noqa: ANN001
+        return np.tile(np.array([1.0, 0.0, 0.0]), (len(texts), 1))
+
+    monkeypatch.setattr(sem.SentenceTransformerBackend, "embed", _constant_embed)
+
+    adapter = MockAdapter()
+    adapter.response_map = {}
+    original_execute = adapter.execute
+
+    def stateful_execute(request):
+        if "Rewritten:" in request.prompt:
+            adapter.default_response = "Which city is the capital of France?"
+        else:
+            adapter.default_response = "Paris is France's capital."
+        return original_execute(request)
+
+    adapter.execute = stateful_execute  # type: ignore[method-assign]
+
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash, adapter=adapter)
+
+    case = materialized.cases[0]
+    assert len(case.realized_perturbations) == 3
+    for pi in case.realized_perturbations:
+        params = pi.lineage.params
+        assert pi.lineage.perturbation_type == "paraphrase"
+        assert params["requested_count"] == 3
+        assert "attempts_used" in params
+        assert "validity_score" in params

@@ -1,0 +1,46 @@
+# examples/paraphrase.yaml
+#
+# Demonstrates the paraphrase perturbation family (Phase B of the
+# validation campaign). Paraphrase generates semantic-preserving rewrites
+# via an LLM, validating each against the original via embedding cosine
+# similarity before accepting it. Tests semantic robustness — an axis
+# the character-level typo_noise + casing families do not cover.
+#
+# Note: paraphrase calls the LLM at materialization time. The realized
+# paraphrases are persisted in the replay artifact, so replay is sound
+# even though the perturbation itself is non-deterministic across runs.
+#
+# To run against a real model:
+#   falsifyai run examples/paraphrase.yaml
+#
+# To inspect the per-paraphrase evidence:
+#   falsifyai inspect <session_id> --case capital_of_france_paraphrase
+
+falsify:
+  version: "1.0"
+  name: "Paraphrase robustness — semantic-level pressure"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france_paraphrase
+    tags: ["geography", "factual", "paraphrase"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: paraphrase
+        count: 3
+        # similarity_threshold and max_attempts default to 0.85 and 3.
+        # Reuses spec.model for paraphrase generation by default.
+    invariants:
+      - type: contains
+        values: ["Paris"]
