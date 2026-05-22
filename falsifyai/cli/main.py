@@ -1,9 +1,10 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Four subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Five subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
-over preserved evidence), and ``diff`` (compare two stored sessions and
-exit 5 on regression).
+over preserved evidence), ``diff`` (compare two stored sessions and
+exit 5 on regression), and ``history`` (temporal view of one case across
+saved sessions).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
@@ -21,6 +22,7 @@ import sys
 from collections.abc import Sequence
 
 from falsifyai.cli import diff as diff_cmd
+from falsifyai.cli import history as history_cmd
 from falsifyai.cli import inspect as inspect_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
@@ -104,6 +106,26 @@ def build_parser() -> argparse.ArgumentParser:
         "Default: .falsifyai/replays.db",
     )
 
+    history_parser = subparsers.add_parser(
+        "history",
+        help="Show how one case has behaved across saved sessions (newest-first).",
+    )
+    history_parser.add_argument(
+        "case_id",
+        help="The case_id to trace across sessions in the store.",
+    )
+    history_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Max sessions to show. Default 20; use 0 for unlimited.",
+    )
+    history_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
     return parser
 
 
@@ -124,6 +146,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return inspect_cmd.cmd_inspect(args)
         if args.command == "diff":
             return diff_cmd.cmd_diff(args)
+        if args.command == "history":
+            return history_cmd.cmd_history(args)
     except CLIError as exc:
         print(f"falsifyai: error: {exc}", file=sys.stderr)
         return exc.exit_code
