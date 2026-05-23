@@ -6,6 +6,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-22
+
+Phase 1 release. Three new consumer surfaces (`inspect`, `history`), one new
+perturbation family (`paraphrase`), one canonical case study with bundled
+replay artifact, and an automated PyPI publishing pipeline via Trusted
+Publisher (OIDC). The artifact format, the spec language, and the resolver
+behavior for `run` / `replay` / `diff` are unchanged from 0.1.0 — every
+new surface is a reader of preserved evidence, never a producer of new
+verdicts.
+
 ### Added
 
 - **Canonical case study: "Invisible character substitution"** —
