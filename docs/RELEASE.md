@@ -86,11 +86,11 @@ If `twine check` fails, the most common causes are:
 ## Tag (triggers automated publish)
 
 ```bash
-# Create an annotated tag matching the version.
-git tag -a v0.1.0 -m "Release 0.1.0"
+# Create an annotated tag matching the version (substitute the new version below).
+git tag -a v0.2.0 -m "Release 0.2.0"
 
 # Push the tag. This fires .github/workflows/publish.yml.
-git push origin v0.1.0
+git push origin v0.2.0
 ```
 
 The workflow:
@@ -150,8 +150,8 @@ falsifyai --help
 
 1. Go to the [Releases page](https://github.com/ericckzhou/falsifyai/releases).
 2. Click "Draft a new release."
-3. Choose the tag you just pushed (`v0.1.0`).
-4. Title: `0.1.0 — Phase 0 MVP` (or equivalent thematic name).
+3. Choose the tag you just pushed (e.g. `v0.2.0`).
+4. Title: `<version> — <thematic name>` (e.g. `0.2.0 — Phase 1 first wave`).
 5. Body: copy the matching section from `CHANGELOG.md` verbatim.
 6. Publish.
 
@@ -174,11 +174,13 @@ If the release warrants public attention:
    git push --force-with-lease origin dev
    ```
 
-2. **Bump version to next dev marker.** If this is the start of work
-   toward 0.2.0:
-   - `pyproject.toml`: `version = "0.2.0.dev0"`
-   - `falsifyai/__init__.py`: `__version__ = "0.2.0.dev0"`
-   - Open a PR titled `chore: bump version to 0.2.0.dev0`.
+2. **Bump version to next dev marker.** Optional but recommended when
+   starting work toward the next release. For example, after `0.2.0`
+   ships and the next planned release is `0.3.0`:
+   - `pyproject.toml`: `version = "0.3.0.dev0"`
+   - `falsifyai/__init__.py`: `__version__ = "0.3.0.dev0"`
+   - `tests/unit/test_version.py`: update the asserted version string.
+   - Open a PR titled `chore: bump version to <next>.dev0`.
 
 3. **Open a `CHANGELOG.md` "## [Unreleased]" section** under the version
    header for the next release's entries.

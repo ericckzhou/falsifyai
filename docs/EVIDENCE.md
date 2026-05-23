@@ -324,10 +324,14 @@ first place. A reliability claim with predictable semantics is the
 contract; cryptographic provenance strengthens portability of that
 contract.
 
-Today (0.1.0), the artifact has strong *deterministic* identity
+Today (0.2.0), the artifact has strong *deterministic* identity
 (sha256 hashes) but is not signed. The current artifact is suitable
-for use within a single trust boundary. This section will be revised
-when the Phase 1 work lands.
+for use within a single trust boundary. Cryptographic signing
+(Sigstore-style attestation) is deferred until artifacts need to
+cross trust boundaries; the post-Phase-D artifact track will ship
+`falsifyai verify` (integrity check + provenance display) and
+`falsifyai export --bundle` (productize the case-study extraction
+pattern) before signing is layered on.
 
 ---
 
