@@ -287,4 +287,5 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.2.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.1.0

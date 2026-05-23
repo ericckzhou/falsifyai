@@ -56,8 +56,42 @@ Run through every item before tagging. CI doesn't catch all of these.
    - `falsifyai/__init__.py` `__version__ = "..."`
    - `tests/unit/test_version.py` (update the hardcoded assertion)
 
-7. **README badges + status line current.** The status line at the top
-   should reflect the version being released.
+7. **Release-state metadata audit.** Several files contain a version
+   string that means *"the current release"* — they MUST advance on
+   every release. This is distinct from historical context references
+   (e.g. *"unchanged from 0.1.0"*) which MUST NOT change. A blanket
+   grep would produce both signals; the audit is a deliberate
+   human-judgment pass, not an automated gate.
+
+   Drift-prone files to check on every release:
+   - [ ] `README.md` status banner (top of file) — names the version
+     and the shipped feature wave for the public.
+   - [ ] `README.md` "Status and roadmap" section — `(current release)`
+     marker matches the new version; previous version stays as
+     historical entry.
+   - [ ] `CITATION.cff` — `version:` and `date-released:` fields
+     (machine-readable; consumed by citation tools).
+   - [ ] `docs/EVIDENCE.md` — the *"Today (X.Y.Z), the artifact has…"*
+     paragraph in §6.2; this is a release-state claim about current
+     guarantees.
+   - [ ] `docs/case-studies/*.md` — `pip install falsifyai==X.Y.Z`
+     commands in reproduction sections (so readers install the
+     version that contains the case study itself).
+   - [ ] `CHANGELOG.md` — new `[X.Y.Z]: <release URL>` link added
+     under the existing `[N-1.Y.Z]` reference at the bottom.
+   - [ ] `docs/RELEASE.md` (this file) — concrete example tag
+     commands and the "next dev marker" example should reference the
+     most recent release as their illustrative case.
+
+   Files that *also* contain version strings but are historically
+   accurate — do NOT change without specific reason:
+   - `CHANGELOG.md` body lines mentioning prior versions in context
+     (e.g. *"unchanged from 0.1.0"*).
+   - `docs/case-studies/data/README.md` provenance — the FalsifyAI
+     version recorded there reflects when the bundled artifacts were
+     *generated*, not the current release.
+   - `docs/ARCHITECTURE.md` discipline statements anchored to the
+     0.1.0 baseline.
 
 8. **Documentation links work.** Quick check that all
    `[link](docs/...)` references resolve on the branch you're tagging.
@@ -86,11 +120,11 @@ If `twine check` fails, the most common causes are:
 ## Tag (triggers automated publish)
 
 ```bash
-# Create an annotated tag matching the version.
-git tag -a v0.1.0 -m "Release 0.1.0"
+# Create an annotated tag matching the version (substitute the new version below).
+git tag -a v0.2.0 -m "Release 0.2.0"
 
 # Push the tag. This fires .github/workflows/publish.yml.
-git push origin v0.1.0
+git push origin v0.2.0
 ```
 
 The workflow:
@@ -150,8 +184,8 @@ falsifyai --help
 
 1. Go to the [Releases page](https://github.com/ericckzhou/falsifyai/releases).
 2. Click "Draft a new release."
-3. Choose the tag you just pushed (`v0.1.0`).
-4. Title: `0.1.0 — Phase 0 MVP` (or equivalent thematic name).
+3. Choose the tag you just pushed (e.g. `v0.2.0`).
+4. Title: `<version> — <thematic name>` (e.g. `0.2.0 — Phase 1 first wave`).
 5. Body: copy the matching section from `CHANGELOG.md` verbatim.
 6. Publish.
 
@@ -174,11 +208,13 @@ If the release warrants public attention:
    git push --force-with-lease origin dev
    ```
 
-2. **Bump version to next dev marker.** If this is the start of work
-   toward 0.2.0:
-   - `pyproject.toml`: `version = "0.2.0.dev0"`
-   - `falsifyai/__init__.py`: `__version__ = "0.2.0.dev0"`
-   - Open a PR titled `chore: bump version to 0.2.0.dev0`.
+2. **Bump version to next dev marker.** Optional but recommended when
+   starting work toward the next release. For example, after `0.2.0`
+   ships and the next planned release is `0.3.0`:
+   - `pyproject.toml`: `version = "0.3.0.dev0"`
+   - `falsifyai/__init__.py`: `__version__ = "0.3.0.dev0"`
+   - `tests/unit/test_version.py`: update the asserted version string.
+   - Open a PR titled `chore: bump version to <next>.dev0`.
 
 3. **Open a `CHANGELOG.md` "## [Unreleased]" section** under the version
    header for the next release's entries.
