@@ -8,6 +8,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Canonical case study: "Invisible character substitution"** —
+  [`docs/case-studies/01-invisible-character-substitution.md`](docs/case-studies/01-invisible-character-substitution.md).
+  Asymmetric narrative: the cross-model `contains`-contract brittleness
+  pattern (visible via `history`) is the thesis; the Pair 3 model
+  migration regression (visible via `diff` + `inspect`, manifesting as
+  a U+202F substitution between "30" and "days") is the vivid concrete
+  proof. Ships with a bundled [`ReplayStore`](docs/case-studies/data/case-study-replays.db)
+  containing all 8 sessions from the Phase 0 validation campaign, plus
+  a [provenance README](docs/case-studies/data/README.md) recording
+  SHA256, environment, and session-to-model mappings. Every CLI command
+  shown in the case study runs against the bundle and reproduces the
+  displayed output verbatim. Top-level [`README.md`](README.md) gains a
+  Case studies section and a bridging link from the 5-minute proof.
+
+  No code change; documentation + data only. Phase 1 content track —
+  demonstrates `history`, `diff`, `inspect`, and `replay` as different
+  consumer surfaces over one preserved evidence substrate.
+
 - **`falsifyai history <case_id>`** — temporal view of one case across
   all saved sessions in the store. One row per session, newest-first,
   showing verdict + CI + worst perturbation family (when FRAGILE).

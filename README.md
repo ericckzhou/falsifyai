@@ -186,6 +186,8 @@ Replay is **read-only**. The verdict shown is the one assigned at run time — n
 
 **With replay artifacts, the workflow produces inspectable evidence.** Re-open the artifact six months from now and the claim still stands on its own. **That's the whole product.** `run` → `replay` → `diff` is one falsification workflow that ends in a preserved, inspectable evidence artifact. Not three commands — one evidence workflow producing one durable record.
 
+> For a deeper walkthrough of these same sessions — including `history`, `inspect`, the cross-model extraction finding, and the U+202F invisible-character regression — see [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md).
+
 ---
 
 ## What's in the evidence?
@@ -373,6 +375,18 @@ A real provider is required at runtime (`OPENAI_API_KEY`, `GROQ_API_KEY`, etc. �
 
 ---
 
+## Case studies
+
+Worked tours of FalsifyAI's evidence infrastructure over real preserved artifacts. Each case study is itself a FalsifyAI artifact: a `ReplayStore` bundle plus prose that walks through what `history`, `diff`, `inspect`, and `replay` reveal when read against it.
+
+| # | Title | What it demonstrates |
+|---|---|---|
+| 01 | [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md) | Cross-model `contains`-contract brittleness as a persistent class; a model-migration regression (U+202F substitution between "30" and "days") as the vivid instance. |
+
+See [`docs/case-studies/`](docs/case-studies/) for the index, the [bundled replay artifact](docs/case-studies/data/case-study-replays.db) (SHA256 in [provenance README](docs/case-studies/data/README.md)), and the framing convention case studies follow.
+
+---
+
 ## Writing your own spec
 
 The shortest valid spec ([`tests/fixtures/specs/minimal.yaml`](tests/fixtures/specs/minimal.yaml)):
@@ -425,8 +439,8 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 - ✅ **`falsifyai inspect <session_id>`** *(shipped)* — makes the replay artifact legible. Per-case deep-dive surfacing every perturbed input, every model output, every invariant judgment. `--case <case_id>` expands one case; `--full` disables truncation. Consumer-surface only; the artifact already contained the data.
 - ✅ **`paraphrase` perturbation family** *(shipped)* — LLM-generated semantic-preserving rewrites with embedding-similarity validity gating. Tests semantic robustness as an orthogonal pressure axis to the character-level families. Configurable per-spec (`count`, `similarity_threshold`, `max_attempts`, optional `model` override).
 - ✅ **`falsifyai history <case_id>`** *(shipped)* — temporal view of one case across saved sessions. Newest-first, one row per session, showing verdict + CI + worst family per row. Reads `case.verdict` from preserved artifacts; no aggregation, no trend inference, no reinterpretation.
+- ✅ **Canonical case study** *(shipped)* — [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md): the cross-model `contains`-contract brittleness pattern (`history`) plus the Pair 3 model migration regression (`diff` + `inspect`) over a [bundled replay artifact](docs/case-studies/data/case-study-replays.db) you can re-open and reproduce verbatim.
 - Hardened replay artifacts — cross-run lineage, immutable evidence semantics, and (eventually) signed bundles for cross-org transfer. These strengthen the existing artifact guarantees; the core differentiator remains the artifact's predictable semantics, not the wrapping.
-- Canonical failure demos — real model migrations like the Pair 3 regression above, packaged as downloadable evidence bundles you can re-open and inspect.
 
 Each addition is evaluated against: *does this preserve evidence density, resolver predictability, and the discipline that makes the artifact trustworthy?* See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/EVIDENCE.md`](docs/EVIDENCE.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the discipline.
 
