@@ -15,10 +15,11 @@ Worked tours of FalsifyAI's evidence infrastructure over real preserved artifact
 Each case study has the same shape:
 
 1. **Setup** — what was run, against what models, with what spec.
-2. **A systemic finding** — what `history` shows across multiple sessions.
-3. **A specific instance** — what `diff` and `inspect` reveal in one session.
-4. **Why it matters** — the operational point that makes the evidence load-bearing.
+2. **A systemic finding** (the thesis) — what `history` shows across multiple sessions.
+3. **A specific instance** (the vivid proof) — what `diff` and `inspect` reveal in one session; typically 1–3 sub-sections detailing the regression, the evidence, and the failure mechanism.
+4. **Why it matters** — the operational point that makes the evidence load-bearing (e.g. why semantic matching wouldn't catch this).
 5. **Reproduction** — exact commands the reader runs against the bundled store.
+6. **Synthesis** — the architectural claim the case study exists to demonstrate (typically: one preserved evidence substrate, multiple consumer surfaces).
 
 The bundle lives in [`data/`](data/) and has a [provenance README](data/README.md) recording SHA256, environment, and session-to-model mappings.
 
