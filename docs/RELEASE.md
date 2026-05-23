@@ -56,8 +56,42 @@ Run through every item before tagging. CI doesn't catch all of these.
    - `falsifyai/__init__.py` `__version__ = "..."`
    - `tests/unit/test_version.py` (update the hardcoded assertion)
 
-7. **README badges + status line current.** The status line at the top
-   should reflect the version being released.
+7. **Release-state metadata audit.** Several files contain a version
+   string that means *"the current release"* — they MUST advance on
+   every release. This is distinct from historical context references
+   (e.g. *"unchanged from 0.1.0"*) which MUST NOT change. A blanket
+   grep would produce both signals; the audit is a deliberate
+   human-judgment pass, not an automated gate.
+
+   Drift-prone files to check on every release:
+   - [ ] `README.md` status banner (top of file) — names the version
+     and the shipped feature wave for the public.
+   - [ ] `README.md` "Status and roadmap" section — `(current release)`
+     marker matches the new version; previous version stays as
+     historical entry.
+   - [ ] `CITATION.cff` — `version:` and `date-released:` fields
+     (machine-readable; consumed by citation tools).
+   - [ ] `docs/EVIDENCE.md` — the *"Today (X.Y.Z), the artifact has…"*
+     paragraph in §6.2; this is a release-state claim about current
+     guarantees.
+   - [ ] `docs/case-studies/*.md` — `pip install falsifyai==X.Y.Z`
+     commands in reproduction sections (so readers install the
+     version that contains the case study itself).
+   - [ ] `CHANGELOG.md` — new `[X.Y.Z]: <release URL>` link added
+     under the existing `[N-1.Y.Z]` reference at the bottom.
+   - [ ] `docs/RELEASE.md` (this file) — concrete example tag
+     commands and the "next dev marker" example should reference the
+     most recent release as their illustrative case.
+
+   Files that *also* contain version strings but are historically
+   accurate — do NOT change without specific reason:
+   - `CHANGELOG.md` body lines mentioning prior versions in context
+     (e.g. *"unchanged from 0.1.0"*).
+   - `docs/case-studies/data/README.md` provenance — the FalsifyAI
+     version recorded there reflects when the bundled artifacts were
+     *generated*, not the current release.
+   - `docs/ARCHITECTURE.md` discipline statements anchored to the
+     0.1.0 baseline.
 
 8. **Documentation links work.** Quick check that all
    `[link](docs/...)` references resolve on the branch you're tagging.
