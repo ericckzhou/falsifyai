@@ -92,6 +92,29 @@ enough to reconstruct verdict reasoning without consulting docs. Like
 `replay`, `inspect` is strictly read-only and never re-resolves a
 verdict.
 
+## Tracking a case across sessions
+
+When you've run an eval multiple times (different models, different
+days, different prompt revisions), `falsifyai history` compresses how a
+single case has behaved across the store:
+
+```bash
+# Newest-first; default --limit 20
+falsifyai history extraction
+
+# All matching sessions (no cap)
+falsifyai history extraction --limit 0
+
+# Different replay store
+falsifyai history extraction --store-path /path/to/replays.db
+```
+
+Each row shows session id prefix, timestamp, verdict, CI, and (for
+FRAGILE rows) the worst perturbation family. The reader sees the raw
+timeline; `history` deliberately does not aggregate, average, or infer
+trends — that discipline lets the verdicts stay defensible as preserved
+evidence rather than as inferred metrics.
+
 ## Writing your own
 
 The spec language is locked for Phase 0; see

@@ -6,7 +6,62 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-22
+
+Phase 1 release. Three new consumer surfaces (`inspect`, `history`), one new
+perturbation family (`paraphrase`), one canonical case study with bundled
+replay artifact, and an automated PyPI publishing pipeline via Trusted
+Publisher (OIDC). The artifact format, the spec language, and the resolver
+behavior for `run` / `replay` / `diff` are unchanged from 0.1.0 — every
+new surface is a reader of preserved evidence, never a producer of new
+verdicts.
+
 ### Added
+
+- **Canonical case study: "Invisible character substitution"** —
+  [`docs/case-studies/01-invisible-character-substitution.md`](docs/case-studies/01-invisible-character-substitution.md).
+  Asymmetric narrative: the cross-model `contains`-contract brittleness
+  pattern (visible via `history`) is the thesis; the Pair 3 model
+  migration regression (visible via `diff` + `inspect`, manifesting as
+  a U+202F substitution between "30" and "days") is the vivid concrete
+  proof. Ships with a bundled [`ReplayStore`](docs/case-studies/data/case-study-replays.db)
+  containing all 8 sessions from the Phase 0 validation campaign, plus
+  a [provenance README](docs/case-studies/data/README.md) recording
+  SHA256, environment, and session-to-model mappings. Every CLI command
+  shown in the case study runs against the bundle and reproduces the
+  displayed output verbatim. Top-level [`README.md`](README.md) gains a
+  Case studies section and a bridging link from the 5-minute proof.
+
+  No code change; documentation + data only. Phase 1 content track —
+  demonstrates `history`, `diff`, `inspect`, and `replay` as different
+  consumer surfaces over one preserved evidence substrate.
+
+- **`falsifyai history <case_id>`** — temporal view of one case across
+  all saved sessions in the store. One row per session, newest-first,
+  showing verdict + CI + worst perturbation family (when FRAGILE).
+  Flags:
+  - `--limit N` caps the number of sessions returned (default 20).
+    `--limit 0` means unlimited.
+  - `--store-path PATH` mirrors `run` / `replay` / `inspect` / `diff`.
+
+  Exit codes:
+  - `0` on render success (regardless of verdict mix — history is
+    informational, not a CI gate)
+  - `3` (ERROR) when the case_id matches zero sessions, or when an
+    artifact contains the same case_id more than once (treated as
+    malformed evidence; the row renders as `<malformed: N matches>`
+    so the anomaly isn't silent)
+
+  Phase C of the validation campaign. Pure consumer surface — reads
+  `case.verdict` from preserved artifacts via
+  `ReplayStore.query_sessions(case_id=...)`; never re-resolves, never
+  aggregates, never infers trends. The reader sees raw timeline data
+  and draws their own conclusions.
+
+  No spec_hash filtering by default: case identity transcends spec
+  evolution, which is what makes the temporal view interesting in the
+  first place (a model migration that changed `spec.model` still
+  produces sessions for the same case_ids).
 
 - **`paraphrase` perturbation family** — LLM-driven semantic-preserving
   rewrites with embedding-similarity validity gating. Third perturbation
