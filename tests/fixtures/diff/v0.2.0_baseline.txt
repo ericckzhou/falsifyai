@@ -1,0 +1,6 @@
+Diff: baseline 7e51299481d5420d9181e71ba0449348 -> candidate 4332c0d246bc4b3e875392ecdf3b1780
+Store: docs/case-studies/data/case-study-replays.db
+=================================================================
+case: policy_summary  baseline: STABLE (1.00)  candidate: FRAGILE (0.00)  REGRESSED
+=================================================================
+1 regressed, 0 improved, 3 unchanged, 0 other, 0 added, 0 removed
