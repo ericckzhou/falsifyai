@@ -166,4 +166,16 @@ The revision pair existed for documented operational reasons before this evaluat
 
 This study was conducted as a manual retrospective probe. The prompts above can be submitted to Claude Sonnet 4.6 through any Anthropic API client or chat interface to reproduce the responses; outputs may vary slightly due to model stochasticity even at temperature 0.
 
-Machine-reproducible spec files and `falsifyai run` / `falsifyai diff` invocations are planned follow-up work. When complete, the same case will be runnable as two stored sessions with `falsifyai diff --strict --show-timeline` surfacing the boundary shift programmatically. That formalization is a separate contribution that should harden an existing observation rather than gate it.
+### Spec files
+
+Machine-reproducible spec files are now available:
+
+- [`specs/02-resolver-arbitration-v1.yaml`](specs/02-resolver-arbitration-v1.yaml) — pre-`d6baa44` operating context
+- [`specs/02-resolver-arbitration-v2.yaml`](specs/02-resolver-arbitration-v2.yaml) — post-`d6baa44` operating context
+- [`specs/README.md`](specs/README.md) — full reproduction workflow, methodology adaptation notes, and CLI command reference
+
+Running both specs against an Anthropic API key produces two stored `ReplayStore` sessions. `falsifyai diff --strict --show-timeline` between them is expected to report `UNCHANGED` (both verdicts STABLE under benign `typo_noise`); the substantive boundary-shift evidence lives in `falsifyai inspect`'s qualitative response-text surface. That outcome is itself consistent with this case study's central claim — pass/fail evaluators miss this kind of drift; preserved inspectable evidence does not.
+
+The spec files are an additive reproduction surface, not a re-investigation. The manual probe documented above remains the canonical evidence.
+
+A bundled `ReplayStore` (`docs/case-studies/data/case-study-02.db`) is planned as a follow-up once a clean local run produces both sessions, mirroring the case-study-01 bundle pattern.
