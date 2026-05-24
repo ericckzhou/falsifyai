@@ -32,6 +32,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Exit code 7 (`INTEGRITY_FAILURE`)** — new exit code for `verify`; fires
   when at least one integrity check fails on at least one artifact.
 
+- **`falsifyai export <session_id> --bundle <output>`** — deterministic
+  portable evidence bundle for the artifact-infrastructure track. Produces
+  a `.fai.zip` containing `manifest.json` (with content-addressed
+  `bundle_id`, per-file SHA256s, and provenance metadata), `artifact.json`,
+  an optional `spec.yaml` (when `--spec-path` supplied), and an
+  auto-generated `README.md`. Refuses to export corrupted artifacts by
+  default; `--allow-corrupted` honors the request and records
+  `exported_under_protest=true` in the manifest. Two exports of the same
+  artifact with the same `--exported-at` produce byte-identical bundles
+  and identical `bundle_id`s — the bundle is an addressable evidence
+  object. Second step in the artifact-infrastructure sequence
+  (verify → export → embedded CLI invocation).
+
 ## [0.2.0] — 2026-05-22
 
 Phase 1 release. Three new consumer surfaces (`inspect`, `history`), one new

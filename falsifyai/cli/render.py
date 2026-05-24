@@ -27,6 +27,9 @@ if TYPE_CHECKING:
     # Type-only import to avoid a circular import at runtime: cli/diff.py
     # imports render. The DiffReport dataclass lives in diff.py because it
     # is a consumer-side structure, not part of the persisted artifact schema.
+    from pathlib import Path
+
+    from falsifyai.bundle.writer import BundleManifest
     from falsifyai.cli.diff import CaseTransition, DiffReport
     from falsifyai.integrity.checks import IntegrityReport
 
@@ -331,3 +334,52 @@ def render_verify_all(
         f"total {total_checks} checks, {total_passed} passed, {total_failed} failed; "
         f"store {store_path}\n"
     )
+
+
+# ---------------------------------------------------------------------------
+# Export rendering (PR-32)
+# ---------------------------------------------------------------------------
+
+
+def render_export(
+    manifest: "BundleManifest",
+    *,
+    output_path: "Path",
+    stream: TextIO | None = None,
+) -> None:
+    """Render the summary after a successful bundle write.
+
+    Single-section output: bundle path, bundle id, session id, file count,
+    total bytes, integrity status. No multi-file table — ``manifest.json``
+    is the canonical machine-readable record.
+    """
+    out = stream if stream is not None else sys.stdout
+    total_bytes = sum(e.size_bytes for e in manifest.files)
+    status = manifest.pre_export_integrity["status"]
+    protest_marker = " (UNDER PROTEST)" if manifest.exported_under_protest else ""
+    out.write(f"Bundle: {output_path}\n")
+    out.write(f"bundle_id: {manifest.bundle_id}\n")
+    out.write(f"session_id: {manifest.session_id}\n")
+    out.write(f"exported_at: {manifest.exported_at}\n")
+    out.write(f"files: {len(manifest.files)} (total {total_bytes} bytes)\n")
+    out.write(f"integrity: {status}{protest_marker}\n")
+
+
+def render_export_refusal(
+    report: "IntegrityReport",
+    *,
+    session_id: str,
+    output_path: "Path",
+    stream: TextIO | None = None,
+) -> None:
+    """Render the refusal message when integrity fails and --allow-corrupted is off."""
+    from falsifyai.integrity.checks import CheckStatus
+
+    out = stream if stream is not None else sys.stdout
+    failed = [r.name for r in report.results if r.status is CheckStatus.FAIL]
+    out.write(
+        f"refusing to export: session {session_id} failed {len(failed)} integrity check(s): "
+        f"{', '.join(failed)}\n"
+    )
+    out.write(f"no bundle written to {output_path}\n")
+    out.write("re-run with --allow-corrupted to write the bundle anyway (NOT WORM-suitable)\n")

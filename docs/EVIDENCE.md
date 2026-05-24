@@ -324,14 +324,23 @@ first place. A reliability claim with predictable semantics is the
 contract; cryptographic provenance strengthens portability of that
 contract.
 
-Today (0.2.0), the artifact has strong *deterministic* identity
-(sha256 hashes) but is not signed. The current artifact is suitable
-for use within a single trust boundary. Cryptographic signing
-(Sigstore-style attestation) is deferred until artifacts need to
-cross trust boundaries; the post-Phase-D artifact track will ship
-`falsifyai verify` (integrity check + provenance display) and
-`falsifyai export --bundle` (productize the case-study extraction
-pattern) before signing is layered on.
+As of v0.3.0, the artifact-infrastructure track ships:
+
+- `falsifyai verify <session_id>` (integrity check) — eight checks
+  including materialized-hash recomputation and per-case CI bound
+  validation. Exit 7 on failure.
+- `falsifyai export <session_id> --bundle <output>.fai.zip`
+  (deterministic portable evidence bundle) — content-addressed
+  `bundle_id`, per-file SHA256s, reserved `attestations: []` and
+  `signature_slots: []` for future signing.
+
+Identity is **strong but deterministic**: sha256 anchors on every layer
+(artifact-internal hashes, bundle-level content addressing). Signing
+itself is still deferred — Sigstore-style attestation is layered on
+when artifacts need to cross trust boundaries (e.g., regulatory
+submission). The next item on the locked sequence is the persisted
+CLI-invocation field on `ReplayArtifact`, which closes the "what was
+actually run" loop required by Annex IV §2(g).
 
 ---
 

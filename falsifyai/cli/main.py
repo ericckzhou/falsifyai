@@ -1,10 +1,11 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Six subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Seven subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
 over preserved evidence), ``diff`` (compare two stored sessions and
 exit 5 on regression), ``history`` (temporal view of one case across
-saved sessions), and ``verify`` (replay-artifact integrity validation).
+saved sessions), ``verify`` (replay-artifact integrity validation), and
+``export`` (write a deterministic portable evidence bundle).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
@@ -24,6 +25,7 @@ import sys
 from collections.abc import Sequence
 
 from falsifyai.cli import diff as diff_cmd
+from falsifyai.cli import export as export_cmd
 from falsifyai.cli import history as history_cmd
 from falsifyai.cli import inspect as inspect_cmd
 from falsifyai.cli import replay as replay_cmd
@@ -144,6 +146,60 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Default: .falsifyai/replays.db",
     )
 
+    export_parser = subparsers.add_parser(
+        "export",
+        help=(
+            "Export a stored ReplayArtifact as a deterministic portable "
+            "evidence bundle (.fai.zip recommended)."
+        ),
+    )
+    export_parser.add_argument("session_id", help="Session id to export.")
+    export_parser.add_argument(
+        "--bundle",
+        required=True,
+        help="Output bundle path. Convention: .fai.zip (any extension accepted).",
+    )
+    export_parser.add_argument(
+        "--spec-path",
+        default=None,
+        dest="spec_path",
+        help=(
+            "Optional path to the source spec YAML; included byte-identically "
+            "in the bundle when supplied."
+        ),
+    )
+    export_parser.add_argument(
+        "--allow-corrupted",
+        action="store_true",
+        default=False,
+        dest="allow_corrupted",
+        help=(
+            "Write the bundle even when integrity checks fail. Sets "
+            "exported_under_protest=true in the manifest; result is NOT "
+            "WORM-suitable."
+        ),
+    )
+    export_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="Replace an existing output file. Refuse by default.",
+    )
+    export_parser.add_argument(
+        "--exported-at",
+        default=None,
+        dest="exported_at",
+        help=(
+            "ISO 8601 timestamp (UTC, tz-aware) for reproducibility pinning. "
+            "Defaults to current UTC time."
+        ),
+    )
+    export_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
     verify_parser = subparsers.add_parser(
         "verify",
         help="Validate a stored ReplayArtifact's integrity. Exit 7 on any failed check.",
@@ -190,6 +246,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return history_cmd.cmd_history(args)
         if args.command == "verify":
             return verify_cmd.cmd_verify(args)
+        if args.command == "export":
+            return export_cmd.cmd_export(args)
     except CLIError as exc:
         print(f"falsifyai: error: {exc}", file=sys.stderr)
         return exc.exit_code

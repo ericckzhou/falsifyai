@@ -309,7 +309,7 @@ A future feature touches exactly one layer. Adaptive evidence collection is inte
 
 ## CLI reference
 
-Six subcommands, one workflow:
+Seven subcommands, one workflow:
 
 ```bash
 falsifyai run <spec.yaml> [--store-path PATH]
@@ -320,6 +320,7 @@ falsifyai diff <baseline_id> <candidate_id> [--store-path PATH] [--strict] [--sh
 falsifyai history <case_id> [--limit N] [--store-path PATH]
 falsifyai verify <session_id> [--store-path PATH]
 falsifyai verify --all         [--store-path PATH]
+falsifyai export <session_id> --bundle <output>.fai.zip [--spec-path PATH] [--allow-corrupted] [--overwrite] [--exported-at ISO8601] [--store-path PATH]
 ```
 
 | Exit code | Meaning |
@@ -449,7 +450,7 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 **Coming next** — selected by evidence, not theoretical completeness:
 
 - **`diff` sharpening** — `--strict` (confidence-drop exit 5, falsifiability exit 6) and `--show-timeline` (per-row direction markers). Shipped in v0.3.0.
-- **Artifact infrastructure track** — locked sequence: `falsifyai verify <session_id>` (integrity validation; shipped) → `falsifyai export --bundle` (productize the case-study extraction pattern; next) → persisted CLI-invocation field in `ReplayArtifact`. Reassess remaining items after second-case-study pressure or real user signal.
+- **Artifact infrastructure track** — locked sequence: `falsifyai verify <session_id>` (integrity validation; shipped) → `falsifyai export --bundle` (deterministic portable evidence bundles with content-addressed `bundle_id`; shipped) → persisted CLI-invocation field in `ReplayArtifact` (next). Reassess after pressure from a second case study or real user signal.
 
 Each addition is evaluated against: *does this preserve evidence density, resolver predictability, and the discipline that makes the artifact trustworthy?* See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/EVIDENCE.md`](docs/EVIDENCE.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the discipline.
 
