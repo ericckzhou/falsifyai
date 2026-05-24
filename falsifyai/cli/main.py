@@ -1,10 +1,11 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Five subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Seven subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
 over preserved evidence), ``diff`` (compare two stored sessions and
-exit 5 on regression), and ``history`` (temporal view of one case across
-saved sessions).
+exit 5 on regression), ``history`` (temporal view of one case across
+saved sessions), ``verify`` (replay-artifact integrity validation), and
+``export`` (write a deterministic portable evidence bundle).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
@@ -14,7 +15,9 @@ Exit codes (per [plan.md section 16.1](../../plan.md)):
 - 3 ERROR — infrastructure failure (bad spec, missing credential, model call)
 - 4 INSUFFICIENT — not enough evidence to discriminate
 
-Codes 5 (REGRESSION) and 6 (LOW_FALSIFIABILITY) ship with Week 2 features.
+- 5 REGRESSION — ``diff`` found a verdict-class downgrade or (with ``--strict``) a confidence drop
+- 6 LOW_FALSIFIABILITY — ``diff --strict``: candidate falsifiability below threshold
+- 7 INTEGRITY_FAILURE — ``verify`` found at least one failed integrity check
 """
 
 import argparse
@@ -22,10 +25,12 @@ import sys
 from collections.abc import Sequence
 
 from falsifyai.cli import diff as diff_cmd
+from falsifyai.cli import export as export_cmd
 from falsifyai.cli import history as history_cmd
 from falsifyai.cli import inspect as inspect_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
+from falsifyai.cli import verify as verify_cmd
 from falsifyai.cli.errors import CLIError
 
 
@@ -105,6 +110,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path (both artifacts assumed in same store). "
         "Default: .falsifyai/replays.db",
     )
+    diff_parser.add_argument(
+        "--strict",
+        action="store_true",
+        default=False,
+        help="Stricter exit criteria: exit 5 on same-verdict confidence drop >= 0.10; "
+        "exit 6 (LOW_FALSIFIABILITY) when candidate falsifiability < 0.50.",
+    )
+    diff_parser.add_argument(
+        "--show-timeline",
+        dest="show_timeline",
+        action="store_true",
+        default=False,
+        help="Show every case with a per-row direction marker and confidence delta. "
+        "Display-only; does not affect the exit code.",
+    )
 
     history_parser = subparsers.add_parser(
         "history",
@@ -121,6 +141,82 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max sessions to show. Default 20; use 0 for unlimited.",
     )
     history_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
+    export_parser = subparsers.add_parser(
+        "export",
+        help=(
+            "Export a stored ReplayArtifact as a deterministic portable "
+            "evidence bundle (.fai.zip recommended)."
+        ),
+    )
+    export_parser.add_argument("session_id", help="Session id to export.")
+    export_parser.add_argument(
+        "--bundle",
+        required=True,
+        help="Output bundle path. Convention: .fai.zip (any extension accepted).",
+    )
+    export_parser.add_argument(
+        "--spec-path",
+        default=None,
+        dest="spec_path",
+        help=(
+            "Optional path to the source spec YAML; included byte-identically "
+            "in the bundle when supplied."
+        ),
+    )
+    export_parser.add_argument(
+        "--allow-corrupted",
+        action="store_true",
+        default=False,
+        dest="allow_corrupted",
+        help=(
+            "Write the bundle even when integrity checks fail. Sets "
+            "exported_under_protest=true in the manifest; result is NOT "
+            "WORM-suitable."
+        ),
+    )
+    export_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="Replace an existing output file. Refuse by default.",
+    )
+    export_parser.add_argument(
+        "--exported-at",
+        default=None,
+        dest="exported_at",
+        help=(
+            "ISO 8601 timestamp (UTC, tz-aware) for reproducibility pinning. "
+            "Defaults to current UTC time."
+        ),
+    )
+    export_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="Validate a stored ReplayArtifact's integrity. Exit 7 on any failed check.",
+    )
+    verify_parser.add_argument(
+        "session_id",
+        nargs="?",
+        default=None,
+        help="Session id to verify. Omit if using --all.",
+    )
+    verify_parser.add_argument(
+        "--all",
+        action="store_true",
+        default=False,
+        help="Verify every session in the store. Aggregate exit 7 if any failed.",
+    )
+    verify_parser.add_argument(
         "--store-path",
         default=".falsifyai/replays.db",
         help="ReplayStore path. Default: .falsifyai/replays.db",
@@ -148,6 +244,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return diff_cmd.cmd_diff(args)
         if args.command == "history":
             return history_cmd.cmd_history(args)
+        if args.command == "verify":
+            return verify_cmd.cmd_verify(args)
+        if args.command == "export":
+            return export_cmd.cmd_export(args)
     except CLIError as exc:
         print(f"falsifyai: error: {exc}", file=sys.stderr)
         return exc.exit_code

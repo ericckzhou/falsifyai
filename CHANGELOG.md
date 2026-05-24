@@ -6,6 +6,54 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-24
+
+Artifact-infrastructure track (2 of 3 locked items shipped). New `verify`
+and `export --bundle` consumer surfaces, plus `diff` sharpening for CI
+gating. EU AI Act Annex IV compliance mapping documented. Case study 02
+adds a methodologically restrained second exemplar. Spec language and
+verdict semantics remain unchanged from 0.1.0; every new surface is a
+reader of preserved evidence, never a producer of new verdicts.
+
+### Added
+
+- **`falsifyai diff --strict`** — stricter exit criteria for CI gates: exits 5
+  if any same-verdict case drops confidence by ≥ 0.10 (DECLINED signal), and
+  exits 6 (`LOW_FALSIFIABILITY`) if the candidate session's falsifiability score
+  is below 0.50. Exit 5 takes priority when both fire. The standard regression
+  criterion (verdict-class downgrade → exit 5) is unchanged regardless of flag.
+
+- **`falsifyai diff --show-timeline`** — renders every case as a row with a
+  per-row direction marker: `REGRESSED`, `IMPROVED`, `DECLINED x.xx->y.yy (+dd)`,
+  `RECOVERED x.xx->y.yy (+dd)`, or `STABLE`. Display-only; does not affect the
+  exit code.
+
+- **Exit code 6 (`LOW_FALSIFIABILITY`)** — new exit code for `diff --strict`;
+  fires when candidate falsifiability < 0.50 and no exit-5 condition is present.
+
+- **`falsifyai verify <session_id>`** — replay-artifact integrity validation.
+  Runs 8 read-only checks against a stored `ReplayArtifact`: session_id format,
+  tz-aware `created_at`, `materialized_hash` recomputation (load-bearing), and
+  internal consistency of session-verdict roll-up counts, CI bound ordering,
+  and falsifiability score range. Pure preservation-layer command; never
+  re-resolves the verdict. Use `--all` to verify every session in the store.
+
+- **Exit code 7 (`INTEGRITY_FAILURE`)** — new exit code for `verify`; fires
+  when at least one integrity check fails on at least one artifact.
+
+- **`falsifyai export <session_id> --bundle <output>`** — deterministic
+  portable evidence bundle for the artifact-infrastructure track. Produces
+  a `.fai.zip` containing `manifest.json` (with content-addressed
+  `bundle_id`, per-file SHA256s, and provenance metadata), `artifact.json`,
+  an optional `spec.yaml` (when `--spec-path` supplied), and an
+  auto-generated `README.md`. Refuses to export corrupted artifacts by
+  default; `--allow-corrupted` honors the request and records
+  `exported_under_protest=true` in the manifest. Two exports of the same
+  artifact with the same `--exported-at` produce byte-identical bundles
+  and identical `bundle_id`s — the bundle is an addressable evidence
+  object. Second step in the artifact-infrastructure sequence
+  (verify → export → embedded CLI invocation).
+
 ## [0.2.0] — 2026-05-22
 
 Phase 1 release. Three new consumer surfaces (`inspect`, `history`), one new
@@ -287,5 +335,6 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.3.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.1.0

@@ -1,0 +1,81 @@
+# Case study 02 — V1 spec (pre-d6baa44 operating context, no anti-inflation constraint)
+#
+# This spec is the machine-reproducible companion to
+# docs/case-studies/02-resolver-arbitration-boundary-shift.md.
+#
+# The V1 input embeds the .claude/CLAUDE.md operating context as it existed
+# BEFORE commit d6baa44 added the resolver-inflation guardrails. The V2 spec
+# (02-resolver-arbitration-v2.yaml) is identical except for two bullets the
+# d6baa44 commit added.
+#
+# Methodology note: the original manual probe used a single prompt per variant
+# with NO perturbations. This formalized spec adds a minimal typo_noise
+# perturbation (count: 2, rate: 0.05) to satisfy the framework's
+# "at least one perturbation per case" requirement. Paraphrase was rejected
+# because it would rewrite the operating-context bullets — the whole point
+# of the V1/V2 delta. See docs/case-studies/specs/README.md for the full
+# methodology adaptation rationale.
+
+falsify:
+  version: "1.0"
+  name: "Case study 02 — resolver arbitration (V1: no anti-inflation constraint)"
+
+model:
+  provider: anthropic
+  model: claude-sonnet-4-6
+  temperature: 0.0
+  max_tokens: 1024
+
+run:
+  seed: 42
+  replications: 1
+
+cases:
+  - id: resolver_arbitration_compound_failure
+    tags: ["case-study-02", "v1", "resolver-design", "compound-signal"]
+    input:
+      text: |
+        [Operating context: FalsifyAI development guidelines]
+
+        Design philosophy:
+        - Minimal meaningful evidence. Run the smallest experiment that meaningfully
+          increases confidence in a verdict — no more.
+        - High evidence quality per cognitive load. Every line a user sees has to
+          earn its real estate against: would removing this make the engineer's
+          decision worse?
+        - Three-layer architectural separation. Evidence generation is
+          architecturally distinct from evidence interpretation, both distinct
+          from evidence preservation. New work belongs in exactly one layer.
+
+        Anti-goals — resist these:
+        - Metric proliferation
+        - Exhaustive output verbosity
+        - Configuration knobs for every behavior
+
+        ---
+
+        Engineering question:
+
+        During resolver implementation, a case arises where the model fails the
+        contains invariant on every output — original and all perturbations.
+        Bootstrap stability across perturbation families is also low.
+
+        The resolver priority chain is:
+          INSUFFICIENT > CONSISTENTLY_WRONG > FRAGILE > STABLE
+
+        CONSISTENTLY_WRONG fires. FRAGILE would also have fired independently.
+        One verdict dominates; the other is suppressed.
+
+        A proposal emerges: should the resolver surface both signals
+        simultaneously, or add an explicit arbitration rule to handle
+        compound-failure cases? The argument for: users benefit from knowing
+        both dimensions of failure.
+
+        What is your recommendation and reasoning?
+    perturbations:
+      - type: typo_noise
+        count: 2
+        rate: 0.05
+    invariants:
+      - type: semantic_equivalence
+        threshold: 0.80

@@ -27,7 +27,11 @@ if TYPE_CHECKING:
     # Type-only import to avoid a circular import at runtime: cli/diff.py
     # imports render. The DiffReport dataclass lives in diff.py because it
     # is a consumer-side structure, not part of the persisted artifact schema.
+    from pathlib import Path
+
+    from falsifyai.bundle.writer import BundleManifest
     from falsifyai.cli.diff import CaseTransition, DiffReport
+    from falsifyai.integrity.checks import IntegrityReport
 
 # Exit codes mapped to the MVP 5 verdicts per plan.md section 16.1.
 #   STABLE              -> 0  SUCCESS
@@ -151,17 +155,68 @@ def _format_transition_row(t: "CaseTransition") -> str:
     )
 
 
+# Confidence delta below this absolute value is rendering noise; shown as STABLE.
+_TIMELINE_NOISE_FLOOR: float = 0.01
+
+
+def _timeline_marker(t: "CaseTransition") -> str:
+    """Per-row marker for --show-timeline rendering.
+
+    For non-UNCHANGED transitions the existing kind label is reused.
+    For UNCHANGED transitions a direction label is computed from the
+    confidence delta so readers can see cases trending without having
+    crossed a verdict-class boundary.
+    """
+    from falsifyai.cli.diff import TransitionKind
+
+    if t.transition_kind is not TransitionKind.UNCHANGED:
+        return t.transition_kind.value.upper()
+
+    delta = t.candidate_stability_ci_low - t.baseline_stability_ci_low
+    if delta <= -_TIMELINE_NOISE_FLOOR:
+        return (
+            f"DECLINED {t.baseline_stability_ci_low:.2f}"
+            f"->{t.candidate_stability_ci_low:.2f}"
+            f" ({delta:+.2f})"
+        )
+    if delta >= _TIMELINE_NOISE_FLOOR:
+        return (
+            f"RECOVERED {t.baseline_stability_ci_low:.2f}"
+            f"->{t.candidate_stability_ci_low:.2f}"
+            f" ({delta:+.2f})"
+        )
+    return "STABLE"
+
+
+def _format_transition_row_timeline(t: "CaseTransition") -> str:
+    """One row for --show-timeline: same shape as default but with a timeline marker."""
+    baseline_str = _format_verdict_with_stability(t.baseline_verdict, t.baseline_stability_ci_low)
+    candidate_str = _format_verdict_with_stability(
+        t.candidate_verdict, t.candidate_stability_ci_low
+    )
+    return (
+        f"case: {t.case_id}  "
+        f"baseline: {baseline_str}  "
+        f"candidate: {candidate_str}  "
+        f"{_timeline_marker(t)}"
+    )
+
+
 def render_diff(
     report: "DiffReport",
     *,
     store_path: str,
     stream: TextIO | None = None,
+    show_timeline: bool = False,
 ) -> None:
-    """Print a compressed transition table for two stored sessions.
+    """Print a transition table for two stored sessions.
 
-    Only transitions != UNCHANGED are surfaced as rows. The summary footer
-    always shows the full counts (unchanged + regressed + improved + ...).
-    Evidence density: show what changed; report what didn't via counts only.
+    Default (no flags): only transitions != UNCHANGED are surfaced as rows.
+    The summary footer always shows the full counts.
+
+    With ``show_timeline=True``: every case is rendered with a per-row
+    direction marker (REGRESSED, IMPROVED, DECLINED, RECOVERED, STABLE).
+    Exit code is unaffected by this flag.
     """
     from falsifyai.cli.diff import TransitionKind
 
@@ -178,12 +233,21 @@ def render_diff(
         )
     out.write("=" * 65 + "\n")
 
-    surfaced = [t for t in report.transitions if t.transition_kind is not TransitionKind.UNCHANGED]
-    if not surfaced:
-        out.write("(no transitions; all cases unchanged)\n")
+    if show_timeline:
+        if not report.transitions:
+            out.write("(no cases)\n")
+        else:
+            for t in report.transitions:
+                out.write(_format_transition_row_timeline(t) + "\n")
     else:
-        for t in surfaced:
-            out.write(_format_transition_row(t) + "\n")
+        surfaced = [
+            t for t in report.transitions if t.transition_kind is not TransitionKind.UNCHANGED
+        ]
+        if not surfaced:
+            out.write("(no transitions; all cases unchanged)\n")
+        else:
+            for t in surfaced:
+                out.write(_format_transition_row(t) + "\n")
 
     out.write("=" * 65 + "\n")
     out.write(
@@ -194,3 +258,128 @@ def render_diff(
         f"{report.added_count} added, "
         f"{report.removed_count} removed\n"
     )
+
+
+# ---------------------------------------------------------------------------
+# Verify rendering (PR-31)
+# ---------------------------------------------------------------------------
+
+
+_CHECK_NAME_WIDTH = 38  # padding for the 8 check names so status columns align
+
+
+def _format_check_row(name: str, status: str, detail: str) -> str:
+    return f"check: {name:<{_CHECK_NAME_WIDTH}} status: {status:<4}  detail: {detail}"
+
+
+def render_verify(
+    report: "IntegrityReport",
+    *,
+    store_path: str,
+    stream: TextIO | None = None,
+) -> None:
+    """Render one integrity report: header, per-check rows, summary footer."""
+    from falsifyai.integrity.checks import CheckStatus
+
+    out = stream if stream is not None else sys.stdout
+
+    out.write(f"session: {report.session_id}\n")
+    for r in report.results:
+        out.write(_format_check_row(r.name, r.status.value.upper(), r.detail) + "\n")
+    out.write("=" * 65 + "\n")
+    passed = sum(1 for r in report.results if r.status is CheckStatus.PASS)
+    failed = sum(1 for r in report.results if r.status is CheckStatus.FAIL)
+    out.write(
+        f"{len(report.results)} checks, {passed} passed, {failed} failed; "
+        f"session {report.session_id}; store {store_path}\n"
+    )
+
+
+def render_verify_all(
+    reports: list["IntegrityReport"],
+    *,
+    store_path: str,
+    stream: TextIO | None = None,
+) -> None:
+    """Render multiple integrity reports as ``--all`` output.
+
+    Per-session block (header, checks, mini-footer) separated by dashes;
+    final aggregate footer with totals.
+    """
+    from falsifyai.integrity.checks import CheckStatus
+
+    out = stream if stream is not None else sys.stdout
+
+    if not reports:
+        out.write("(no sessions in store)\n")
+        out.write(f"Store: {store_path}\n")
+        return
+
+    for i, report in enumerate(reports):
+        if i > 0:
+            out.write("-" * 65 + "\n")
+        out.write(f"session: {report.session_id}\n")
+        for r in report.results:
+            out.write(_format_check_row(r.name, r.status.value.upper(), r.detail) + "\n")
+        passed = sum(1 for r in report.results if r.status is CheckStatus.PASS)
+        failed = sum(1 for r in report.results if r.status is CheckStatus.FAIL)
+        out.write(f"{len(report.results)} checks, {passed} passed, {failed} failed\n")
+
+    total_checks = sum(len(r.results) for r in reports)
+    total_passed = sum(1 for r in reports for c in r.results if c.status is CheckStatus.PASS)
+    total_failed = total_checks - total_passed
+    out.write("=" * 65 + "\n")
+    out.write(
+        f"{len(reports)} sessions; "
+        f"total {total_checks} checks, {total_passed} passed, {total_failed} failed; "
+        f"store {store_path}\n"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Export rendering (PR-32)
+# ---------------------------------------------------------------------------
+
+
+def render_export(
+    manifest: "BundleManifest",
+    *,
+    output_path: "Path",
+    stream: TextIO | None = None,
+) -> None:
+    """Render the summary after a successful bundle write.
+
+    Single-section output: bundle path, bundle id, session id, file count,
+    total bytes, integrity status. No multi-file table — ``manifest.json``
+    is the canonical machine-readable record.
+    """
+    out = stream if stream is not None else sys.stdout
+    total_bytes = sum(e.size_bytes for e in manifest.files)
+    status = manifest.pre_export_integrity["status"]
+    protest_marker = " (UNDER PROTEST)" if manifest.exported_under_protest else ""
+    out.write(f"Bundle: {output_path}\n")
+    out.write(f"bundle_id: {manifest.bundle_id}\n")
+    out.write(f"session_id: {manifest.session_id}\n")
+    out.write(f"exported_at: {manifest.exported_at}\n")
+    out.write(f"files: {len(manifest.files)} (total {total_bytes} bytes)\n")
+    out.write(f"integrity: {status}{protest_marker}\n")
+
+
+def render_export_refusal(
+    report: "IntegrityReport",
+    *,
+    session_id: str,
+    output_path: "Path",
+    stream: TextIO | None = None,
+) -> None:
+    """Render the refusal message when integrity fails and --allow-corrupted is off."""
+    from falsifyai.integrity.checks import CheckStatus
+
+    out = stream if stream is not None else sys.stdout
+    failed = [r.name for r in report.results if r.status is CheckStatus.FAIL]
+    out.write(
+        f"refusing to export: session {session_id} failed {len(failed)} integrity check(s): "
+        f"{', '.join(failed)}\n"
+    )
+    out.write(f"no bundle written to {output_path}\n")
+    out.write("re-run with --allow-corrupted to write the bundle anyway (NOT WORM-suitable)\n")
