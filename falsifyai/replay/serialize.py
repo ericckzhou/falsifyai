@@ -34,6 +34,7 @@ from falsifyai.perturbation.base import (
 )
 from falsifyai.replay.models import (
     CaseResult,
+    CliInvocation,
     PerturbedRun,
     ReplayArtifact,
     SessionVerdict,
@@ -98,6 +99,23 @@ def _make_artifact(d: dict[str, Any]) -> ReplayArtifact:
         materialized=_make_materialized_spec(d["materialized"]),
         case_results=[_make_case_result(c) for c in d["case_results"]],
         session_verdict=_make_session_verdict(d["session_verdict"]),
+        # PR-35: optional descriptive provenance. ``.get(...)`` preserves
+        # backward-compat reads of pre-PR-35 artifacts (missing key -> None).
+        cli_invocation=_make_cli_invocation(d.get("cli_invocation")),
+    )
+
+
+def _make_cli_invocation(d: dict[str, Any] | None) -> CliInvocation | None:
+    """Factory for the optional cli_invocation field (PR-35).
+
+    JSON has no tuple type, so ``argv`` round-trips as a list and must be
+    re-tupled here to satisfy the ``CliInvocation`` dataclass contract.
+    """
+    if d is None:
+        return None
+    return CliInvocation(
+        argv=tuple(d["argv"]),
+        falsifyai_version=d["falsifyai_version"],
     )
 
 
