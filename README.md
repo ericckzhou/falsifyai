@@ -8,7 +8,7 @@ Most evaluation tools produce metrics. FalsifyAI produces **evidence** — durab
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-**Status:** 0.2.0 — Phase 1 first wave shipped (`inspect`, `history`, `paraphrase`, canonical case study, automated PyPI publishing). Spec language and verdict semantics remain locked for the 0.x line.
+**Status:** 0.3.0 — Artifact-infrastructure track (2 of 3) shipped: `falsifyai diff` sharpening (`--strict`, `--show-timeline`, exit code 6), `falsifyai verify` (8-check artifact integrity), `falsifyai export --bundle` (deterministic content-addressed portable evidence bundles), and case study 02 (resolver arbitration boundary shift). Spec language and verdict semantics remain locked for the 0.x line.
 
 ```bash
 pip install falsifyai
@@ -437,13 +437,15 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 
 ## Status and roadmap
 
-**0.2.0 (current release) — Phase 1 first wave.** Adds:
+**0.3.0 (current release) — Artifact-infrastructure track (2 of 3).** Adds:
 
-- ✅ **`falsifyai inspect <session_id>`** — per-case deep-dive over preserved evidence. Surfaces every perturbed input, output, and invariant judgment. `--case <case_id>` expands one case; `--full` disables truncation. Pure consumer surface — the artifact already contained the data.
-- ✅ **`paraphrase` perturbation family** — LLM-generated semantic-preserving rewrites with embedding-similarity validity gating. Tests semantic robustness as an orthogonal pressure axis to the character-level families. Configurable per-spec (`count`, `similarity_threshold`, `max_attempts`, optional `model` override).
-- ✅ **`falsifyai history <case_id>`** — temporal view of one case across saved sessions. Newest-first, one row per session, showing verdict + CI + worst family per row. Reads `case.verdict` from preserved artifacts; no aggregation, no trend inference, no reinterpretation.
-- ✅ **Canonical case study** — [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md): cross-model `contains`-contract brittleness as the thesis (`history`), Pair 3 model-migration regression as the vivid concrete proof (`diff` + `inspect`), over a [bundled replay artifact](docs/case-studies/data/case-study-replays.db) you can re-open and reproduce verbatim.
-- ✅ **Automated PyPI publishing via Trusted Publisher (OIDC)** — `.github/workflows/publish.yml` fires on any `v*` tag push: verifies version match, re-runs tests, builds, validates, publishes. No long-lived tokens in repo.
+- ✅ **`falsifyai diff` sharpening** — `--strict` (exit 5 on same-verdict confidence drop ≥ 0.10; exit 6 on candidate falsifiability < 0.50) and `--show-timeline` (per-row direction markers DECLINED / RECOVERED / STABLE for UNCHANGED transitions). Default output stays byte-identical to v0.2.0 — enforced by an integration fixture.
+- ✅ **`falsifyai verify <session_id>`** — replay-artifact integrity validation. Eight read-only checks: session_id format, tz-aware `created_at`, `materialized_hash` recomputation (load-bearing), session-verdict roll-up consistency, per-case CI bound ordering, falsifiability score range. `--all` verifies every session in the store. Exit 7 (`INTEGRITY_FAILURE`) on any failed check. Pure preservation layer; never re-resolves.
+- ✅ **`falsifyai export <session_id> --bundle <output>.fai.zip`** — deterministic content-addressed portable evidence bundle. Manifest carries `bundle_id` (sha256 over canonical manifest), per-file SHA256s, provenance metadata, and reserved `attestations: []` / `signature_slots: []` for future signing. Two exports of the same artifact with the same `--exported-at` produce byte-identical zips. Pre-export integrity gate refuses to export corrupted artifacts unless `--allow-corrupted` is used (and then the manifest carries `exported_under_protest=true`).
+- ✅ **Case study 02** — [Resolver arbitration: boundary shift without verdict shift](docs/case-studies/02-resolver-arbitration-boundary-shift.md): a retrospective evaluation showing that a small operational `.claude/CLAUDE.md` revision (`d6baa44`) changed *where* a model permitted additional architectural complexity to exist without changing its top-level recommendation — exactly the kind of subtle drift pass/fail evaluators miss.
+- ✅ **EU AI Act Annex IV compliance mapping** — [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) maps each Annex IV §2(g) requirement to a specific `ReplayArtifact` field or CLI command. Procurement-grade documentation; honestly names the known gaps (cryptographic signing deferred, operator identity provider-supplied, PII handling upstream of spec).
+
+**0.2.0 — Phase 1 first wave.** Adds `falsifyai inspect`, `paraphrase` perturbation family, `falsifyai history`, canonical case study 01 (invisible character substitution), automated PyPI publishing via Trusted Publisher (OIDC).
 
 **0.1.0 — Phase 0 MVP.** Spec language, perturbation runtime, materializer, invariants, execution adapter, replay store, real verdict resolver (stratified bootstrap CI, CONSISTENTLY_WRONG, falsifiability scoring), and the three-command CLI (`run` + `replay` + `diff`).
 

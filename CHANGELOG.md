@@ -6,6 +6,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-24
+
+Artifact-infrastructure track (2 of 3 locked items shipped). New `verify`
+and `export --bundle` consumer surfaces, plus `diff` sharpening for CI
+gating. EU AI Act Annex IV compliance mapping documented. Case study 02
+adds a methodologically restrained second exemplar. Spec language and
+verdict semantics remain unchanged from 0.1.0; every new surface is a
+reader of preserved evidence, never a producer of new verdicts.
+
 ### Added
 
 - **`falsifyai diff --strict`** — stricter exit criteria for CI gates: exits 5
@@ -326,5 +335,6 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.3.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.1.0
