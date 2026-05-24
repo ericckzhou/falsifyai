@@ -1,10 +1,10 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Five subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Six subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
 over preserved evidence), ``diff`` (compare two stored sessions and
-exit 5 on regression), and ``history`` (temporal view of one case across
-saved sessions).
+exit 5 on regression), ``history`` (temporal view of one case across
+saved sessions), and ``verify`` (replay-artifact integrity validation).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
@@ -16,6 +16,7 @@ Exit codes (per [plan.md section 16.1](../../plan.md)):
 
 - 5 REGRESSION — ``diff`` found a verdict-class downgrade or (with ``--strict``) a confidence drop
 - 6 LOW_FALSIFIABILITY — ``diff --strict``: candidate falsifiability below threshold
+- 7 INTEGRITY_FAILURE — ``verify`` found at least one failed integrity check
 """
 
 import argparse
@@ -27,6 +28,7 @@ from falsifyai.cli import history as history_cmd
 from falsifyai.cli import inspect as inspect_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
+from falsifyai.cli import verify as verify_cmd
 from falsifyai.cli.errors import CLIError
 
 
@@ -142,6 +144,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Default: .falsifyai/replays.db",
     )
 
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="Validate a stored ReplayArtifact's integrity. Exit 7 on any failed check.",
+    )
+    verify_parser.add_argument(
+        "session_id",
+        nargs="?",
+        default=None,
+        help="Session id to verify. Omit if using --all.",
+    )
+    verify_parser.add_argument(
+        "--all",
+        action="store_true",
+        default=False,
+        help="Verify every session in the store. Aggregate exit 7 if any failed.",
+    )
+    verify_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
     return parser
 
 
@@ -164,6 +188,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return diff_cmd.cmd_diff(args)
         if args.command == "history":
             return history_cmd.cmd_history(args)
+        if args.command == "verify":
+            return verify_cmd.cmd_verify(args)
     except CLIError as exc:
         print(f"falsifyai: error: {exc}", file=sys.stderr)
         return exc.exit_code
