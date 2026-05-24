@@ -147,8 +147,8 @@ infrastructure* and push back.
 - **Spec language:** locked. New fields require a spec version bump and
   a migration plan.
 
-Phase 1 expands these. Until 0.2.0 ships, additions to any of the locked
-surfaces need an architecture review.
+Phase 1 expands these. Additions to any of the locked surfaces during the
+0.x line need an architecture review.
 
 ## Planning a PR
 
