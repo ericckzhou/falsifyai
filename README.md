@@ -387,6 +387,7 @@ Worked tours of FalsifyAI's evidence infrastructure over real preserved artifact
 | # | Title | What it demonstrates |
 |---|---|---|
 | 01 | [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md) | Cross-model `contains`-contract brittleness as a persistent class; a model-migration regression (U+202F substitution between "30" and "days") as the vivid instance. |
+| 02 | [Resolver arbitration: boundary shift without verdict shift](docs/case-studies/02-resolver-arbitration-boundary-shift.md) | An operationally motivated `.claude/CLAUDE.md` revision changed *where* a model permitted additional architectural complexity to exist without changing its top-level recommendation — the kind of subtle drift a pass/fail evaluator would miss. Manual retrospective probe; machine-reproducible specs in [`docs/case-studies/specs/`](docs/case-studies/specs/). |
 
 See [`docs/case-studies/`](docs/case-studies/) for the index, the [bundled replay artifact](docs/case-studies/data/case-study-replays.db) (SHA256 in [provenance README](docs/case-studies/data/README.md)), and the framing convention case studies follow.
 
