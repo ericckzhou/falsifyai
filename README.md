@@ -1,8 +1,18 @@
 # FalsifyAI
 
-> **FalsifyAI produces replayable, inspectable evidence that AI systems behave reliably under realistic pressure.**
+**Catch silent AI regressions before they reach production.**
 
-Most evaluation tools produce metrics. FalsifyAI produces **evidence** — durable, structured artifacts that survive the run and let you *support* reliability claims about a model migration with preserved, inspectable proof.
+FalsifyAI pressure-tests LLM workflows with realistic perturbations,
+preserves every result as replayable evidence,
+and lets you diff behavior across model migrations.
+
+```bash
+falsifyai run eval.yaml
+falsifyai diff baseline candidate
+# exit 5 → regression detected
+```
+
+> **Without replay artifacts, AI evals are anecdotes.**
 
 [![CI](https://github.com/ericckzhou/falsifyai/actions/workflows/ci.yml/badge.svg)](https://github.com/ericckzhou/falsifyai/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
@@ -22,53 +32,96 @@ pip install "falsifyai[semantic]"
 
 ---
 
-## What kind of tool is this?
+## Why this matters
 
-FalsifyAI is **evidence infrastructure for reliability claims about stochastic systems** — most immediately, LLMs.
+You ship a model migration. CI was green. A week later, a customer flags a wrong refund summary. You open the eval suite — it still passes. You re-run by hand: today it passes too. The bad answer is gone. You have nothing to point at.
 
-Think of it the way you'd think of:
+The problem isn't that the model failed. The problem is that the *evidence of the failure* didn't survive the run. Stochastic systems don't produce stable failures; they produce drift. Pass/fail evaluators discard exactly the thing you need a week later: the inputs that did pressure the system, the outputs that did drift, the verdict assigned at the moment evidence was fresh.
 
-| Domain | Evidence infrastructure |
-|---|---|
-| Software supply chain | **SBOM** (CycloneDX, SPDX) — what's in this build, with provenance |
-| Static analysis | **SARIF** — the structured record of what was scanned and found |
-| Build provenance | **Sigstore / in-toto** — cryptographic attestations about what was built and by whom |
-| Security events | **Audit logs** — preserved, inspectable, defensible after the fact |
-| **Stochastic-system reliability** | **FalsifyAI replay artifact** — preserved, inspectable, defensible evidence that a model behaved reliably under realistic pressure |
-
-The underlying pattern isn't new. Applying it to stochastic-system reliability is. FalsifyAI is the stochastic-systems analogue of an evidence layer you already know.
-
-The novelty isn't *that* we preserve evidence — it's *what* we preserve: every perturbed input, every model output, every invariant judgment, the verdict, the materialized spec, and the identity that ties them together. The CLI compresses; **the artifact preserves the receipts**.
+FalsifyAI optimizes for the opposite: every perturbed input, every model output, every invariant judgment, and the verdict are preserved as one inspectable record. Six months later, with only the artifact, anyone can re-open the run, see what broke, and decide whether it still matters.
 
 ---
 
-## The core terms
+## Typical uses
 
-Three definitions that anchor everything else in this document:
-
-**Stochastic software** can produce meaningfully different outputs for equivalent requests due to probabilistic inference, retrieval variability, tool interactions, or adaptive behavior. LLMs are the most common case today; future AI systems will extend the category.
-
-**A reliability claim** is a bounded statement about how a stochastic system behaves under specified perturbation pressure, judged by specified invariants. *"This case is STABLE under typo_noise and casing"* is a reliability claim. *"This model is reliable"* is not — it's unfalsifiable and unbounded.
-
-**Reliability evidence** is the preserved, replayable proof supporting a reliability claim. Without evidence, claims are anecdotes. With evidence, claims become inspectable.
-
-In one sentence: FalsifyAI is a tool for producing **reliability evidence** that supports bounded **reliability claims** about **stochastic software**. The replay artifact is the durable object; everything else exists to produce, interpret, or consume one.
+- **Model migration safety.** Run the spec against baseline, run it against candidate, diff the two. Exit 5 if any case regressed. CI fails on the spot.
+- **CI reliability gates.** Fail builds when perturbation robustness drops below a known-good baseline. Zero thresholds to tune.
+- **Audit / compliance evidence.** Dated, replayable proof of testing for regulated environments. See [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) for the EU AI Act Annex IV §2(g) mapping.
+- **Failure investigation.** Re-open historical evals months later and inspect exactly what failed and why — even after the model has been deprecated.
+- **Research workflows.** Compare robustness across prompts, models, and perturbation families with byte-identical reproducible inputs.
 
 ---
 
 ## The 5-minute proof
 
-The investigation takes three commands. One terminal. Real models. Replayable session IDs at the end.
+Output first. Every snippet below is captured verbatim from the [bundled case-study replay store](docs/case-studies/data/case-study-replays.db) — real sessions, real session ids, real verdicts.
 
-### 1. Define what good looks like
+### 1. Run the spec against the baseline model
 
-If you `pip install`'d FalsifyAI, the examples aren't on disk yet. Grab one:
-
-```bash
-curl -O https://raw.githubusercontent.com/ericckzhou/falsifyai/main/examples/model_migration.yaml
+```text
+case: factual_recall  verdict: STABLE  confidence: 1.00 (CI: 1.00-1.00)
+case: structured_output  verdict: STABLE  confidence: 1.00 (CI: 1.00-1.00)
+case: extraction  verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
+case: policy_summary  verdict: STABLE  confidence: 1.00 (CI: 1.00-1.00)
+=================================================================
+Session 7e51299481d5420d9181e71ba0449348 -> .falsifyai/replays.db
+4 cases, verdict FRAGILE, 1 FRAGILE, 0 CONSISTENTLY_WRONG, falsifiability 0.36
 ```
 
-Or `git clone https://github.com/ericckzhou/falsifyai` for all four. Then open [`examples/model_migration.yaml`](examples/model_migration.yaml):
+Three contracts hold. One known-weakness on `extraction` is preserved as evidence rather than silenced. The session id is your baseline.
+
+### 2. Switch model. Run again.
+
+```text
+case: factual_recall  verdict: STABLE  confidence: 1.00 (CI: 1.00-1.00)
+case: structured_output  verdict: STABLE  confidence: 1.00 (CI: 1.00-1.00)
+case: extraction  verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
+case: policy_summary  verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
+=================================================================
+Session 4332c0d246bc4b3e875392ecdf3b1780 -> .falsifyai/replays.db
+4 cases, verdict FRAGILE, 2 FRAGILE, 0 CONSISTENTLY_WRONG, falsifiability 0.36
+```
+
+Same spec. Different model. `policy_summary` quietly regressed under the same `typo_noise` perturbation that left the baseline untouched. No human eye caught it — the resolver did.
+
+### 3. Diff
+
+```text
+$ falsifyai diff 7e51299481d5420d9181e71ba0449348 4332c0d246bc4b3e875392ecdf3b1780
+Diff: baseline 7e51299481d5420d9181e71ba0449348 -> candidate 4332c0d246bc4b3e875392ecdf3b1780
+Store: docs/case-studies/data/case-study-replays.db
+=================================================================
+case: policy_summary  baseline: STABLE (1.00)  candidate: FRAGILE (0.00)  REGRESSED
+=================================================================
+1 regressed, 0 improved, 3 unchanged, 0 other, 0 added, 0 removed
+```
+
+**Exit code `5` (REGRESSION).** One command. One exit code your CI can gate on. The pre-existing extraction fragility is correctly compressed into the unchanged-count footer — that's not the news.
+
+### 4. Inspect what actually broke
+
+```text
+$ falsifyai inspect 4332c0d246bc4b3e875392ecdf3b1780 --case policy_summary
+case: policy_summary  verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  perturbations: 5  worst: typo_noise
+  baseline input:   Summarize this refund policy in one sentence: Customers can request a refund within 30 days if the item is unused and the receipt is provided.
+  baseline output:  Customers may receive a refund within 30 days of purchase if they return the unused item with a receipt.
+  [1] typo_noise (character_mutations):
+    perturbed input:  Summarize this revund policy in one sentence: Cutmoersl can request a refund within 30 days if the item is unused and the receipt is provided.
+    output excerpt:   Customers can request a refund within 30 days, provided the item is unused and they present a receipt.
+      invariant: contains FAIL -- missing 1 of 3 required values
+  [2] typo_noise (character_mutations):
+    perturbed input:  Summarize this refund polgcy in one sentence: Customers can rquest a refunxd withi 30 days if the itkm is unused and the receipt is prvoivded.
+    output excerpt:   Customers may receive a refund within 30 days, provided the item is unused and they present a receipt.
+      invariant: contains FAIL -- missing 1 of 3 required values
+  [3] casing (upper):
+    perturbed input:  SUMMARIZE THIS REFUND POLICY IN ONE SENTENCE: CUSTOMERS CAN REQUEST A REFUND WITHIN 30 DAYS IF THE ITEM IS UNUSED AND THE RECEIPT IS PROVIDED.
+    output excerpt:   Customers may receive a refund within 30 days if they return an unused item with a receipt.
+      invariant: contains PASS -- all required values present
+```
+
+The U+202F (narrow no-break space) the candidate model emitted between *"30"* and *"days"* is preserved verbatim. The `contains: ["30 days", ...]` invariant treats `"30 days"` and `"30 days"` as different strings — and they are, byte-for-byte. The failure is not a mystery. It is on disk. Forever.
+
+### 5. The spec
 
 ```yaml
 falsify:
@@ -76,235 +129,61 @@ falsify:
   name: "Model migration regression test"
 model:
   provider: groq
-  model: llama-3.3-70b-versatile
+  model: llama-3.3-70b-versatile   # swap for candidate model on run 2
 run:
   seed: 42
 cases:
-  - id: factual_recall
-    input: { text: "What is the capital of France?" }
-    expected: { contains: ["Paris"] }
-    perturbations:
-      - { type: typo_noise, count: 3 }
-      - { type: casing }
-    invariants:
-      - { type: contains, values: ["Paris"] }
-
-  - id: structured_output
-    input: { text: 'Reply ONLY with a JSON object of the form {"capital": "<city>"}. What is the capital of Japan?' }
-    expected: { contains: ['"capital"', "Tokyo"] }
-    perturbations:
-      - { type: typo_noise, count: 2 }
-      - { type: casing }
-    invariants:
-      - { type: contains, values: ['"capital"', "Tokyo"] }
-
-  - id: extraction
-    input: { text: "Extract only the email addresses from this text: Contact alice@example.com or bob@example.com for details. The deadline is Friday." }
-    expected: { contains: ["alice@example.com", "bob@example.com"] }
-    perturbations:
-      - { type: typo_noise, count: 2 }
-      - { type: casing }
-    invariants:
-      - { type: contains, values: ["alice@example.com", "bob@example.com"] }
-
   - id: policy_summary
-    input: { text: "Summarize this refund policy in one sentence: Customers can request a refund within 30 days if the item is unused and the receipt is provided." }
+    input:
+      text: "Summarize this refund policy in one sentence: Customers can
+             request a refund within 30 days if the item is unused and the
+             receipt is provided."
     expected: { contains: ["30 days", "unused", "receipt"] }
     perturbations:
       - { type: typo_noise, count: 2 }
       - { type: casing }
     invariants:
       - { type: contains, values: ["30 days", "unused", "receipt"] }
+  # …three more cases (factual_recall, structured_output, extraction);
+  # full spec at examples/model_migration.yaml
 ```
 
-Four cases. One sanity anchor (*factual recall*) plus three production-shaped contracts: *structured output*, *extraction*, *grounded policy summarization*. The mix is deliberate — a migration regression then looks like a behavioral pattern across contract types, not a single anecdote.
+The replay artifact preserved:
 
-### 2. Run against your baseline model
+- perturbed inputs (verbatim, byte-identical)
+- model outputs (raw, no post-processing)
+- invariant judgments (pass/fail per output, with evidence strings)
+- the verdict (assigned at run time, never re-resolved)
+- provenance metadata (`spec_hash`, `materialized_hash`, `falsifyai_version`)
+- the `cli_invocation` that produced the artifact
+- deterministic bundle identity (`bundle_id` is sha256 of canonical manifest)
 
-```bash
-$ falsifyai run examples/model_migration.yaml
-case: factual_recall     verdict: STABLE   confidence: 1.00 (CI: 1.00-1.00)
-case: structured_output  verdict: STABLE   confidence: 1.00 (CI: 1.00-1.00)
-case: extraction         verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
-case: policy_summary     verdict: STABLE   confidence: 1.00 (CI: 1.00-1.00)
-=================================================================
-Session 7e51299481d5420d9181e71ba0449348 -> .falsifyai/replays.db
-4 cases, verdict FRAGILE, 1 FRAGILE, 0 CONSISTENTLY_WRONG, falsifiability 0.36
-```
-
-Exit code: `1` (FRAGILE). Three contracts hold under pressure; one (`extraction`) is already fragile on this baseline — typo noise on `alice@example.com` corrupts the token and the model drops the address. That's a *known weakness*, now preserved as evidence. Note the session id — that's your **baseline evidence artifact**. Commit it to your repo if you want it durable.
-
-### 3. Switch to the new model. Run again.
-
-Swap `model: llama-3.3-70b-versatile` for `model: openai/gpt-oss-120b` (OpenAI's open-weights model, also on Groq). Run again:
-
-```bash
-$ falsifyai run examples/model_migration.yaml
-case: factual_recall     verdict: STABLE   confidence: 1.00 (CI: 1.00-1.00)
-case: structured_output  verdict: STABLE   confidence: 1.00 (CI: 1.00-1.00)
-case: extraction         verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
-case: policy_summary     verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
-=================================================================
-Session 4332c0d246bc4b3e875392ecdf3b1780 -> .falsifyai/replays.db
-4 cases, verdict FRAGILE, 2 FRAGILE, 0 CONSISTENTLY_WRONG, falsifiability 0.36
-```
-
-Exit code: `1`. The new (larger, more recent) model has the *same* pre-existing extraction weakness — *plus* a new failure: `policy_summary` is now fragile under the same typo perturbation that left the baseline untouched. Same spec. Different model. **A real, quietly-introduced regression.**
-
-### 4. Diff the two evidence artifacts
-
-```bash
-$ falsifyai diff 7e51299481d5420d9181e71ba0449348 4332c0d246bc4b3e875392ecdf3b1780
-Diff: baseline 7e51299481d5420d9181e71ba0449348 -> candidate 4332c0d246bc4b3e875392ecdf3b1780
-Store: .falsifyai/replays.db
-=================================================================
-case: policy_summary  baseline: STABLE (1.00)  candidate: FRAGILE (0.00)  REGRESSED
-=================================================================
-1 regressed, 0 improved, 3 unchanged, 0 other, 0 added, 0 removed
-```
-
-Exit code: `5` (REGRESSION). Only the row that changed is shown. The pre-existing extraction fragility is compressed into the unchanged-count footer — that's not the news; the policy summary regression is.
-
-**One command. One verdict-class downgrade. One exit code your CI can gate on. One preserved evidence trail you can re-open six months from now and inspect.**
-
-### 5. Replay any past session
-
-```bash
-$ falsifyai replay --latest
-Loaded session 4332c0d246bc4b3e875392ecdf3b1780 · created_at 2026-05-22T... from .falsifyai/replays.db
-case: factual_recall     verdict: STABLE   confidence: 1.00 (CI: 1.00-1.00)
-case: structured_output  verdict: STABLE   confidence: 1.00 (CI: 1.00-1.00)
-case: extraction         verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
-case: policy_summary     verdict: FRAGILE  confidence: 0.00 (CI: 0.00-0.00)  worst: typo_noise
-=================================================================
-4 cases, verdict FRAGILE, 2 FRAGILE, 0 CONSISTENTLY_WRONG, falsifiability 0.36
-```
-
-Replay is **read-only**. The verdict shown is the one assigned at run time — never re-resolved. The same evidence that triggered the regression alert is preserved indefinitely, even if the model is later deprecated, the API endpoint changes, or your spec evolves.
-
-**Without replay artifacts, this entire workflow is anecdotes.** *"The new model failed our eval on Tuesday"* is unverifiable by Friday — the API may have changed, your harness may have been refactored, your colleague may want proof.
-
-**With replay artifacts, the workflow produces inspectable evidence.** Re-open the artifact six months from now and the claim still stands on its own. **That's the whole product.** `run` → `replay` → `diff` is one falsification workflow that ends in a preserved, inspectable evidence artifact. Not three commands — one evidence workflow producing one durable record.
-
-> For a deeper walkthrough of these same sessions — including `history`, `inspect`, the cross-model extraction finding, and the U+202F invisible-character regression — see [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md).
+The evidence survives the run. The deeper semantics live in [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
 
 ---
 
-## What's in the evidence?
+## Core concepts
 
-The replay artifact (one row in `.falsifyai/replays.db`, one row per session) preserves:
+A FalsifyAI spec describes three things:
 
-- **Identity** — `session_id` (UUID), `spec_hash` (sha256 of source YAML), `materialized_hash` (sha256 of realized perturbations), `created_at_iso`, FalsifyAI version
-- **The materialized spec** — every realized perturbation string with its seed and lineage, so the inputs are exactly reproducible
-- **Every model output** — original and perturbed, raw, no post-processing
-- **Every invariant judgment** — which invariant ran on which output, pass/fail, evidence string
-- **The verdict** — assigned at run time using a deterministic priority chain, never re-resolved on read
-- **Per-perturbation-family stability** — stratified bootstrap CI per family, so the "worst case" is attributable
-- **The invocation that produced it** — `cli_invocation` records the normalized CLI command (`falsifyai run …`) and `falsifyai_version` at capture time. Descriptive provenance only — replay-determinism guarantees live in `materialized_hash` and the bundle's `bundle_id`.
+- **Perturbations** — *"what could go wrong on the input side?"* (typo noise, casing variants, paraphrases)
+- **Invariants** — *"what must stay true about the output?"* (required substrings, semantic equivalence)
+- **Verdict rules** — *"when is the case fragile?"* (framework-level; not tuned per run)
 
-This is the evidence FalsifyAI exists to produce. The CLI compresses it into one row per case + a session summary; the artifact preserves the receipts.
+FalsifyAI runs the model on the original input plus every perturbation, judges every output against every invariant, and resolves a per-case verdict via a deterministic priority chain. The full evidence trail is preserved as a **replay artifact** — the durable product. Every CLI subcommand either produces one or reads one.
 
-### Five concepts, one screen each
+---
 
-**Perturbations** generate small input variations a real user might produce. Three families ship: `typo_noise` (character-level mutations), `casing_variant` (UPPER / lower / Title), and `paraphrase` (LLM-generated semantic-preserving rewrites, validity-gated via embedding similarity). The first two test character-level robustness; paraphrase tests semantic robustness — an orthogonal pressure axis.
+## Case studies
 
-**Invariants** judge whether a perturbed output is still *"the same answer"* as the original. `contains` checks for required substrings; `semantic_equivalence` compares embedding cosine similarity to a threshold.
+Worked tours over real preserved artifacts. Each case study *is* a FalsifyAI artifact: a `ReplayStore` bundle plus prose that walks through what `history`, `diff`, `inspect`, and `replay` reveal when read against it.
 
-**Verdicts** compress evidence into one of five labels per case:
-
-| Verdict | Meaning | Exit |
+| # | Title | What it demonstrates |
 |---|---|---|
-| `STABLE` | All perturbations passed the invariants | 0 |
-| `FRAGILE` | Some perturbations failed; model drifts under pressure | 1 |
-| `CONSISTENTLY_WRONG` | Every output (including baseline) violates the ground truth | 2 |
-| `INSUFFICIENT` | Not enough evidence to decide (too few perturbations) | 4 |
-| `INVALID_EVAL` | The evaluation itself is invalid or contradictory | 2 |
+| 01 | [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md) | Cross-model `contains`-contract brittleness as a persistent class; a model-migration regression (U+202F substitution between "30" and "days") as the vivid instance. |
+| 02 | [Resolver arbitration: boundary-allocation effect](docs/case-studies/02-resolver-arbitration-boundary-shift.md) | A small operating-context revision changed *where* a model permitted additional architectural complexity to exist without changing its top-level recommendation — the kind of subtle drift a pass/fail evaluator would miss. |
 
-Verdicts use **stratified bootstrap CI** — each perturbation family is resampled independently, and the worst-case CI lower bound wins. A model that survives typos but breaks under casing reports the *casing* stability number, not an aggregated average that hides the failure. The verdict is *a claim*, and the artifact is what the claim rests on.
-
-**Replay artifacts** are the system's promise that claims are *inspectable evidence*, not anecdotes. They preserve the full evidence trail per session as described above. The verdict shown on replay is the one assigned at run time — replay never re-resolves.
-
-**Diff** compares two artifacts case-by-case. The regression criterion is a **binary verdict-class downgrade** — `STABLE → FRAGILE`, `STABLE → CONSISTENTLY_WRONG`, or `FRAGILE → CONSISTENTLY_WRONG`. A competent user can predict the exit code from the two verdicts; there are no hidden thresholds. *That predictability is the whole point* — see "Resolver predictability" below.
-
-For the full evidence-system semantics — what guarantees the artifact makes, what the verdict means as a claim — see [`docs/EVIDENCE.md`](docs/EVIDENCE.md). For the full philosophy, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
----
-
-## Resolver predictability
-
-The verdict resolver is the **epistemic authority** of the framework — the thing that says *"this case is FRAGILE"*. Every downstream claim (replay, diff, CI gate, migration decision) rests on it.
-
-The architectural discipline: **a competent user must be able to predict the resolver's output from the inputs.** If a careful engineer reading the spec, the perturbations, the executions, and the invariant results can reasonably anticipate the verdict, the resolver is legible. If they can't, it's a black box — regardless of how technically correct its internals are.
-
-This isn't just an aesthetic choice. It's what makes the evidence *auditable*. An opaque resolver produces unfalsifiable claims; a predictable one produces defensible claims. The discipline is in service of the evidence — it's why an auditor (or a future you) can trust what's in the artifact.
-
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full discussion and the architectural rules that protect predictability as the project grows.
-
----
-
-## What FalsifyAI is not
-
-The category clarity above implies things FalsifyAI deliberately is not, and is not aspiring to become:
-
-- **Not a prompt optimization suite.** No prompt tuning, no automated A/B over wordings. The spec is authored deliberately; the framework tests what's authored.
-- **Not a telemetry platform.** No streaming, no production dashboards, no time-series. The artifact is per-run preserved evidence, not a continuous-monitoring data point.
-- **Not a generalized observability product.** The CLI compresses; the artifact preserves. That's *prioritized visibility*, not less visibility — the headline tells you whether to look, the artifact tells you what to look at. There is no firehose drill-down.
-- **Not a workflow orchestrator.** No DAG runner, no pipeline engine. The three commands (`run` / `replay` / `diff`) are the entire surface.
-- **Not an AI governance suite.** Governance platforms consume reliability evidence; FalsifyAI produces it. Different layer.
-
-These exclusions matter because they keep the surface compressible. Adding any of the above corrupts the discipline — *evidence density* requires *evidence boundaries*.
-
----
-
-## Architecture
-
-Three layers, separated by design. The replay artifact is the central object; the other two layers exist to produce and interpret it.
-
-```mermaid
-flowchart LR
-    subgraph Generation["Evidence generation"]
-        Spec[Spec / YAML]
-        Mat[Materialize]
-        Exec[Execute]
-        Spec --> Mat --> Exec
-    end
-    subgraph Interpretation["Evidence interpretation"]
-        Inv[Invariants]
-        Res[Verdict resolver]
-        Ren[CLI render]
-        Inv --> Res --> Ren
-    end
-    subgraph Preservation["Evidence preservation — the product"]
-        Art[ReplayArtifact]
-        Store[ReplayStore]
-        Art --> Store
-    end
-    Exec --> Inv
-    Ren --> Art
-    Store -.->|replay/diff| Ren
-```
-
-ASCII fallback (for PyPI / mobile readers):
-
-```
-  EVIDENCE GENERATION             EVIDENCE INTERPRETATION         EVIDENCE PRESERVATION
-  ─────────────────────           ───────────────────────         (the durable product)
-  spec.yaml                       invariants                      ─────────────────────
-     │                            verdict resolver                ReplayArtifact
-     ▼                            CLI render                      ReplayStore
-  materialize                            │                              ▲
-     │                                   │                              │
-     ▼                                   ▼                              │
-  execute  ────────────────────────▶ judge ────────────▶ resolve ───────┘
-                                                            │
-                                       ┌── falsifyai run    │
-                                       │── falsifyai replay │
-                                       │── falsifyai inspect│  (consumers read
-                                       │── falsifyai diff   │   the artifact)
-                                       └── falsifyai history│
-```
-
-A future feature touches exactly one layer. Adaptive evidence collection is interpretation, not generation. A new perturbation family is generation, not interpretation. A new verdict shape is interpretation, not preservation. The separation is what keeps the resolver explainable as the project grows — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and the philosophy section of [`CONTRIBUTING.md`](CONTRIBUTING.md).
+See [`docs/case-studies/`](docs/case-studies/) for the index and the framing convention case studies follow.
 
 ---
 
@@ -332,14 +211,12 @@ falsifyai export <session_id> --bundle <output>.fai.zip [--spec-path PATH] [--al
 | 3 | ERROR — infrastructure failure (bad spec, missing credential, model call failure) |
 | 4 | INSUFFICIENT — not enough evidence to decide |
 | 5 | REGRESSION — `falsifyai diff` detected a verdict-class downgrade (or `--strict` confidence drop ≥ 0.10) |
-| 6 | LOW_FALSIFIABILITY — `falsifyai diff --strict` candidate falsifiability < 0.50 (only fires when no exit-5 condition is present) |
+| 6 | LOW_FALSIFIABILITY — `falsifyai diff --strict` candidate falsifiability < 0.50 |
 | 7 | INTEGRITY_FAILURE — `falsifyai verify` found at least one failed integrity check |
 
-Default `--store-path` is `.falsifyai/replays.db`. Use `:memory:` for ephemeral runs (test-only; `replay` and `diff` need a persistent store).
+Default `--store-path` is `.falsifyai/replays.db`. Use `:memory:` for ephemeral test-only runs.
 
----
-
-## CI integration
+### CI integration
 
 Ship the *evidence* with your PR, not just the pass/fail signal:
 
@@ -356,84 +233,60 @@ Ship the *evidence* with your PR, not just the pass/fail signal:
     # Exit 5 = regression; the job fails.
 ```
 
-The `KNOWN_GOOD` variable is a session id you captured locally against the production model and committed as a repo / org variable. CI runs the eval against the candidate model and diffs — exit 5 (REGRESSION) fails the job. **Zero thresholds to tune; the regression criterion is the verdict-class downgrade.** The full evidence artifact is preserved in `.falsifyai/replays.db` and can be archived as a CI artifact for later inspection.
+`KNOWN_GOOD` is a session id captured locally against the production model and committed as a repo/org variable. Archive `.falsifyai/replays.db` as a CI artifact if you want to inspect the evidence later.
 
 ---
 
-## Examples
+## What FalsifyAI is not
 
-Four dogfooded specs, all verified in CI ([`tests/integration/test_examples.py`](tests/integration/test_examples.py)):
+- **Not a prompt optimization suite.** No prompt tuning, no automated A/B over wordings. The spec is authored deliberately.
+- **Not a telemetry platform.** No streaming, no production dashboards, no time-series. The artifact is per-run preserved evidence.
+- **Not a generalized observability product.** The CLI compresses; the artifact preserves. The headline tells you whether to look; the artifact tells you what to look at.
+- **Not a workflow orchestrator.** Seven subcommands are the entire surface.
+- **Not an AI governance suite.** Governance platforms consume reliability evidence; FalsifyAI produces it.
 
-| Example | Verdict | What it demonstrates |
-|---|---|---|
-| [`examples/stable.yaml`](examples/stable.yaml) | `STABLE` (exit 0) | A sane model under perturbation; both perturbation families + both invariants. |
-| [`examples/fragile.yaml`](examples/fragile.yaml) | `FRAGILE` (exit 1) | Model drift: baseline correct, perturbations wrong. |
-| [`examples/consistently_wrong.yaml`](examples/consistently_wrong.yaml) | `CONSISTENTLY_WRONG` (exit 2) | Confident hallucination: same wrong answer under every perturbation. |
-| [`examples/model_migration.yaml`](examples/model_migration.yaml) | regression (exit 5) | The launch wedge — run twice, diff, exit 5 if any case regressed. The 5-minute proof above uses this spec. |
+These exclusions keep the surface compressible. Adding any of them corrupts the discipline.
 
-Run any of them:
+---
 
-```bash
-falsifyai run examples/stable.yaml
+## What kind of tool is this?
+
+You've seen the workflow. The bigger pattern:
+
+| Domain | Evidence infrastructure |
+|---|---|
+| Software supply chain | **SBOM** (CycloneDX, SPDX) — what's in this build, with provenance |
+| Static analysis | **SARIF** — the structured record of what was scanned and found |
+| Build provenance | **Sigstore / in-toto** — cryptographic attestations about what was built and by whom |
+| Distributed tracing | **OpenTelemetry** — preserved, inspectable traces of what a system actually did |
+| **Stochastic-system reliability** | **FalsifyAI replay artifact** — preserved, inspectable evidence that a model behaved reliably under realistic pressure |
+
+The underlying pattern isn't new. Applying it to stochastic-system reliability is. FalsifyAI is the stochastic-systems analogue of an evidence layer you already know.
+
+---
+
+## Architecture
+
+Three layers, separated by design. The replay artifact is the central object; the other two layers exist to produce and interpret it.
+
+```
+  GENERATION                 INTERPRETATION              PRESERVATION
+  spec.yaml                  invariants                  ReplayArtifact
+  materialize                verdict resolver            ReplayStore
+  execute        ──▶         CLI render          ──▶     (the durable product)
 ```
 
-A real provider is required at runtime (`OPENAI_API_KEY`, `GROQ_API_KEY`, etc. — whichever your spec's `provider:` field points at). The dogfood tests in CI bypass real model calls by injecting `MockAdapter` through a test seam — see [`tests/integration/test_examples.py`](tests/integration/test_examples.py) for the pattern.
+A future feature touches exactly one layer. Adaptive evidence collection is interpretation, not generation. A new perturbation family is generation, not interpretation. A new verdict shape is interpretation, not preservation.
 
----
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full discussion (three-layer separation, data flow, identity model, subpackage reference) and [`docs/EVIDENCE.md`](docs/EVIDENCE.md) for the artifact protocol semantics.
 
-## Case studies
+### Resolver predictability
 
-Worked tours of FalsifyAI's evidence infrastructure over real preserved artifacts. Each case study is itself a FalsifyAI artifact: a `ReplayStore` bundle plus prose that walks through what `history`, `diff`, `inspect`, and `replay` reveal when read against it.
+The verdict resolver is the epistemic authority of the framework. Its priority chain stays compressible so a careful reader can predict the verdict from the inputs alone. The trust test, applied before any resolver change lands:
 
-| # | Title | What it demonstrates |
-|---|---|---|
-| 01 | [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md) | Cross-model `contains`-contract brittleness as a persistent class; a model-migration regression (U+202F substitution between "30" and "days") as the vivid instance. |
-| 02 | [Resolver arbitration: boundary shift without verdict shift](docs/case-studies/02-resolver-arbitration-boundary-shift.md) | An operationally motivated `.claude/CLAUDE.md` revision changed *where* a model permitted additional architectural complexity to exist without changing its top-level recommendation — the kind of subtle drift a pass/fail evaluator would miss. Manual retrospective probe; machine-reproducible specs in [`docs/case-studies/specs/`](docs/case-studies/specs/). |
+> *A competent user should be able to predict the resolver output from the inputs.*
 
-See [`docs/case-studies/`](docs/case-studies/) for the index, the [bundled replay artifact](docs/case-studies/data/case-study-replays.db) (SHA256 in [provenance README](docs/case-studies/data/README.md)), and the framing convention case studies follow.
-
----
-
-## Writing your own spec
-
-The shortest valid spec ([`tests/fixtures/specs/minimal.yaml`](tests/fixtures/specs/minimal.yaml)):
-
-```yaml
-falsify:
-  version: "1.0"
-  name: "minimal"
-model:
-  provider: openai
-  model: gpt-4o-mini
-run:
-  seed: 42
-cases:
-  - id: hello
-    input:
-      text: "Say hi."
-    perturbations:
-      - type: typo_noise
-    invariants:
-      - type: contains
-        values: ["hi"]
-```
-
-The full spec schema (perturbation parameters, invariant types, verdict thresholds) is in [`plan.md` §6](plan.md). The spec language is locked for the 0.1.x line.
-
----
-
-## Local development
-
-Requires Python 3.13+ and [`uv`](https://docs.astral.sh/uv/).
-
-```bash
-git clone https://github.com/ericckzhou/falsifyai
-cd falsifyai
-uv sync --extra dev
-uv run pytest
-```
-
-Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Architectural constraints (especially: *resist resolver inflation*) are non-negotiable; see that doc for the trust test any resolver-touching PR must pass.
+Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) expand freely. The resolver does not. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the discipline any resolver-touching PR must satisfy.
 
 ---
 
@@ -458,6 +311,30 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 The locked artifact-infrastructure track closed with v0.4.0. What gets built next is **driven by external pressure**, not by internal roadmap continuation: real user friction with verify/export/case-study formalization, a second case study with sufficient evidence pressure, a first compliance buyer asking for cryptographic signing (the `attestations: []` / `signature_slots: []` slots are reserved in the bundle manifest), or a first external consumer of the bundle format asking for `falsifyai import`. Each candidate waits to be pulled by contact with reality rather than scheduled in advance.
 
 Each addition is evaluated against: *does this preserve evidence density, resolver predictability, and the discipline that makes the artifact trustworthy?* See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/EVIDENCE.md`](docs/EVIDENCE.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the discipline.
+
+---
+
+## Further reading
+
+- [`docs/EVIDENCE.md`](docs/EVIDENCE.md) — replay artifact protocol semantics: what it preserves, what guarantees it makes, what the verdicts mean as claims.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — three-layer separation, data flow, identity model, subpackage reference.
+- [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) — EU AI Act Annex IV §2(g) field-by-field mapping.
+- [`docs/case-studies/`](docs/case-studies/) — worked tours over preserved artifacts.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — architectural discipline for PRs.
+- [`plan.md`](plan.md) — original design plan (more detail; older).
+
+---
+
+## Local development
+
+Requires Python 3.13+ and [`uv`](https://docs.astral.sh/uv/).
+
+```bash
+git clone https://github.com/ericckzhou/falsifyai
+cd falsifyai
+uv sync --extra dev
+uv run pytest
+```
 
 ---
 
