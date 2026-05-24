@@ -200,6 +200,7 @@ The replay artifact (one row in `.falsifyai/replays.db`, one row per session) pr
 - **Every invariant judgment** — which invariant ran on which output, pass/fail, evidence string
 - **The verdict** — assigned at run time using a deterministic priority chain, never re-resolved on read
 - **Per-perturbation-family stability** — stratified bootstrap CI per family, so the "worst case" is attributable
+- **The invocation that produced it** — `cli_invocation` records the normalized CLI command (`falsifyai run …`) and `falsifyai_version` at capture time. Descriptive provenance only — replay-determinism guarantees live in `materialized_hash` and the bundle's `bundle_id`.
 
 This is the evidence FalsifyAI exists to produce. The CLI compresses it into one row per case + a session summary; the artifact preserves the receipts.
 
@@ -433,6 +434,10 @@ uv run pytest
 ```
 
 Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Architectural constraints (especially: *resist resolver inflation*) are non-negotiable; see that doc for the trust test any resolver-touching PR must pass.
+
+---
+
+> **Evaluating FalsifyAI for EU AI Act Annex IV documentation?** See [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) for a field-by-field mapping of replay-artifact contents to Annex IV §2(g) testing-evidence requirements, plus honest disclosure of the gaps (cryptographic signing, operator identity) that providers must wrap externally.
 
 ---
 
