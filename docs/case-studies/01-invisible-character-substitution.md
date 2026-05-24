@@ -181,7 +181,7 @@ Every command shown above runs against the bundled SQLite. No model calls, no AP
 
 ```bash
 # 1. Install FalsifyAI
-pip install falsifyai==0.3.0
+pip install falsifyai==0.4.0
 
 # 2. Verify the bundle's integrity
 python -c "import hashlib; \
@@ -234,7 +234,7 @@ The U+202F substitution is memorable; the cross-model extraction brittleness is 
 
 ## Reproduction checklist
 
-- [ ] `pip install falsifyai==0.3.0`
+- [ ] `pip install falsifyai==0.4.0`
 - [ ] Clone this repository or download [`case-study-replays.db`](data/case-study-replays.db) (SHA256 above)
 - [ ] Run each command in Section 6
 - [ ] Confirm that every output matches what is shown in this document

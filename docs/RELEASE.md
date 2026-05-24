@@ -17,7 +17,7 @@ FalsifyAI follows [Semantic Versioning 2.0.0](https://semver.org/).
 | Version part | When to bump |
 |---|---|
 | **MAJOR** (1.0.0 → 2.0.0) | Breaking change to spec language, replay artifact schema, or verdict semantics. |
-| **MINOR** (0.2.0 → 0.3.0) | New feature, new verdict, new perturbation family. Spec language extensions that add fields. |
+| **MINOR** (0.3.0 → 0.4.0) | New feature, new verdict, new perturbation family. Spec language extensions that add fields. |
 | **PATCH** (0.1.0 → 0.1.1) | Bug fixes, dependency updates, docs improvements. No new fields, no new verdicts, no new behavior. |
 
 **Pre-1.0 (current).** Internal APIs may evolve between MINOR bumps. The
@@ -121,10 +121,10 @@ If `twine check` fails, the most common causes are:
 
 ```bash
 # Create an annotated tag matching the version (substitute the new version below).
-git tag -a v0.3.0 -m "Release 0.3.0"
+git tag -a v0.4.0 -m "Release 0.4.0"
 
 # Push the tag. This fires .github/workflows/publish.yml.
-git push origin v0.3.0
+git push origin v0.4.0
 ```
 
 The workflow:
@@ -184,8 +184,8 @@ falsifyai --help
 
 1. Go to the [Releases page](https://github.com/ericckzhou/falsifyai/releases).
 2. Click "Draft a new release."
-3. Choose the tag you just pushed (e.g. `v0.3.0`).
-4. Title: `<version> — <thematic name>` (e.g. `0.3.0 — Artifact-infrastructure track (2 of 3)`).
+3. Choose the tag you just pushed (e.g. `v0.4.0`).
+4. Title: `<version> — <thematic name>` (e.g. `0.4.0 — Artifact-infrastructure track complete`).
 5. Body: copy the matching section from `CHANGELOG.md` verbatim.
 6. Publish.
 
@@ -209,10 +209,10 @@ If the release warrants public attention:
    ```
 
 2. **Bump version to next dev marker.** Optional but recommended when
-   starting work toward the next release. For example, after `0.3.0`
-   ships and the next planned release is `0.4.0`:
-   - `pyproject.toml`: `version = "0.4.0.dev0"`
-   - `falsifyai/__init__.py`: `__version__ = "0.4.0.dev0"`
+   starting work toward the next release. For example, after `0.4.0`
+   ships and the next planned release is `0.5.0`:
+   - `pyproject.toml`: `version = "0.5.0.dev0"`
+   - `falsifyai/__init__.py`: `__version__ = "0.5.0.dev0"`
    - `tests/unit/test_version.py`: update the asserted version string.
    - Open a PR titled `chore: bump version to <next>.dev0`.
 
