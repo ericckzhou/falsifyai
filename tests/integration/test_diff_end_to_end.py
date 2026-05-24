@@ -102,3 +102,50 @@ def test_diff_via_main_cli_returns_exit_code(tmp_path, capsys) -> None:
 
     rc = cli_main.main(["diff", baseline_id, candidate_id, "--store-path", db_path])
     assert rc == 5
+
+
+# ---------------------------------------------------------------------------
+# Byte-identical backward-compatibility fixture (acceptance criterion J1)
+# ---------------------------------------------------------------------------
+
+
+def test_diff_default_output_is_byte_identical_to_v020_baseline(capsys) -> None:
+    """Default ``falsifyai diff`` output must be byte-identical to the v0.2.0 fixture.
+
+    This is the mechanical guard for plan decision J1 (backward compatibility).
+    The fixture at tests/fixtures/diff/v0.2.0_baseline.txt was captured against
+    the case-study replay DB on the v0.2.0 tag before any PR-28 code change.
+    Any deviation -- intentional or accidental -- will fail CI here.
+
+    Skipped automatically if the case-study DB is not present (local dev without
+    the full data bundle).  CI always has the DB via the repo checkout.
+    """
+    from pathlib import Path
+
+    import pytest
+
+    fixture_path = Path(__file__).resolve().parents[1] / "fixtures" / "diff" / "v0.2.0_baseline.txt"
+    expected = fixture_path.read_text(encoding="utf-8")
+
+    store_path = "docs/case-studies/data/case-study-replays.db"
+    baseline_id = "7e51299481d5420d9181e71ba0449348"
+    candidate_id = "4332c0d246bc4b3e875392ecdf3b1780"
+
+    if not Path(store_path).exists():
+        pytest.skip(f"case-study store not found at {store_path!r}; skipping fixture check")
+
+    args = argparse.Namespace(
+        baseline_session_id=baseline_id,
+        candidate_session_id=candidate_id,
+        store_path=store_path,
+        strict=False,
+        show_timeline=False,
+    )
+
+    cli_diff.cmd_diff(args)
+    captured = capsys.readouterr()
+    assert captured.out == expected, (
+        "Default diff output changed from v0.2.0 baseline.\n"
+        "If this is intentional, re-capture the fixture from the v0.2.0 tag "
+        "per the instructions in dev_notes/plans/PR-28-diff-sharpening.md §6 step 1."
+    )

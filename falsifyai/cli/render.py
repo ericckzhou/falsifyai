@@ -151,17 +151,68 @@ def _format_transition_row(t: "CaseTransition") -> str:
     )
 
 
+# Confidence delta below this absolute value is rendering noise; shown as STABLE.
+_TIMELINE_NOISE_FLOOR: float = 0.01
+
+
+def _timeline_marker(t: "CaseTransition") -> str:
+    """Per-row marker for --show-timeline rendering.
+
+    For non-UNCHANGED transitions the existing kind label is reused.
+    For UNCHANGED transitions a direction label is computed from the
+    confidence delta so readers can see cases trending without having
+    crossed a verdict-class boundary.
+    """
+    from falsifyai.cli.diff import TransitionKind
+
+    if t.transition_kind is not TransitionKind.UNCHANGED:
+        return t.transition_kind.value.upper()
+
+    delta = t.candidate_stability_ci_low - t.baseline_stability_ci_low
+    if delta <= -_TIMELINE_NOISE_FLOOR:
+        return (
+            f"DECLINED {t.baseline_stability_ci_low:.2f}"
+            f"->{t.candidate_stability_ci_low:.2f}"
+            f" ({delta:+.2f})"
+        )
+    if delta >= _TIMELINE_NOISE_FLOOR:
+        return (
+            f"RECOVERED {t.baseline_stability_ci_low:.2f}"
+            f"->{t.candidate_stability_ci_low:.2f}"
+            f" ({delta:+.2f})"
+        )
+    return "STABLE"
+
+
+def _format_transition_row_timeline(t: "CaseTransition") -> str:
+    """One row for --show-timeline: same shape as default but with a timeline marker."""
+    baseline_str = _format_verdict_with_stability(t.baseline_verdict, t.baseline_stability_ci_low)
+    candidate_str = _format_verdict_with_stability(
+        t.candidate_verdict, t.candidate_stability_ci_low
+    )
+    return (
+        f"case: {t.case_id}  "
+        f"baseline: {baseline_str}  "
+        f"candidate: {candidate_str}  "
+        f"{_timeline_marker(t)}"
+    )
+
+
 def render_diff(
     report: "DiffReport",
     *,
     store_path: str,
     stream: TextIO | None = None,
+    show_timeline: bool = False,
 ) -> None:
-    """Print a compressed transition table for two stored sessions.
+    """Print a transition table for two stored sessions.
 
-    Only transitions != UNCHANGED are surfaced as rows. The summary footer
-    always shows the full counts (unchanged + regressed + improved + ...).
-    Evidence density: show what changed; report what didn't via counts only.
+    Default (no flags): only transitions != UNCHANGED are surfaced as rows.
+    The summary footer always shows the full counts.
+
+    With ``show_timeline=True``: every case is rendered with a per-row
+    direction marker (REGRESSED, IMPROVED, DECLINED, RECOVERED, STABLE).
+    Exit code is unaffected by this flag.
     """
     from falsifyai.cli.diff import TransitionKind
 
@@ -178,12 +229,21 @@ def render_diff(
         )
     out.write("=" * 65 + "\n")
 
-    surfaced = [t for t in report.transitions if t.transition_kind is not TransitionKind.UNCHANGED]
-    if not surfaced:
-        out.write("(no transitions; all cases unchanged)\n")
+    if show_timeline:
+        if not report.transitions:
+            out.write("(no cases)\n")
+        else:
+            for t in report.transitions:
+                out.write(_format_transition_row_timeline(t) + "\n")
     else:
-        for t in surfaced:
-            out.write(_format_transition_row(t) + "\n")
+        surfaced = [
+            t for t in report.transitions if t.transition_kind is not TransitionKind.UNCHANGED
+        ]
+        if not surfaced:
+            out.write("(no transitions; all cases unchanged)\n")
+        else:
+            for t in surfaced:
+                out.write(_format_transition_row(t) + "\n")
 
     out.write("=" * 65 + "\n")
     out.write(
