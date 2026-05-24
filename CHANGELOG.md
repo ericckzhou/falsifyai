@@ -6,6 +6,22 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`falsifyai diff --strict`** — stricter exit criteria for CI gates: exits 5
+  if any same-verdict case drops confidence by ≥ 0.10 (DECLINED signal), and
+  exits 6 (`LOW_FALSIFIABILITY`) if the candidate session's falsifiability score
+  is below 0.50. Exit 5 takes priority when both fire. The standard regression
+  criterion (verdict-class downgrade → exit 5) is unchanged regardless of flag.
+
+- **`falsifyai diff --show-timeline`** — renders every case as a row with a
+  per-row direction marker: `REGRESSED`, `IMPROVED`, `DECLINED x.xx->y.yy (+dd)`,
+  `RECOVERED x.xx->y.yy (+dd)`, or `STABLE`. Display-only; does not affect the
+  exit code.
+
+- **Exit code 6 (`LOW_FALSIFIABILITY`)** — new exit code for `diff --strict`;
+  fires when candidate falsifiability < 0.50 and no exit-5 condition is present.
+
 ## [0.2.0] — 2026-05-22
 
 Phase 1 release. Three new consumer surfaces (`inspect`, `history`), one new

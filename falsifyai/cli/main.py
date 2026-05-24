@@ -14,7 +14,8 @@ Exit codes (per [plan.md section 16.1](../../plan.md)):
 - 3 ERROR — infrastructure failure (bad spec, missing credential, model call)
 - 4 INSUFFICIENT — not enough evidence to discriminate
 
-Codes 5 (REGRESSION) and 6 (LOW_FALSIFIABILITY) ship with Week 2 features.
+- 5 REGRESSION — ``diff`` found a verdict-class downgrade or (with ``--strict``) a confidence drop
+- 6 LOW_FALSIFIABILITY — ``diff --strict``: candidate falsifiability below threshold
 """
 
 import argparse
@@ -104,6 +105,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=".falsifyai/replays.db",
         help="ReplayStore path (both artifacts assumed in same store). "
         "Default: .falsifyai/replays.db",
+    )
+    diff_parser.add_argument(
+        "--strict",
+        action="store_true",
+        default=False,
+        help="Stricter exit criteria: exit 5 on same-verdict confidence drop >= 0.10; "
+        "exit 6 (LOW_FALSIFIABILITY) when candidate falsifiability < 0.50.",
+    )
+    diff_parser.add_argument(
+        "--show-timeline",
+        dest="show_timeline",
+        action="store_true",
+        default=False,
+        help="Show every case with a per-row direction marker and confidence delta. "
+        "Display-only; does not affect the exit code.",
     )
 
     history_parser = subparsers.add_parser(

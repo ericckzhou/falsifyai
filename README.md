@@ -316,7 +316,7 @@ falsifyai run <spec.yaml> [--store-path PATH]
 falsifyai replay <session_id> [--store-path PATH]
 falsifyai replay --latest      [--store-path PATH]
 falsifyai inspect <session_id> [--case CASE_ID] [--full] [--store-path PATH]
-falsifyai diff <baseline_id> <candidate_id> [--store-path PATH]
+falsifyai diff <baseline_id> <candidate_id> [--store-path PATH] [--strict] [--show-timeline]
 falsifyai history <case_id> [--limit N] [--store-path PATH]
 ```
 
@@ -327,7 +327,8 @@ falsifyai history <case_id> [--limit N] [--store-path PATH]
 | 2 | FAILURE — session verdict CONSISTENTLY_WRONG or INVALID_EVAL |
 | 3 | ERROR — infrastructure failure (bad spec, missing credential, model call failure) |
 | 4 | INSUFFICIENT — not enough evidence to decide |
-| 5 | REGRESSION — `falsifyai diff` detected a verdict-class downgrade |
+| 5 | REGRESSION — `falsifyai diff` detected a verdict-class downgrade (or `--strict` confidence drop ≥ 0.10) |
+| 6 | LOW_FALSIFIABILITY — `falsifyai diff --strict` candidate falsifiability < 0.50 (only fires when no exit-5 condition is present) |
 
 Default `--store-path` is `.falsifyai/replays.db`. Use `:memory:` for ephemeral runs (test-only; `replay` and `diff` need a persistent store).
 
@@ -444,7 +445,7 @@ Contributions follow the conventions in [`CONTRIBUTING.md`](CONTRIBUTING.md). Ar
 
 **Coming next** — selected by evidence, not theoretical completeness:
 
-- **`diff` sharpening** — `--strict`, `--show-trending`, exit code 6 for low-falsifiability gates. Tightens the binary regression criterion for users who want finer CI control without compromising resolver predictability.
+- **`diff` sharpening** — `--strict` (confidence-drop exit 5, falsifiability exit 6) and `--show-timeline` (per-row direction markers). Shipped in v0.3.0.
 - **Artifact infrastructure track** — `falsifyai verify <session_id>` (integrity + provenance), `falsifyai export --bundle` (productize the case-study extraction pattern), and a persisted CLI-invocation field in `ReplayArtifact`. Locked sequence; reassess after a second case study or real user pressure.
 
 Each addition is evaluated against: *does this preserve evidence density, resolver predictability, and the discipline that makes the artifact trustworthy?* See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/EVIDENCE.md`](docs/EVIDENCE.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the discipline.

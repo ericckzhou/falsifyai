@@ -33,6 +33,11 @@ from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
 from falsifyai.replay.sqlite_store import SQLiteStore
 from falsifyai.verdict.models import Verdict
 
+# Named thresholds for strict-mode detection (plan decisions B1 and D1).
+# Intentionally not runtime-configurable: predictability over flexibility.
+STRICT_CONFIDENCE_DROP_THRESHOLD: float = 0.10
+LOW_FALSIFIABILITY_THRESHOLD: float = 0.50
+
 
 class TransitionKind(Enum):
     """How a case's verdict changed between baseline and candidate."""
@@ -207,13 +212,44 @@ def _load_artifact(store: ReplayStore, session_id: str, *, role: str) -> ReplayA
         raise InfrastructureError(f"{role} session not found: {session_id}") from exc
 
 
-def _diff_exit_code(report: DiffReport) -> int:
-    """Exit code 5 (REGRESSION) if any case regressed, else 0."""
-    return 5 if report.regressed_count > 0 else 0
+def _diff_exit_code(
+    report: DiffReport,
+    candidate: ReplayArtifact,
+    *,
+    strict: bool = False,
+) -> int:
+    """Compute the diff exit code from a report and candidate artifact.
+
+    Priority order (plan decision E1):
+      5 (REGRESSION)         — any verdict-class downgrade, OR under --strict any
+                               same-verdict confidence drop >= STRICT_CONFIDENCE_DROP_THRESHOLD
+      6 (LOW_FALSIFIABILITY) — under --strict, candidate falsifiability below threshold
+                               (only fires when no exit-5 trigger is present)
+      0 (SUCCESS)            — no triggers
+    """
+    if report.regressed_count > 0:
+        return 5
+
+    if strict:
+        for t in report.transitions:
+            if (
+                t.transition_kind is TransitionKind.UNCHANGED
+                and round(t.baseline_stability_ci_low - t.candidate_stability_ci_low, 9)
+                >= STRICT_CONFIDENCE_DROP_THRESHOLD
+            ):
+                return 5
+
+        if candidate.session_verdict.falsifyai_falsifiability_score < LOW_FALSIFIABILITY_THRESHOLD:
+            return 6
+
+    return 0
 
 
 def cmd_diff(args: argparse.Namespace) -> int:
     """Entry point for the ``diff`` subcommand. Returns an exit code."""
+    strict: bool = getattr(args, "strict", False)
+    show_timeline: bool = getattr(args, "show_timeline", False)
+
     store = _build_store(args.store_path)
     try:
         baseline = _load_artifact(store, args.baseline_session_id, role="baseline")
@@ -224,11 +260,13 @@ def cmd_diff(args: argparse.Namespace) -> int:
             close()
 
     report = compute_diff(baseline, candidate)
-    render.render_diff(report, store_path=args.store_path)
-    return _diff_exit_code(report)
+    render.render_diff(report, store_path=args.store_path, show_timeline=show_timeline)
+    return _diff_exit_code(report, candidate, strict=strict)
 
 
 __all__ = [
+    "STRICT_CONFIDENCE_DROP_THRESHOLD",
+    "LOW_FALSIFIABILITY_THRESHOLD",
     "CaseTransition",
     "DiffReport",
     "TransitionKind",
