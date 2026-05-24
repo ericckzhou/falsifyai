@@ -2,7 +2,7 @@
 
 A retrospective evaluation of how a small, operationally motivated revision to FalsifyAI's own development guidelines affected a language model's architectural recommendations on a real implementation-period design question.
 
-Unlike [case study 01](01-invisible-character-substitution.md), which re-presents a bundled `ReplayStore` from a real eval campaign, this case study is a **manual retrospective probe** — submitted to Claude Sonnet 4.6 outside the CLI. Machine-reproducible spec files and `falsifyai run` invocations are planned follow-up work. The decision to land the observation now, rather than gate it on full CLI tooling, is deliberate: the finding stands on its own; CLI hardening should formalize an existing observation, not create one.
+Unlike [case study 01](01-invisible-character-substitution.md), which re-presents a bundled `ReplayStore` from a real eval campaign, this case study is a **manual retrospective probe** — submitted to Claude Sonnet 4.6 outside the CLI. Machine-reproducible spec files now live alongside the case study at [`specs/02-resolver-arbitration-v1.yaml`](specs/02-resolver-arbitration-v1.yaml) and [`specs/02-resolver-arbitration-v2.yaml`](specs/02-resolver-arbitration-v2.yaml) — see [`specs/README.md`](specs/README.md) for the reproduction workflow. The decision to land the observation before full CLI tooling was deliberate: the finding stands on its own; the specs formalize the reproduction surface without rewriting the methodology.
 
 ## Chronology
 

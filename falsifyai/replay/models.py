@@ -28,6 +28,44 @@ from falsifyai.verdict.models import Verdict
 
 
 @dataclass(frozen=True)
+class CliInvocation:
+    """Descriptive provenance for the CLI command that produced this artifact (PR-35).
+
+    Captured at entry into ``cmd_run``; never stamped by read-only consumer
+    surfaces (``replay``, ``inspect``, ``history``, ``diff``, ``verify``,
+    ``export``). Pre-PR-35 artifacts carry ``cli_invocation = None``.
+
+    **Semantic boundary (load-bearing):** this records *what command produced
+    the artifact*, NOT a guarantee that re-running the command will produce
+    identical outputs. Files may move, models drift, providers change, hosted
+    LLMs are not bit-stable across runs. Replay-determinism guarantees live in
+    ``ReplayArtifact.materialized_hash`` (preserved perturbation evidence) and
+    in the bundle's ``bundle_id`` (preserved manifest + file hashes).
+
+    **Capture contract:**
+
+    - ``argv`` — normalized invocation token list. Program name canonicalized
+      to ``"falsifyai"`` regardless of entry path (entry point vs ``-m`` vs
+      direct script). All subsequent tokens preserved verbatim from
+      ``sys.argv``.
+    - ``falsifyai_version`` — runtime package version at capture time.
+
+    **Explicitly NOT captured** (each by deliberate restraint):
+
+    - Environment variables (secret-leakage surface)
+    - API keys (not in argv today; future auth-bearing flags MUST redact)
+    - Current working directory (specs are referenced by path *in* argv)
+    - Hostname / username / machine identifiers (operator identity belongs at
+      the commit / export layer, not the artifact)
+    - Shell history / pre-shell-expansion argv (unavailable by construction)
+    - File contents (spec YAML lives in ``MaterializedSpec`` already)
+    """
+
+    argv: tuple[str, ...]
+    falsifyai_version: str
+
+
+@dataclass(frozen=True)
 class PerturbedRun:
     """One perturbed input + its execution + the invariant judgments on its output."""
 
@@ -112,3 +150,10 @@ class ReplayArtifact:
     materialized: MaterializedSpec
     case_results: list[CaseResult]
     session_verdict: SessionVerdict
+
+    # PR-35: descriptive provenance for the CLI command that produced this
+    # artifact. Default None preserves backward compat with pre-PR-35
+    # artifacts and with artifacts produced via read-only consumer commands
+    # (which never stamp invocation by design). See ``CliInvocation`` above
+    # for the full capture contract.
+    cli_invocation: CliInvocation | None = None

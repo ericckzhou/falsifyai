@@ -9,10 +9,12 @@
 > determination only the provider, their notified body, and (ultimately)
 > the national competent authority can make.
 >
-> As of v0.3.0 the artifact has strong **deterministic identity** (sha256
+> As of v0.4.0 the artifact has strong **deterministic identity** (sha256
 > hashes on every layer — artifact-internal hashes plus bundle-level
-> content addressing via `falsifyai export --bundle`) but is **not
-> cryptographically signed**. Signing is deferred until artifacts cross
+> content addressing via `falsifyai export --bundle`) plus **procedural
+> provenance** (the `cli_invocation` field records the normalized command
+> that produced the artifact, closing the "what was actually run" loop),
+> but is **not cryptographically signed**. Signing is deferred until artifacts cross
 > trust boundaries (e.g., regulatory submission) — see
 > [`EVIDENCE.md` §6](EVIDENCE.md#6-portability-infrastructure-not-core-guarantees-intended-phase-1).
 > Until signing lands, the mapping below identifies which Annex IV
@@ -53,6 +55,7 @@ over them.
 | Annex IV(2)(g) requirement | FalsifyAI artifact field | Notes |
 |---|---|---|
 | **Validation and testing procedure** | `materialized.cases[].perturbations[]` + the spec YAML referenced via `spec_hash` | The materialized spec preserves *every realized perturbation string* with its family, parameters, and seed lineage. A reader can reconstruct what was tested without the source YAML. |
+| **Command that produced this evidence** | `cli_invocation.argv` + `cli_invocation.falsifyai_version` (since v0.4.0) | Captures the normalized CLI invocation at `cmd_run` entry. Records *what command produced the artifact*, not a guarantee that re-running it will produce identical outputs (replay determinism still lives in `materialized_hash` and `bundle_id`). Pre-v0.4.0 artifacts carry `cli_invocation = null` and require external bookkeeping for this requirement. |
 | **Information about validation/testing data** | `materialized.cases[].original_input` + `case_results[].perturbed[].perturbed_input` | Original inputs and the full perturbation set are preserved verbatim, as data, not as a reference. |
 | **Metrics used to measure accuracy/robustness** | `case_results[].stability`, `stability_ci_low`, `stability_ci_high`, `per_family_stability`, `worst_case_family` | Worst-case stratified bootstrap CI per perturbation family. The metric definition is documented in [`EVIDENCE.md` §4.5](EVIDENCE.md#45-the-verdict). |
 | **Test logs** | The artifact itself (one `ReplayArtifact` per `falsifyai run`) | Immutable after save (see [`EVIDENCE.md` §5.1](EVIDENCE.md#51-immutability-after-save)). |
@@ -134,7 +137,7 @@ guidance for providers in scope:
 - **For multi-year retention**, store exported artifacts in a
   WORM-suitable system (object storage with retention locks).
   `falsifyai export <session_id> --bundle <output>.fai.zip` (shipped in
-  vNEXT) productizes this packaging — a deterministic zip containing
+  v0.3.0) productizes this packaging — a deterministic zip containing
   `manifest.json` (with content-addressed `bundle_id`, per-file SHA256s,
   and provenance metadata), `artifact.json`, optional `spec.yaml`, and an
   auto-generated `README.md`. Two exports of the same artifact with the
@@ -161,7 +164,7 @@ Explicit gaps in the *artifact itself*:
 | **Cryptographic signature of the artifact** | Deferred until post-Phase-D artifact track. Today's identity is deterministic (sha256) but not signed. Aligns with broader [AIBOM signing efforts](https://arxiv.org/html/2601.05703) using in-toto attestations. |
 | **Operator identity ("signed by responsible persons")** | Not preserved in the artifact by design (see [`EVIDENCE.md` §10.3](EVIDENCE.md#103-no-external-state)). Providers should bind operator identity at the **commit / export** layer (signed git commit, change-management ticket). |
 | **PII / data-minimization annotation on inputs** | The artifact preserves whatever the spec puts into `original_input`. Providers using production data as test inputs must apply their own data-governance discipline upstream of the spec. |
-| **Standardized export format** | `falsifyai export <session_id> --bundle <output>.fai.zip` shipped in vNEXT. Produces a deterministic zip with content-addressed `bundle_id` (sha256 over canonical manifest); per-file SHA256s; provenance metadata (`exported_at`, `falsifyai_version`, `platform`, `python_version`); `pre_export_integrity` block; reserved `attestations: []` and `signature_slots: []` for future signing. Refuses to export corrupted artifacts by default. |
+| **Standardized export format** | `falsifyai export <session_id> --bundle <output>.fai.zip` shipped in v0.3.0. Produces a deterministic zip with content-addressed `bundle_id` (sha256 over canonical manifest); per-file SHA256s; provenance metadata (`exported_at`, `falsifyai_version`, `platform`, `python_version`); `pre_export_integrity` block; reserved `attestations: []` and `signature_slots: []` for future signing. Refuses to export corrupted artifacts by default. |
 
 These gaps are *named here* rather than buried in code, so a compliance
 team reviewing FalsifyAI for adoption can plan around them rather than

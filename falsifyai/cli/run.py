@@ -33,7 +33,7 @@ from falsifyai.falsifiability.score import (
 from falsifyai.invariants.base import Invariant
 from falsifyai.invariants.registry import build_invariant
 from falsifyai.replay.in_memory_store import InMemoryStore
-from falsifyai.replay.models import CaseResult, PerturbedRun, ReplayArtifact
+from falsifyai.replay.models import CaseResult, CliInvocation, PerturbedRun, ReplayArtifact
 from falsifyai.replay.protocol import ReplayStore
 from falsifyai.replay.sqlite_store import SQLiteStore
 from falsifyai.spec.errors import SpecLoadError
@@ -60,6 +60,35 @@ def _build_store(store_path: str) -> ReplayStore:
     if store_path == ":memory:":
         return InMemoryStore()
     return SQLiteStore(store_path)
+
+
+def _capture_cli_invocation(argv: list[str] | tuple[str, ...]) -> CliInvocation:
+    """Capture the CLI invocation that produced this run (PR-35).
+
+    Normalizes ``argv[0]`` to ``"falsifyai"`` regardless of entry path
+    (entry-point launcher, ``python -m falsifyai.cli.main``, direct script
+    invocation) so the captured argv is portable and replay-stable across
+    install methods. All subsequent tokens preserved verbatim from
+    ``sys.argv``.
+
+    **Semantic boundary:** this records *what command produced the artifact*,
+    NOT a guarantee that re-running it will produce identical outputs. See
+    :class:`falsifyai.replay.models.CliInvocation` for the full capture
+    contract and exclusion list.
+
+    **Future risk:** if FalsifyAI ever adds an auth-bearing CLI flag (e.g.,
+    ``--anthropic-api-key``), this helper MUST be updated to redact that
+    flag's value (replacing with a ``[REDACTED]`` sentinel) at the same time
+    as the flag lands. Today no such flag exists; argv carries only spec
+    paths and store paths.
+    """
+    tokens = tuple(argv)
+    if not tokens:
+        return CliInvocation(argv=("falsifyai",), falsifyai_version=_pkg_version("falsifyai"))
+    return CliInvocation(
+        argv=("falsifyai",) + tokens[1:],
+        falsifyai_version=_pkg_version("falsifyai"),
+    )
 
 
 def _build_request(model: ModelConfig, run: RunConfig, prompt: str) -> ModelRequest:
@@ -138,6 +167,10 @@ def _run_case(
 
 def cmd_run(args: argparse.Namespace) -> int:
     """Entry point for the ``run`` subcommand. Returns an exit code."""
+    # PR-35: capture invocation FIRST, before anything else can mutate sys.argv.
+    # Single capture point — read-only consumer commands never call this.
+    cli_invocation = _capture_cli_invocation(sys.argv)
+
     try:
         spec, spec_hash = load_spec(args.spec_path)
     except SpecLoadError as exc:
@@ -181,6 +214,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         materialized=materialized,
         case_results=case_results,
         session_verdict=session_verdict,
+        cli_invocation=cli_invocation,
     )
 
     store = _build_store(args.store_path)
