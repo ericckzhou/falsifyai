@@ -6,6 +6,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-24
+
+Artifact-infrastructure track **complete** (3 of 3 locked items shipped).
+Adds persisted `cli_invocation` on `ReplayArtifact` — descriptive
+procedural provenance closing the locked sequence `verify` → `export
+--bundle` → embedded CLI invocation. After v0.4.0, the artifact answers
+four questions without external bookkeeping: what happened, how it was
+evaluated, what was exported, and what command produced it. Spec language
+and verdict semantics remain unchanged from 0.1.0.
+
 ### Added
 
 - **`cli_invocation` field on `ReplayArtifact`** — descriptive provenance for
@@ -356,6 +366,7 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.4.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.1.0

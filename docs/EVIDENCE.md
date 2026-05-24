@@ -325,7 +325,7 @@ contract; cryptographic provenance strengthens portability of that
 contract.
 
 The artifact-infrastructure track is **complete** (3 of 3 shipped) as of
-v0.3.0 + PR-35:
+v0.4.0:
 
 - `falsifyai verify <session_id>` (integrity check) — eight checks
   including materialized-hash recomputation and per-case CI bound
