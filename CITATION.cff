@@ -19,12 +19,18 @@ keywords:
   - falsification
   - evidence-infrastructure
   - replayable-evidence
+  - provenance
   - stochastic-software
   - LLM
-  - adversarial-robustness
+  - LLM-evaluation
+  - model-migration
   - perturbation-testing
   - reliability-testing
+  - regression-testing
+  - differential-testing
+  - evaluation-validity
   - AI-safety
+  - EU-AI-Act
 license: Apache-2.0
 version: 0.4.0
 date-released: '2026-05-24'
