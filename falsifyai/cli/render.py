@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     # imports render. The DiffReport dataclass lives in diff.py because it
     # is a consumer-side structure, not part of the persisted artifact schema.
     from falsifyai.cli.diff import CaseTransition, DiffReport
+    from falsifyai.integrity.checks import IntegrityReport
 
 # Exit codes mapped to the MVP 5 verdicts per plan.md section 16.1.
 #   STABLE              -> 0  SUCCESS
@@ -253,4 +254,80 @@ def render_diff(
         f"{report.other_change_count} other, "
         f"{report.added_count} added, "
         f"{report.removed_count} removed\n"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Verify rendering (PR-31)
+# ---------------------------------------------------------------------------
+
+
+_CHECK_NAME_WIDTH = 38  # padding for the 8 check names so status columns align
+
+
+def _format_check_row(name: str, status: str, detail: str) -> str:
+    return f"check: {name:<{_CHECK_NAME_WIDTH}} status: {status:<4}  detail: {detail}"
+
+
+def render_verify(
+    report: "IntegrityReport",
+    *,
+    store_path: str,
+    stream: TextIO | None = None,
+) -> None:
+    """Render one integrity report: header, per-check rows, summary footer."""
+    from falsifyai.integrity.checks import CheckStatus
+
+    out = stream if stream is not None else sys.stdout
+
+    out.write(f"session: {report.session_id}\n")
+    for r in report.results:
+        out.write(_format_check_row(r.name, r.status.value.upper(), r.detail) + "\n")
+    out.write("=" * 65 + "\n")
+    passed = sum(1 for r in report.results if r.status is CheckStatus.PASS)
+    failed = sum(1 for r in report.results if r.status is CheckStatus.FAIL)
+    out.write(
+        f"{len(report.results)} checks, {passed} passed, {failed} failed; "
+        f"session {report.session_id}; store {store_path}\n"
+    )
+
+
+def render_verify_all(
+    reports: list["IntegrityReport"],
+    *,
+    store_path: str,
+    stream: TextIO | None = None,
+) -> None:
+    """Render multiple integrity reports as ``--all`` output.
+
+    Per-session block (header, checks, mini-footer) separated by dashes;
+    final aggregate footer with totals.
+    """
+    from falsifyai.integrity.checks import CheckStatus
+
+    out = stream if stream is not None else sys.stdout
+
+    if not reports:
+        out.write("(no sessions in store)\n")
+        out.write(f"Store: {store_path}\n")
+        return
+
+    for i, report in enumerate(reports):
+        if i > 0:
+            out.write("-" * 65 + "\n")
+        out.write(f"session: {report.session_id}\n")
+        for r in report.results:
+            out.write(_format_check_row(r.name, r.status.value.upper(), r.detail) + "\n")
+        passed = sum(1 for r in report.results if r.status is CheckStatus.PASS)
+        failed = sum(1 for r in report.results if r.status is CheckStatus.FAIL)
+        out.write(f"{len(report.results)} checks, {passed} passed, {failed} failed\n")
+
+    total_checks = sum(len(r.results) for r in reports)
+    total_passed = sum(1 for r in reports for c in r.results if c.status is CheckStatus.PASS)
+    total_failed = total_checks - total_passed
+    out.write("=" * 65 + "\n")
+    out.write(
+        f"{len(reports)} sessions; "
+        f"total {total_checks} checks, {total_passed} passed, {total_failed} failed; "
+        f"store {store_path}\n"
     )

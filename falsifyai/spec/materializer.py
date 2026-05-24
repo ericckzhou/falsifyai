@@ -117,7 +117,7 @@ def materialize(
     ]
     return MaterializedSpec(
         spec_hash=spec_hash,
-        materialized_hash=_compute_materialized_hash(cases),
+        materialized_hash=compute_materialized_hash(cases),
         session_seed=session_seed,
         falsifyai_version=_pkg_version("falsifyai"),
         model=spec.model,
@@ -168,7 +168,7 @@ def _derive_perturbation_seed(case_seed: int, index: int) -> int:
     return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big")
 
 
-def _compute_materialized_hash(cases: list[MaterializedCase]) -> str:
+def compute_materialized_hash(cases: list[MaterializedCase]) -> str:
     """sha256 over a canonical JSON serialization of all realized perturbations.
 
     Only the perturbation-realization data is hashed (texts + lineage +

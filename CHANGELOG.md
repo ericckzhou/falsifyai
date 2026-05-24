@@ -22,6 +22,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Exit code 6 (`LOW_FALSIFIABILITY`)** — new exit code for `diff --strict`;
   fires when candidate falsifiability < 0.50 and no exit-5 condition is present.
 
+- **`falsifyai verify <session_id>`** — replay-artifact integrity validation.
+  Runs 8 read-only checks against a stored `ReplayArtifact`: session_id format,
+  tz-aware `created_at`, `materialized_hash` recomputation (load-bearing), and
+  internal consistency of session-verdict roll-up counts, CI bound ordering,
+  and falsifiability score range. Pure preservation-layer command; never
+  re-resolves the verdict. Use `--all` to verify every session in the store.
+
+- **Exit code 7 (`INTEGRITY_FAILURE`)** — new exit code for `verify`; fires
+  when at least one integrity check fails on at least one artifact.
+
 ## [0.2.0] — 2026-05-22
 
 Phase 1 release. Three new consumer surfaces (`inspect`, `history`), one new
