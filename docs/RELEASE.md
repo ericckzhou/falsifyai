@@ -121,10 +121,10 @@ If `twine check` fails, the most common causes are:
 
 ```bash
 # Create an annotated tag matching the version (substitute the new version below).
-git tag -a v0.2.0 -m "Release 0.2.0"
+git tag -a v0.3.0 -m "Release 0.3.0"
 
 # Push the tag. This fires .github/workflows/publish.yml.
-git push origin v0.2.0
+git push origin v0.3.0
 ```
 
 The workflow:
