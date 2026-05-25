@@ -4,6 +4,8 @@ Worked tours of FalsifyAI's evidence infrastructure over real preserved artifact
 
 > **Recursion principle**: claims about a stochastic system's reliability are only defensible if the evidence supporting them is preserved and replayable. The case studies below are written *in FalsifyAI's own format* — every command shown runs against a bundled SQLite store and reproduces the displayed output verbatim.
 
+For the categorical framing the case studies operationalize — *why capability scores and reliability evidence answer different questions* — see [`../THE-EVIDENCE-GAP.md`](../THE-EVIDENCE-GAP.md).
+
 ## Index
 
 | # | Title | What it demonstrates | Tools used |
