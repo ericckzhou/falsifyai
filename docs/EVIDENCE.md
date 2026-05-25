@@ -46,6 +46,8 @@ It *is*:
 
 One run produces one artifact. One artifact preserves one run forever.
 
+> For *why* this preservation model is structurally different from capability scoring — and why the gap matters operationally — see [`THE-EVIDENCE-GAP.md`](THE-EVIDENCE-GAP.md).
+
 ---
 
 ## 2. The core terms
