@@ -40,6 +40,8 @@ The problem isn't that the model failed. The problem is that the *evidence of th
 
 FalsifyAI optimizes for the opposite: every perturbed input, every model output, every invariant judgment, and the verdict are preserved as one inspectable record. Six months later, with only the artifact, anyone can re-open the run, see what broke, and decide whether it still matters.
 
+For the categorical framing — *why this is a category gap, not a feature gap* — see [`docs/THE-EVIDENCE-GAP.md`](docs/THE-EVIDENCE-GAP.md).
+
 ---
 
 ## Typical uses
@@ -316,6 +318,7 @@ Each addition is evaluated against: *does this preserve evidence density, resolv
 
 ## Further reading
 
+- [`docs/THE-EVIDENCE-GAP.md`](docs/THE-EVIDENCE-GAP.md) — why capability scores and reliability evidence answer different questions; the categorical wedge.
 - [`docs/EVIDENCE.md`](docs/EVIDENCE.md) — replay artifact protocol semantics: what it preserves, what guarantees it makes, what the verdicts mean as claims.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — three-layer separation, data flow, identity model, subpackage reference.
 - [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) — EU AI Act Annex IV §2(g) field-by-field mapping.
