@@ -19,12 +19,14 @@ from falsifyai.perturbation.base import Perturbation
 from falsifyai.perturbation.casing_variant import CasingVariant
 from falsifyai.perturbation.paraphrase import Paraphrase
 from falsifyai.perturbation.typo_noise import TypoNoise
+from falsifyai.perturbation.unicode_chars import UnicodePerturbation
 from falsifyai.spec.models import (
     CasingVariantSpec,
     ModelConfig,
     ParaphrasePerturbationSpec,
     PerturbationSpec,
     TypoNoiseSpec,
+    UnicodePerturbationSpec,
 )
 
 
@@ -59,6 +61,12 @@ def build_perturbation(
         return TypoNoise(count=spec.count, rate=spec.rate)
     if isinstance(spec, CasingVariantSpec):
         return CasingVariant(variants=list(spec.variants))
+    if isinstance(spec, UnicodePerturbationSpec):
+        return UnicodePerturbation(
+            methods=list(spec.methods),
+            count=spec.count,
+            rate=spec.rate,
+        )
     if isinstance(spec, ParaphrasePerturbationSpec):
         # Resolve which model to use: spec override beats primary.
         resolved_model = spec.model or primary_model

@@ -5,7 +5,12 @@ import pytest
 from falsifyai.perturbation.casing_variant import CasingVariant
 from falsifyai.perturbation.registry import build_perturbation
 from falsifyai.perturbation.typo_noise import TypoNoise
-from falsifyai.spec.models import CasingVariantSpec, TypoNoiseSpec
+from falsifyai.perturbation.unicode_chars import UnicodePerturbation
+from falsifyai.spec.models import (
+    CasingVariantSpec,
+    TypoNoiseSpec,
+    UnicodePerturbationSpec,
+)
 
 
 def test_build_typo_noise_propagates_count_and_rate() -> None:
@@ -21,6 +26,17 @@ def test_build_casing_variant_propagates_variants() -> None:
     perturbation = build_perturbation(spec)
     assert isinstance(perturbation, CasingVariant)
     assert perturbation.variants == ["upper", "lower"]
+
+
+def test_build_unicode_propagates_methods_count_rate() -> None:
+    spec = UnicodePerturbationSpec(
+        type="unicode", methods=["invisible_space", "homoglyph"], count=4, rate=0.25
+    )
+    perturbation = build_perturbation(spec)
+    assert isinstance(perturbation, UnicodePerturbation)
+    assert perturbation.methods == ["invisible_space", "homoglyph"]
+    assert perturbation.count == 4
+    assert perturbation.rate == 0.25
 
 
 def test_build_unknown_spec_raises_value_error() -> None:
