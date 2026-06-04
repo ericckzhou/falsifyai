@@ -12,6 +12,7 @@ _STRICT = ConfigDict(extra="forbid")
 
 Severity = Literal["critical", "high", "medium", "low"]
 CasingVariant = Literal["upper", "lower", "title"]
+UnicodeMethod = Literal["invisible_space", "zero_width", "homoglyph"]
 
 
 class FalsifyMeta(BaseModel):
@@ -92,8 +93,33 @@ class ParaphrasePerturbationSpec(BaseModel):
     max_attempts: int = Field(default=3, ge=1)
 
 
+class UnicodePerturbationSpec(BaseModel):
+    """Visually-identical, byte-different inputs (invisible/confusable chars).
+
+    Exposes a model's sensitivity to text that a human reads as identical to
+    the original. Each method in `methods` emits `count` samples; `rate` is the
+    fraction of eligible positions mutated per sample.
+
+    - `invisible_space`: ASCII space -> Unicode space variant (NBSP, U+202F, ...)
+    - `zero_width`: insert zero-width characters between characters
+    - `homoglyph`: Latin letter -> Cyrillic/Greek confusable
+
+    Intent-preserving by construction (high validity), so a failure under this
+    family is a reliability defect, not a response to a malformed prompt.
+    """
+
+    model_config = _STRICT
+    type: Literal["unicode"]
+    methods: list[UnicodeMethod] = Field(
+        default_factory=lambda: ["invisible_space", "zero_width", "homoglyph"],
+        min_length=1,
+    )
+    count: int = Field(default=3, ge=1)
+    rate: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
 PerturbationSpec = Annotated[
-    TypoNoiseSpec | CasingVariantSpec | ParaphrasePerturbationSpec,
+    TypoNoiseSpec | CasingVariantSpec | ParaphrasePerturbationSpec | UnicodePerturbationSpec,
     Field(discriminator="type"),
 ]
 

@@ -468,6 +468,44 @@ def test_paraphrase_yaml_lineage_carries_paraphrase_metadata(monkeypatch) -> Non
 
 
 # ---------------------------------------------------------------------------
+# unicode_regression.yaml (PR-A) — closes the CS-01 loop
+# ---------------------------------------------------------------------------
+
+
+def test_unicode_regression_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "unicode_regression.yaml")
+    assert spec.run.seed == 42
+    assert [c.id for c in spec.cases] == ["capital_of_france_unicode"]
+    pert = spec.cases[0].perturbations[0]
+    assert pert.type == "unicode"
+    assert pert.methods == ["invisible_space", "zero_width", "homoglyph"]
+    assert pert.count == 3
+
+
+def test_unicode_regression_yaml_produces_fragile_verdict(monkeypatch) -> None:
+    """Baseline returns 'Paris'; every invisible-char perturbation returns the
+    wrong answer -> FRAGILE. This is the generation-side complement to CS-01:
+    FalsifyAI now *generates* the byte-different input that breaks the model."""
+    spec_path = _EXAMPLES / "unicode_regression.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    case = materialized.cases[0]
+    # Sanity: the realized perturbations are byte-different from the original
+    # (they carry invisible/confusable characters) yet share its meaning.
+    assert any(pi.text != case.original_input for pi in case.realized_perturbations)
+
+    response_map: dict[str, str] = {case.original_input: "Paris is the capital of France."}
+    for pi in case.realized_perturbations:
+        response_map[pi.text] = "I'm not sure."
+    adapter = MockAdapter(response_map=response_map)
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 1  # FRAGILE -> DEGRADED
+
+
+# ---------------------------------------------------------------------------
 # falsifyai history <case_id> (PR #24)
 # ---------------------------------------------------------------------------
 

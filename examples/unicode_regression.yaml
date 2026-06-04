@@ -1,0 +1,40 @@
+# examples/unicode_regression.yaml
+#
+# Closes the loop on case study 01. CS-01 documented a real regression caused
+# by a U+202F (narrow no-break space) silently swapped for an ASCII space —
+# a failure FalsifyAI could *detect* in a stored artifact but could not
+# *generate*. The `unicode` perturbation family generates exactly that class
+# of input: visually identical to a human, byte-different to the model.
+#
+# The model here answers the clean question correctly but drifts when the
+# prompt carries invisible/confusable characters. Because the perturbed inputs
+# are intent-preserving by construction (high validity), the resulting drift is
+# a reliability defect, not a response to a malformed prompt.
+
+falsify:
+  version: "1.0"
+  name: "Unicode fragility: invisible characters cause answer drift"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france_unicode
+    tags: ["geography", "factual", "unicode", "cs-01"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: unicode
+        methods: ["invisible_space", "zero_width", "homoglyph"]
+        count: 3
+    invariants:
+      - type: contains
+        values: ["Paris"]
