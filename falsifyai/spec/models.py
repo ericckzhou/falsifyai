@@ -140,8 +140,23 @@ class SemanticEquivalenceInvariantSpec(BaseModel):
     severity: Severity = "high"
 
 
+class SchemaMatchInvariantSpec(BaseModel):
+    """Strict structural assertion on JSON output (subset of JSON Schema).
+
+    `schema` is a JSON-Schema-subset dict; recognized keys are `type`,
+    `required`, and `properties[*].type`. The YAML key is `schema`; it is
+    exposed on the model as `json_schema` to avoid shadowing pydantic's
+    `BaseModel.schema`.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    type: Literal["schema_match"]
+    json_schema: dict = Field(alias="schema")
+    severity: Severity = "high"
+
+
 InvariantSpec = Annotated[
-    ContainsInvariantSpec | SemanticEquivalenceInvariantSpec,
+    ContainsInvariantSpec | SemanticEquivalenceInvariantSpec | SchemaMatchInvariantSpec,
     Field(discriminator="type"),
 ]
 

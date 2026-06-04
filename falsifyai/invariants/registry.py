@@ -7,10 +7,12 @@ with plugin discovery via ``importlib.metadata.entry_points`` under the
 
 from falsifyai.invariants.base import Invariant, Severity
 from falsifyai.invariants.contains import ContainsInvariant
+from falsifyai.invariants.schema_match import SchemaMatchInvariant
 from falsifyai.invariants.semantic import SemanticEquivalenceInvariant
 from falsifyai.spec.models import (
     ContainsInvariantSpec,
     InvariantSpec,
+    SchemaMatchInvariantSpec,
     SemanticEquivalenceInvariantSpec,
 )
 
@@ -30,6 +32,11 @@ def build_invariant(spec: InvariantSpec) -> Invariant:
     if isinstance(spec, SemanticEquivalenceInvariantSpec):
         return SemanticEquivalenceInvariant(
             threshold=spec.threshold,
+            severity=Severity(spec.severity),
+        )
+    if isinstance(spec, SchemaMatchInvariantSpec):
+        return SchemaMatchInvariant(
+            schema=spec.json_schema,
             severity=Severity(spec.severity),
         )
     raise ValueError(f"Unknown invariant spec type: {type(spec).__name__}")
