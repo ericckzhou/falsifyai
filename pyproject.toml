@@ -77,6 +77,20 @@ Changelog = "https://github.com/ericckzhou/falsifyai/blob/main/CHANGELOG.md"
 [project.scripts]
 falsifyai = "falsifyai.cli.main:main"
 
+# Built-in perturbations and invariants are registered as entry points so the
+# plugin-discovery mechanism (falsifyai/*/registry.py) is dogfooded, not bolted
+# on for third parties only. Paraphrase is intentionally absent: it needs
+# injected runtime resources and cannot be built from a plain params dict.
+[project.entry-points."falsifyai.perturbations"]
+typo_noise = "falsifyai.perturbation.typo_noise:TypoNoise"
+casing = "falsifyai.perturbation.casing_variant:CasingVariant"
+unicode = "falsifyai.perturbation.unicode_chars:UnicodePerturbation"
+
+[project.entry-points."falsifyai.invariants"]
+contains = "falsifyai.invariants.contains:ContainsInvariant"
+semantic_equivalence = "falsifyai.invariants.semantic:SemanticEquivalenceInvariant"
+schema_match = "falsifyai.invariants.schema_match:SchemaMatchInvariant"
+
 [tool.hatch.build.targets.wheel]
 packages = ["falsifyai"]
 

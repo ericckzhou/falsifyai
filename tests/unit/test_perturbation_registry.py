@@ -8,6 +8,7 @@ from falsifyai.perturbation.typo_noise import TypoNoise
 from falsifyai.perturbation.unicode_chars import UnicodePerturbation
 from falsifyai.spec.models import (
     CasingVariantSpec,
+    PluginPerturbationSpec,
     TypoNoiseSpec,
     UnicodePerturbationSpec,
 )
@@ -37,6 +38,22 @@ def test_build_unicode_propagates_methods_count_rate() -> None:
     assert perturbation.methods == ["invisible_space", "homoglyph"]
     assert perturbation.count == 4
     assert perturbation.rate == 0.25
+
+
+def test_build_plugin_perturbation_by_name() -> None:
+    """A plugin spec resolves a registered built-in (typo_noise) via discovery."""
+    spec = PluginPerturbationSpec(
+        type="plugin", name="typo_noise", params={"count": 3, "rate": 0.1}
+    )
+    perturbation = build_perturbation(spec)
+    assert isinstance(perturbation, TypoNoise)
+    assert perturbation.count == 3
+    assert perturbation.rate == 0.1
+
+
+def test_build_plugin_unknown_name_raises() -> None:
+    with pytest.raises(ValueError, match="No perturbation plugin registered"):
+        build_perturbation(PluginPerturbationSpec(type="plugin", name="does_not_exist"))
 
 
 def test_build_unknown_spec_raises_value_error() -> None:
