@@ -6,6 +6,49 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-06-05
+
+Semantic-judgment depth. Deepens the oracle layer with natural-language
+inference (NLI) and completes the 8-verdict taxonomy the 5-verdict MVP
+deferred. The NLI machinery is an opt-in extra (`pip install
+"falsifyai[nli]"`); the default install and the 5-verdict behavior are
+unchanged, so existing specs and replay artifacts read identically. The
+four new verdicts are reachable only when grounding context and/or the NLI
+oracles are supplied.
+
+### Added
+
+- **NLI backend primitive** — `NLIBackend` Protocol with bidirectional
+  entailment/contradiction scoring. `MockNLIBackend` (deterministic,
+  dependency-free) backs tests and default behavior; `TransformersNLIBackend`
+  ships behind the opt-in `[nli]` extra, lazy-loaded so the model downloads
+  only on the first `classify()` call, never at construction.
+- **Semantic oracles** — `GroundingOracle` (answer supported by provided
+  context → `INFORMATION_PRESENT`), `HallucinationOracle` (confident claim
+  contradicted by ground truth → `CONSISTENTLY_WRONG`), and
+  `ContradictionOracle` (self-inconsistency across the output set, with a
+  vs-reference path). Aggregation helpers reduce per-output NLI labels to a
+  single oracle signal.
+- **Full 8-verdict resolver** — adds `INFORMATION_PRESENT`,
+  `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` to the prior
+  five, completing the 2-D verdict space (§2). RAG-style grounding context is
+  carried on `OracleContext`; failure-shape classification feeds the new
+  branches. CLI exit codes map all eight verdicts.
+- **`falsifyai run --nli`** — opt-in flag that constructs the NLI backend and
+  activates the semantic oracles for a run. Purely additive: it adds
+  grounding/hallucination evidence and can surface a richer verdict, but never
+  turns a passing case into a failing one on its own.
+
+### Notes
+
+- Resolver verdict-branch count moved 5 → 9 (the four new verdict classes),
+  still guarded by `tests/meta/test_resolver_branch_count.py`. This is the
+  planned completion of the taxonomy, not resolver inflation — oracles continue
+  to pre-arbitrate before the resolver.
+- Default (no `--nli`) runs require no new dependencies and produce the same
+  verdicts as 0.5.0; the heavyweight `transformers` + `torch` stack is pulled
+  only by the `[nli]` extra.
+
 ## [0.5.0] — 2026-06-04
 
 Capability-breadth track. Closes the Phase 1 capability gaps the
@@ -411,6 +454,8 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.6.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.0
+[0.5.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.2.0

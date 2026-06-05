@@ -18,7 +18,7 @@ falsifyai diff baseline candidate
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-**Status:** 0.4.0 — Artifact-infrastructure track **complete** (3 of 3 shipped). Adds persisted `cli_invocation` on `ReplayArtifact` — descriptive procedural provenance closing the locked sequence `verify` → `export --bundle` → embedded CLI invocation. After v0.4.0, the artifact answers four questions without external bookkeeping: what happened, how it was evaluated, what was exported, and what command produced it. Spec language and verdict semantics remain locked for the 0.x line.
+**Status:** 0.6.0 — Semantic-judgment depth. Adds an opt-in NLI (natural-language-inference) oracle layer — grounding, hallucination, and contradiction detection — and completes the full 8-verdict resolver (`INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five). `falsifyai run --nli` activates the semantic oracles; the flag is purely additive (it enriches the verdict, never flips a pass into a fail on its own). Default installs and the 5-verdict behavior are unchanged; spec language and replay format stay backward-compatible across the 0.x line.
 
 ```bash
 pip install falsifyai
@@ -28,6 +28,12 @@ For the `semantic_equivalence` invariant (pulls PyTorch, ~1GB):
 
 ```bash
 pip install "falsifyai[semantic]"
+```
+
+For the opt-in NLI oracle layer (`falsifyai run --nli` — grounding / hallucination / contradiction detection; pulls `transformers` + `torch`):
+
+```bash
+pip install "falsifyai[nli]"
 ```
 
 ---
@@ -170,7 +176,7 @@ A FalsifyAI spec describes three things:
 
 - **Perturbations** — *"what could go wrong on the input side?"* (typo noise, casing variants, paraphrases, `unicode` invisible/confusable characters)
 - **Invariants** — *"what must stay true about the output?"* (required substrings, semantic equivalence, JSON `schema_match`)
-- **Oracles** — *"what does the whole execution set imply?"* (`ConsistencyOracle` detects confident, consistent hallucination; the `MetaOracle` is the sole source of `INVALID_EVAL` — it catches a broken *evaluation* before it launders a measurement error into a verdict)
+- **Oracles** — *"what does the whole execution set imply?"* (`ConsistencyOracle` detects confident, consistent hallucination; the opt-in NLI oracles — `GroundingOracle`, `HallucinationOracle`, `ContradictionOracle` — add entailment-based grounding under `--nli`; the `MetaOracle` is the sole source of `INVALID_EVAL` — it catches a broken *evaluation* before it launders a measurement error into a verdict)
 - **Verdict rules** — *"when is the case fragile?"* (framework-level; not tuned per run)
 
 FalsifyAI runs the model on the original input plus every perturbation, judges every output against every invariant, and resolves a per-case verdict via a deterministic priority chain. The full evidence trail is preserved as a **replay artifact** — the durable product. Every CLI subcommand either produces one or reads one.
@@ -197,7 +203,7 @@ See [`docs/case-studies/`](docs/case-studies/) for the index and the framing con
 Ten subcommands, one workflow:
 
 ```bash
-falsifyai run <spec.yaml> [--store-path PATH]
+falsifyai run <spec.yaml> [--store-path PATH] [--nli]
 falsifyai replay <session_id> [--store-path PATH]
 falsifyai replay --latest      [--store-path PATH]
 falsifyai inspect <session_id> [--case CASE_ID] [--full] [--store-path PATH]
@@ -215,9 +221,9 @@ falsifyai export <session_id> --bundle <output>.fai.zip [--spec-path PATH] [--al
 
 | Exit code | Meaning |
 |---:|---|
-| 0 | SUCCESS — session verdict STABLE |
-| 1 | DEGRADED — session verdict FRAGILE |
-| 2 | FAILURE — session verdict CONSISTENTLY_WRONG or INVALID_EVAL |
+| 0 | SUCCESS — session verdict STABLE or INFORMATION_PRESENT |
+| 1 | DEGRADED — session verdict FRAGILE, AMBIGUOUS, or INFORMATION_NULL |
+| 2 | FAILURE — session verdict CONSISTENTLY_WRONG, ADVERSARIALLY_VULNERABLE, or INVALID_EVAL |
 | 3 | ERROR — infrastructure failure (bad spec, missing credential, model call failure) |
 | 4 | INSUFFICIENT — not enough evidence to decide |
 | 5 | REGRESSION — `falsifyai diff` detected a verdict-class downgrade (or `--strict` confidence drop ≥ 0.10) |
@@ -306,7 +312,14 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.5.0 (current release) — Capability-breadth track.** Closes the Phase 1 capability gaps the artifact-infrastructure track (0.2–0.4) skipped:
+**0.6.0 (current release) — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
+
+- ✅ **NLI backend** — bidirectional entailment/contradiction scoring. `MockNLIBackend` (deterministic, dependency-free) is the default; `TransformersNLIBackend` ships behind the opt-in `[nli]` extra and lazy-loads its model on first use.
+- ✅ **Semantic oracles** — `GroundingOracle` (answer supported by provided context → `INFORMATION_PRESENT`), `HallucinationOracle` (confident claim contradicted by ground truth → `CONSISTENTLY_WRONG`), `ContradictionOracle` (self-inconsistency across the output set).
+- ✅ **Full 8-verdict resolver** — `INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five, completing the 2-D verdict space; the resolver branch count (5 → 9) stays guarded by the branch-count meta-test. CLI exit codes map all eight.
+- ✅ **`falsifyai run --nli`** — opt-in flag that activates the semantic oracles for a run. Purely additive: it enriches the verdict with grounding evidence but never flips a passing case to failing on its own.
+
+**0.5.0 — Capability-breadth track.** Closes the Phase 1 capability gaps the artifact-infrastructure track (0.2–0.4) skipped:
 
 - ✅ **`unicode` perturbation family** — visually-identical, byte-different input (invisible space variants incl. U+202F, zero-width characters, Cyrillic/Greek homoglyphs). The generation-side complement to case study 01: FalsifyAI can now *generate* the failure it could previously only *detect*. First family in the `ADVERSARIAL` category.
 - ✅ **`schema_match` invariant** — strict structural assertion that output is valid JSON conforming to a schema (required keys, typed properties), with no new runtime dependency.
