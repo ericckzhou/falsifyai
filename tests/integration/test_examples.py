@@ -766,3 +766,57 @@ def test_ambiguous_yaml_produces_ambiguous(monkeypatch) -> None:
 
     rc = cli_run.cmd_run(_args(spec_path))
     assert rc == 1  # AMBIGUOUS -> DEGRADED
+
+
+# ---------------------------------------------------------------------------
+# information_present.yaml (PR-L: --nli wiring)
+# ---------------------------------------------------------------------------
+
+
+def test_information_present_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "information_present.yaml")
+    assert [c.id for c in spec.cases] == ["capital_of_france_grounded"]
+    assert spec.cases[0].expected.reference == "The capital of France is Paris."
+
+
+def test_information_present_yaml_produces_information_present(monkeypatch) -> None:
+    """Stable AND grounded (NLI entailment vs reference) -> INFORMATION_PRESENT.
+
+    Injects a deterministic MockNLIBackend through the build_nli_backend seam so
+    CI never downloads the real model; the --nli flag path is exercised end-to-end.
+    """
+    from falsifyai.oracles.nli import MockNLIBackend, NLILabel
+
+    spec_path = _EXAMPLES / "information_present.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    answer = "Paris is the capital of France."
+    adapter = MockAdapter(
+        response_map=_build_response_map(spec, materialized, {"capital_of_france_grounded": answer})
+    )
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+    # Seam: every output entails the reference -> grounded.
+    grounded_nli = MockNLIBackend(default_label=NLILabel.ENTAILMENT)
+    monkeypatch.setattr(cli_run, "build_nli_backend", lambda enabled: grounded_nli)
+
+    args = argparse.Namespace(spec_path=str(spec_path), store_path=":memory:", nli=True)
+    rc = cli_run.cmd_run(args)
+    assert rc == 0  # INFORMATION_PRESENT -> SUCCESS
+
+
+def test_information_present_yaml_without_nli_is_stable(monkeypatch) -> None:
+    """Same spec, no --nli: grounding isn't computed -> plain STABLE (still exit 0)."""
+    spec_path = _EXAMPLES / "information_present.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    answer = "Paris is the capital of France."
+    adapter = MockAdapter(
+        response_map=_build_response_map(spec, materialized, {"capital_of_france_grounded": answer})
+    )
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    args = argparse.Namespace(spec_path=str(spec_path), store_path=":memory:", nli=False)
+    rc = cli_run.cmd_run(args)
+    assert rc == 0  # STABLE -> SUCCESS (no NLI backend -> grounding inert)

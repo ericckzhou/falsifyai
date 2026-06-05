@@ -19,6 +19,7 @@ this directory is verified in CI via the dogfood tests in
 | [`adversarially_vulnerable.yaml`](adversarially_vulnerable.yaml) | `ADVERSARIALLY_VULNERABLE` (exit 2) | A *targeted* attack shape: the model survives typo noise but reliably breaks under casing changes. One family holds while another collapses — a known attack vector, distinct from the diffuse instability of `FRAGILE` ([plan §2.2](../plan.md)). |
 | [`information_null.yaml`](information_null.yaml) | `INFORMATION_NULL` (exit 1) | Stable in structure, empty of information: the model refuses identically under every perturbation. Naive stability scoring would call this fine; the `InformationNullOracle` recognises the refusal pattern. |
 | [`ambiguous.yaml`](ambiguous.yaml) | `AMBIGUOUS` (exit 1) | An underpowered eval: too few samples leave a wide worst-case CI, so the framework honestly reports "can't discriminate yet" rather than guessing. Distinct from `INSUFFICIENT` (which has no material to judge at all). |
+| [`information_present.yaml`](information_present.yaml) | `INFORMATION_PRESENT` (exit 0) | The gold standard: stable **and** grounded. Requires the opt-in NLI oracles — run with `--nli` (`pip install "falsifyai[nli]"`). The `GroundingOracle` confirms each output is entailed by `expected.reference`, upgrading `STABLE` to `INFORMATION_PRESENT`. Without `--nli` the same spec resolves `STABLE`. |
 
 ## Running locally
 
