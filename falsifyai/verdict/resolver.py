@@ -24,10 +24,11 @@ salt) so identical inputs always produce identical CIs.
 
 import hashlib
 
-from falsifyai.invariants.base import Invariant
+from falsifyai.invariants.base import EmbeddingBackend, Invariant
+from falsifyai.oracles.base import OracleContext
+from falsifyai.oracles.consistency import ConsistencyOracle
 from falsifyai.replay.models import CaseResult, PerturbedRun, SessionVerdict
 from falsifyai.spec.models import ExpectedSection
-from falsifyai.verdict.consistency import is_consistently_wrong
 from falsifyai.verdict.models import Verdict
 from falsifyai.verdict.stratify import (
     bootstrap_stability,
@@ -57,10 +58,15 @@ def resolve_case(
     invariants: list[Invariant],
     stable_threshold: float,
     case_seed: int,
+    embedder: EmbeddingBackend | None = None,
 ) -> CaseResult:
     """Build the full case-level result, including stratified CI evidence.
 
     All keyword-only -- the signature is too wide for positional clarity.
+
+    ``embedder`` is optional and only used by the ConsistencyOracle's
+    reference-agreement path. When None (the default), consistency falls back to
+    the ground-truth string check, identical to the pre-oracle behavior.
     """
     bootstrap_seed = _bootstrap_seed_for_case(case_seed)
 
@@ -83,6 +89,7 @@ def resolve_case(
         perturbed_runs=perturbed_runs,
         stability_ci_low=ci_low,
         stable_threshold=stable_threshold,
+        embedder=embedder,
     )
 
     return CaseResult(
@@ -109,6 +116,7 @@ def _decide_verdict(
     perturbed_runs: list[PerturbedRun],
     stability_ci_low: float,
     stable_threshold: float,
+    embedder: EmbeddingBackend | None = None,
 ) -> Verdict:
     """Apply the verdict priority chain.
 
@@ -119,8 +127,19 @@ def _decide_verdict(
 
     # CONSISTENTLY_WRONG must take priority over FRAGILE: the model could be
     # both unstable AND consistently wrong; the latter is the more dangerous
-    # signal and the one the user needs to see.
-    if is_consistently_wrong(original_output, perturbed_outputs, expected):
+    # signal and the one the user needs to see. The ConsistencyOracle
+    # pre-arbitrates into an OracleVerdict; the resolver consumes only its
+    # ``triggered`` flag, so this stays one branch (see the branch-count
+    # meta-test). Adding more oracles must not add branches here.
+    consistency = ConsistencyOracle().evaluate(
+        OracleContext(
+            original_output=original_output,
+            perturbed_outputs=perturbed_outputs,
+            expected=expected,
+            embedder=embedder,
+        )
+    )
+    if consistency.triggered:
         return Verdict.CONSISTENTLY_WRONG
 
     if stability_ci_low < stable_threshold:
