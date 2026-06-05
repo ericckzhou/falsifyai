@@ -60,6 +60,15 @@ dependencies = [
 semantic = [
     "sentence-transformers>=3.0",
 ]
+# The NLI oracles (contradiction / hallucination / grounding) run a local
+# deberta NLI model via transformers + torch (~500MB weights, downloaded on
+# first use). Opt-in so `pip install falsifyai` stays small. Install with
+# `pip install "falsifyai[nli]"`.
+nli = [
+    "transformers>=4.40",
+    "torch>=2.2",
+    "sentencepiece>=0.2",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
