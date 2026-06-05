@@ -1,11 +1,12 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Eight subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Nine subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
 over preserved evidence), ``diff`` (compare two stored sessions and
 exit 5 on regression), ``history`` (temporal view of one case across
-saved sessions), ``matrix`` (cross-model reliability profiles over N
-sessions), ``verify`` (replay-artifact integrity validation), and
+saved sessions), ``timeline`` (longitudinal robustness trend for one
+case; exit 5 on regression), ``matrix`` (cross-model reliability profiles
+over N sessions), ``verify`` (replay-artifact integrity validation), and
 ``export`` (write a deterministic portable evidence bundle).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
@@ -32,6 +33,7 @@ from falsifyai.cli import inspect as inspect_cmd
 from falsifyai.cli import matrix as matrix_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
+from falsifyai.cli import timeline as timeline_cmd
 from falsifyai.cli import verify as verify_cmd
 from falsifyai.cli.errors import CLIError
 
@@ -143,6 +145,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max sessions to show. Default 20; use 0 for unlimited.",
     )
     history_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
+    timeline_parser = subparsers.add_parser(
+        "timeline",
+        help="Longitudinal robustness trend for one case; exit 5 if it regressed.",
+    )
+    timeline_parser.add_argument(
+        "case_id",
+        help="The case_id to trace chronologically across sessions.",
+    )
+    timeline_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Max sessions to include. Default 20; use 0 for unlimited.",
+    )
+    timeline_parser.add_argument(
         "--store-path",
         default=".falsifyai/replays.db",
         help="ReplayStore path. Default: .falsifyai/replays.db",
@@ -261,6 +283,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return diff_cmd.cmd_diff(args)
         if args.command == "history":
             return history_cmd.cmd_history(args)
+        if args.command == "timeline":
+            return timeline_cmd.cmd_timeline(args)
         if args.command == "matrix":
             return matrix_cmd.cmd_matrix(args)
         if args.command == "verify":
