@@ -121,10 +121,10 @@ If `twine check` fails, the most common causes are:
 
 ```bash
 # Create an annotated tag matching the version (substitute the new version below).
-git tag -a v0.6.3 -m "Release 0.6.3"
+git tag -a v0.6.4 -m "Release 0.6.4"
 
 # Push the tag. This fires .github/workflows/publish.yml.
-git push origin v0.6.3
+git push origin v0.6.4
 ```
 
 The workflow:
@@ -209,7 +209,7 @@ If the release warrants public attention:
    ```
 
 2. **Bump version to next dev marker.** Optional but recommended when
-   starting work toward the next release. For example, after `0.6.3`
+   starting work toward the next release. For example, after `0.6.4`
    ships and the next planned release is `0.7.0`:
    - `pyproject.toml`: `version = "0.7.0.dev0"`
    - `falsifyai/__init__.py`: `__version__ = "0.7.0.dev0"`

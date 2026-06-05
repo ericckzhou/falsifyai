@@ -4,7 +4,7 @@
 
 ## What this project is
 
-**FalsifyAI** is a falsification-first reliability testing framework for AI systems. Status: **v0.6.3** — semantic-judgment depth (opt-in NLI oracle layer + full 8-verdict resolver) on top of the shipped artifact-infrastructure (0.2–0.4) and capability-breadth (0.5) tracks. The pipeline runs end-to-end (spec → materialize → execute → judge → resolve → save → CLI) with dogfooded examples for every verdict; release history in [CHANGELOG.md](../CHANGELOG.md).
+**FalsifyAI** is a falsification-first reliability testing framework for AI systems. Status: **v0.6.4** — perturbation-validity integrity (bidirectional-NLI paraphrase gate rejects lossy rewrites under `--nli`; case study 06) atop semantic-judgment depth (NLI oracle layer + full 8-verdict resolver) and the shipped artifact-infrastructure (0.2–0.4) / capability-breadth (0.5) tracks. The pipeline runs end-to-end (spec → materialize → execute → judge → resolve → save → CLI) with dogfooded examples for every verdict; release history in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Design philosophy (load-bearing)
 

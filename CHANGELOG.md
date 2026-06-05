@@ -6,6 +6,20 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.4] — 2026-06-05
+
+Patch release. Closes a self-falsification in the *evidence-generation* layer
+surfaced by [case study 06](docs/case-studies/06-perturbation-validity-omission.md):
+the `paraphrase` validity gate used embedding cosine similarity, which preserves
+*topic* but not *task completeness*, so an `llm_rewrite` that deleted a task's
+grounding while keeping its vocabulary passed the gate, drove the model to refuse,
+and the refusal was scored as a stable failure — manufacturing
+`CONSISTENTLY_WRONG @ 0.00` over a *correct* `llama-3.1-8b-instant`. The
+`BidirectionalNLIValidator` from [plan.md §9.3](plan.md) — entailment in both
+directions — now rejects such lossy rewrites **under `--nli`**. This completes the
+self-falsification trilogy across all three layers (03 interpretation, 05
+presentation, 06 generation). `--nli`-less runs are byte-identical.
+
 ### Added
 
 - **Bidirectional-NLI perturbation validity gate (`perturbation/validity.py`).**
@@ -582,6 +596,7 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.6.4]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.4
 [0.6.3]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.3
 [0.6.2]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.1

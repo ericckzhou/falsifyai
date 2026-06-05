@@ -18,7 +18,7 @@ falsifyai diff baseline candidate
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-**Status:** 0.6.3 — Presentation-integrity patch. Fixes the confidence-label inversion for instability-band verdicts across consumer surfaces and adds store-backend plugin plumbing (`falsifyai.stores`) without changing default behavior. The semantic-judgment depth from 0.6.2 remains available via the opt-in NLI oracle layer (`falsifyai run --nli`); spec language and replay format stay backward-compatible across the 0.x line.
+**Status:** 0.6.4 — Perturbation-validity integrity. The `paraphrase` validity gate now rejects *lossy* rewrites — an `llm_rewrite` that drops a task's grounding while keeping its vocabulary — via a bidirectional-NLI entailment check under `--nli` ([case study 06](docs/case-studies/06-perturbation-validity-omission.md)); previously such an invalid perturbation could manufacture a false `CONSISTENTLY_WRONG`. `--nli`-less runs are byte-identical; spec language and replay format stay backward-compatible across the 0.x line.
 
 ```bash
 pip install falsifyai
@@ -315,7 +315,11 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.6.3 (current release) — Presentation-integrity patch.** Fixes the confidence-label inversion ([case study 05](docs/case-studies/05-confidence-floor-inversion.md)) across every consumer surface, plus additive store-plugin plumbing:
+**0.6.4 (current release) — Perturbation-validity integrity.** Closes a generation-layer self-falsification ([case study 06](docs/case-studies/06-perturbation-validity-omission.md)): the `paraphrase` validity gate used embedding cosine, which preserves topic but not task completeness, so a rewrite that deleted a task's grounding passed and manufactured a false `CONSISTENTLY_WRONG`:
+
+- ✅ **Bidirectional-NLI paraphrase validity** — a paraphrase must entail the original *and* be entailed by it; an omission breaks the reverse direction and is rejected (under `--nli`, reusing the oracle NLI backend). Generation-layer only; resolver byte-identical; `--nli`-less runs unchanged.
+
+**0.6.3 — Presentation-integrity patch.** Fixes the confidence-label inversion ([case study 05](docs/case-studies/05-confidence-floor-inversion.md)) across every consumer surface, plus additive store-plugin plumbing:
 
 - ✅ **Band-aware metric label** — instability-band verdicts (`ADVERSARIALLY_VULNERABLE` / `FRAGILE` / `AMBIGUOUS`) render `stability floor:` instead of `confidence:` on `run` / `replay` / `inspect`; `history` drops the redundant unlabeled number for its `(CI: …)` band; `matrix` / `timeline` were audited clean. Consumer-surface only — the resolver and stored artifacts are byte-identical.
 - ✅ **`falsifyai.stores` plugin group** — the third entry-point group; `scheme://` store selection dispatches to out-of-tree backends. Default behavior unchanged (bare path = SQLite, `:memory:` = in-memory).
