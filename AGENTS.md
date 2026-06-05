@@ -1,6 +1,6 @@
-# FalsifyAI — Project Context for Claude
+# FalsifyAI — Project Context for Codex
 
-> Project-scoped instructions. Extends, does not replace, user-global `~/.claude/CLAUDE.md`.
+> Project-scoped instructions. Extends, does not replace, user-global `~/.Codex/AGENTS.md`.
 
 ## What this project is
 

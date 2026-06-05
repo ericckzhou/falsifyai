@@ -1,10 +1,11 @@
 # probe-03 — results
 
-> **Status: RUN COMPLETE (2026-06-05). No case study promoted.** The bake-off
-> did not find a confidently-wrong *model* — and that negative result, plus what
-> it surfaced about FalsifyAI's own interpretation layer, is the real finding.
-> **Finding 1 (the high-severity HallucinationOracle false positive) was fixed
-> the same day in commit `2a03644`.**
+> **Status: PROMOTED to [case study 03](../03-evaluator-false-positive.md) (2026-06-05).**
+> The bake-off did not find a confidently-wrong *model* — and that negative
+> result, plus the framework's own false positive it surfaced, became the
+> published self-falsification case study. **Finding 1 (the high-severity
+> HallucinationOracle false positive) was fixed the same day in commit
+> `2a03644`** and shipped in 0.6.1.
 
 ## Run metadata
 
@@ -102,6 +103,13 @@ others fail on style alone, the resolver reads it as ADVERSARIALLY_VULNERABLE.
   "not qualify") fail. Baseline-passes / paraphrase-fails produces verdict flap.
 - `schema_match` parses the raw output as JSON; correct JSON emitted inside an
   explanatory sentence or a ```` ```json ```` fence fails to parse (candidate 3).
+
+> **Resolved for `schema_match` (post-0.6.1, on `dev`).** `schema_match` now
+> extracts JSON from a markdown fence or surrounding prose before validating
+> (strict schema check unchanged). `contains` and `semantic_equivalence` are
+> deliberately left as-is — selecting the right invariant (NLI entailment for
+> paraphrase-tolerant meaning) is the fix, not inflating the literal/cosine
+> checks. See CHANGELOG `[Unreleased]`.
 
 ## Why no case study was promoted
 

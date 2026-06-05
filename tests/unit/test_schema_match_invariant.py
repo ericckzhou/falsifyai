@@ -119,3 +119,59 @@ def test_falsifiability_contribution_scales_with_required_count() -> None:
     assert none.falsifiability_contribution() == 0.0
     assert two.falsifiability_contribution() == pytest.approx(0.4)
     assert many.falsifiability_contribution() == 1.0
+
+
+# --- JSON extraction from wrapped output (case study 03, Finding 3b) ---------
+# Models commonly wrap correct JSON in a markdown fence or a sentence. The
+# invariant extracts the JSON before validating; genuine prose with no JSON
+# value still fails (the "broke the shape" contract is preserved).
+
+
+def test_json_in_json_fenced_block_passes() -> None:
+    inv = SchemaMatchInvariant(schema=_CAPITAL_SCHEMA, severity=Severity.HIGH)
+    result = _check(inv, '```json\n{"capital": "Tokyo"}\n```')
+    assert result.passed is True
+    assert result.score == 1.0
+
+
+def test_json_in_bare_fenced_block_passes() -> None:
+    inv = SchemaMatchInvariant(schema=_CAPITAL_SCHEMA, severity=Severity.HIGH)
+    result = _check(inv, '```\n{"capital": "Tokyo"}\n```')
+    assert result.passed is True
+
+
+def test_json_object_embedded_in_prose_passes() -> None:
+    inv = SchemaMatchInvariant(schema=_CAPITAL_SCHEMA, severity=Severity.HIGH)
+    result = _check(
+        inv,
+        'Sure! Here is the result: {"capital": "Tokyo"}. Let me know if you need more.',
+    )
+    assert result.passed is True
+
+
+def test_json_array_embedded_in_prose_passes() -> None:
+    inv = SchemaMatchInvariant(schema={"type": "array"}, severity=Severity.HIGH)
+    assert _check(inv, "The list is [1, 2, 3] as requested.").passed is True
+
+
+def test_prose_without_any_json_still_fails() -> None:
+    inv = SchemaMatchInvariant(schema=_CAPITAL_SCHEMA, severity=Severity.HIGH)
+    result = _check(inv, "The capital is Tokyo.")
+    assert result.passed is False
+    assert result.score == 0.0
+    assert "parse_error" in result.evidence
+
+
+def test_fenced_block_with_invalid_json_fails() -> None:
+    inv = SchemaMatchInvariant(schema=_CAPITAL_SCHEMA, severity=Severity.HIGH)
+    result = _check(inv, "```json\n{capital: Tokyo}\n```")  # unquoted -> not JSON
+    assert result.passed is False
+    assert "parse_error" in result.evidence
+
+
+def test_extracted_json_is_still_schema_validated() -> None:
+    """Extraction does not relax validation: wrong type inside a fence still fails."""
+    inv = SchemaMatchInvariant(schema=_CAPITAL_SCHEMA, severity=Severity.HIGH)
+    result = _check(inv, '```json\n{"capital": 42}\n```')  # number, expected string
+    assert result.passed is False
+    assert "capital" in result.evidence["type_errors"]  # type: ignore[operator]

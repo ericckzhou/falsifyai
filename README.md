@@ -18,7 +18,7 @@ falsifyai diff baseline candidate
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-**Status:** 0.6.1 — Semantic-judgment depth. Adds an opt-in NLI (natural-language-inference) oracle layer — grounding, hallucination, and contradiction detection — and completes the full 8-verdict resolver (`INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five). `falsifyai run --nli` activates the semantic oracles; the flag is purely additive (it enriches the verdict, never flips a pass into a fail on its own). Default installs and the 5-verdict behavior are unchanged; spec language and replay format stay backward-compatible across the 0.x line.
+**Status:** 0.6.2 — Semantic-judgment depth. Adds an opt-in NLI (natural-language-inference) oracle layer — grounding, hallucination, and contradiction detection — and completes the full 8-verdict resolver (`INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five). `falsifyai run --nli` activates the semantic oracles; the flag is purely additive (it enriches the verdict, never flips a pass into a fail on its own). Default installs and the 5-verdict behavior are unchanged; spec language and replay format stay backward-compatible across the 0.x line.
 
 ```bash
 pip install falsifyai
@@ -193,6 +193,8 @@ Worked tours over real preserved artifacts. Each case study *is* a FalsifyAI art
 |---|---|---|
 | 01 | [Invisible character substitution](docs/case-studies/01-invisible-character-substitution.md) | Cross-model `contains`-contract brittleness as a persistent class; a model-migration regression (U+202F substitution between "30" and "days") as the vivid instance. |
 | 02 | [Resolver arbitration: boundary-allocation effect](docs/case-studies/02-resolver-arbitration-boundary-shift.md) | A small operating-context revision changed *where* a model permitted additional architectural complexity to exist without changing its top-level recommendation — the kind of subtle drift a pass/fail evaluator would miss. |
+| 03 | [When the evaluator is wrong](docs/case-studies/03-evaluator-false-positive.md) | FalsifyAI's own interpretation layer stamped a *correct* model `CONSISTENTLY_WRONG` @ 1.00; the preserved evidence overturned the verdict and drove the 0.6.1 `HallucinationOracle` fix — the framework falsifying itself. |
+| 04 | [Overconfident negation](docs/case-studies/04-overconfident-negation.md) | A downgraded model (8B) cites a retention clause's legal carve-out and still answers the wrong yes/no — a genuine `CONSISTENTLY_WRONG`. The mirror of 03: proof the 0.6.1 oracle fix catches real contradictions without false-firing on correct paraphrases. |
 
 See [`docs/case-studies/`](docs/case-studies/) for the index and the framing convention case studies follow.
 
@@ -312,7 +314,7 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.6.1 (current release) — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
+**0.6.2 (current release) — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
 
 - ✅ **NLI backend** — bidirectional entailment/contradiction scoring. `MockNLIBackend` (deterministic, dependency-free) is the default; `TransformersNLIBackend` ships behind the opt-in `[nli]` extra and lazy-loads its model on first use.
 - ✅ **Semantic oracles** — `GroundingOracle` (answer supported by provided context → `INFORMATION_PRESENT`), `HallucinationOracle` (confident claim contradicted by ground truth → `CONSISTENTLY_WRONG`), `ContradictionOracle` (self-inconsistency across the output set).

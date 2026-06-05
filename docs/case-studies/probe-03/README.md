@@ -1,10 +1,12 @@
 # probe-03 — "confidently wrong" bake-off
 
-A **bake-off**, not a finished case study. These five 1-case specs are
-candidates for **case study 03**. Exactly one will be promoted; the other four
-will be discarded. The example earns its place by *actually producing the
-shape* under a real model, not by being clever on paper — that is the
-dogfooding discipline.
+A **bake-off** that became something better. These five 1-case specs were
+candidates for **case study 03**: the plan was to promote the one that produced
+a confidently-wrong *model*. None did — and that negative result, plus the
+framework's own false positive it exposed, was promoted instead as
+[**case study 03 — When the evaluator is wrong**](../03-evaluator-false-positive.md).
+The example earns its place by *actually producing a shape* under a real model,
+not by being clever on paper — that is the dogfooding discipline.
 
 > **OUTCOME (2026-06-05): run complete, no candidate promoted.** On
 > `llama-3.3-70b-versatile` the model answered all five tasks **correctly**; none
