@@ -9,6 +9,7 @@ This directory contains preserved replay artifacts for the published case studie
 | [`probe-03.db`](probe-03.db) | [03 — When the evaluator is wrong](../03-evaluator-false-positive.md) · [05 — When the confidence number lies](../05-confidence-floor-inversion.md) (same bundle, second reading) | 5 |
 | [`case-study-04.db`](case-study-04.db) | [04 — Overconfident negation](../04-overconfident-negation.md) | 4 |
 | [`probe-05.db`](probe-05.db) | [probe-05 — grounding-verdict quartet](../probe-05/README.md) (probe; not yet promoted to a numbered study) | 5 |
+| [`probe-06.db`](probe-06.db) · [`probe-06-fixed.db`](probe-06-fixed.db) | [06 — When the test deletes the question](../06-perturbation-validity-omission.md) (before / after the §9.3 validity fix) | 1 each |
 
 ## Bundle file
 

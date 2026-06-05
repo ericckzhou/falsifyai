@@ -1,0 +1,61 @@
+# probe-06 / extraction on a weaker model — hunting a GENUINE model failure
+#
+# Lineage: probe-03 candidate-3 (structural-vs-semantic split) ran on
+# llama-3.3-70b-versatile and the model was CORRECT — every verdict there was an
+# interpretation-layer false positive (see ../probe-03/RESULTS.md). RESULTS.md
+# step 2 names the un-mined path to a real CONSISTENTLY_WRONG *model*: re-probe a
+# WEAKER model with tighter invariants. This spec is that probe.
+#
+# Hypothesis: llama-3.1-8b-instant actually drops the "only administrators may
+# delete" qualifier and emits well-formed JSON with `delete` in `allowed` for a
+# standard user — well-formed AND wrong, stably so across perturbations
+# (CONSISTENTLY_WRONG). With the 0.6.2 JSON-extraction fix, schema_match PASSES
+# (valid JSON) while the NLI ContradictionOracle flags the content — the
+# two-oracle split candidate-3 was designed around, now over a real failure.
+#
+# Run: falsifyai run docs/case-studies/probe-06/candidate-extraction-8b.yaml --nli \
+#        --store-path docs/case-studies/data/probe-06.db
+
+falsify:
+  version: "1.0"
+  name: "Weak-model extraction: access-policy, well-formed JSON wrong content"
+
+model:
+  provider: groq
+  model: llama-3.1-8b-instant
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: access_policy_extraction_8b
+    tags: ["policy", "structured-output", "json", "structural-vs-semantic", "weak-model"]
+    input:
+      text: >-
+        From this access policy, output {"allowed":[...],"forbidden":[...]} for a
+        standard (non-admin) user: All users may read records. Only
+        administrators may delete records. No user may export records.
+    expected:
+      reference: >-
+        For a standard non-admin user, the allowed actions are ["read"] and the
+        forbidden actions are ["delete", "export"]. Deleting records is
+        restricted to administrators; exporting is forbidden for all users.
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: paraphrase
+        count: 8
+    invariants:
+      - type: schema_match
+        schema:
+          type: object
+          required: ["allowed", "forbidden"]
+          properties:
+            allowed:
+              type: array
+            forbidden:
+              type: array
+      - type: semantic_equivalence
+        threshold: 0.80

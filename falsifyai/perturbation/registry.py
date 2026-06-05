@@ -20,11 +20,13 @@ from importlib.metadata import entry_points
 
 from falsifyai.execution.adapter import ModelAdapter
 from falsifyai.invariants.base import EmbeddingBackend
+from falsifyai.oracles.nli import NLIBackend
 from falsifyai.perturbation.base import Perturbation
 from falsifyai.perturbation.casing_variant import CasingVariant
 from falsifyai.perturbation.paraphrase import Paraphrase
 from falsifyai.perturbation.typo_noise import TypoNoise
 from falsifyai.perturbation.unicode_chars import UnicodePerturbation
+from falsifyai.perturbation.validity import BidirectionalNLIValidator
 from falsifyai.spec.models import (
     CasingVariantSpec,
     ModelConfig,
@@ -54,6 +56,7 @@ def build_perturbation(
     primary_model: ModelConfig | None = None,
     adapter: ModelAdapter | None = None,
     embedder: EmbeddingBackend | None = None,
+    nli_backend: NLIBackend | None = None,
 ) -> Perturbation:
     """Return a runtime ``Perturbation`` for the given ``PerturbationSpec``.
 
@@ -105,6 +108,11 @@ def build_perturbation(
             from falsifyai.invariants.semantic import SentenceTransformerBackend
 
             embedder = SentenceTransformerBackend()
+        # Optional NLI validity gate. When the run provisioned an NLI backend
+        # (``--nli``), tighten paraphrase validity with bidirectional
+        # entailment so omission-style invalid rewrites are rejected, not just
+        # low-cosine ones (case study 06). No backend → cosine-only, unchanged.
+        nli_validator = BidirectionalNLIValidator(nli_backend) if nli_backend is not None else None
         return Paraphrase(
             model_config=resolved_model,
             adapter=adapter,
@@ -112,6 +120,7 @@ def build_perturbation(
             similarity_threshold=spec.similarity_threshold,
             max_attempts=spec.max_attempts,
             embedder=embedder,
+            nli_validator=nli_validator,
         )
     if isinstance(spec, PluginPerturbationSpec):
         registry = discover_perturbations()
