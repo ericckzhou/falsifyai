@@ -80,7 +80,7 @@ def _args(
 
 
 def _patch_store(monkeypatch, store: _FakeStore) -> _FakeStore:
-    monkeypatch.setattr(cli_verify, "_build_store", lambda _p: store)
+    monkeypatch.setattr(cli_verify, "build_store", lambda _p: store)
     return store
 
 

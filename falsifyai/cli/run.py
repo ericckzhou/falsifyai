@@ -33,10 +33,8 @@ from falsifyai.falsifiability.score import (
 from falsifyai.invariants.base import Invariant
 from falsifyai.invariants.registry import build_invariant
 from falsifyai.oracles.nli import NLIBackend, TransformersNLIBackend
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, CliInvocation, PerturbedRun, ReplayArtifact
-from falsifyai.replay.protocol import ReplayStore
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.registry import build_store
 from falsifyai.spec.errors import SpecLoadError
 from falsifyai.spec.loader import load_spec
 from falsifyai.spec.materializer import MaterializedSpec, materialize
@@ -69,13 +67,6 @@ def build_nli_backend(enabled: bool) -> NLIBackend | None:
     if not enabled:
         return None
     return TransformersNLIBackend()
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Pick an impl based on the path. ``:memory:`` -> InMemoryStore."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _capture_cli_invocation(argv: list[str] | tuple[str, ...]) -> CliInvocation:
@@ -239,7 +230,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         cli_invocation=cli_invocation,
     )
 
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     try:
         store.save_session(artifact)
         render.render_session(artifact, store_path=args.store_path)

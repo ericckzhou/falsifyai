@@ -20,18 +20,10 @@ import argparse
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
 from falsifyai.integrity.checks import IntegrityReport, run_integrity_checks
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.registry import build_store
 
 INTEGRITY_FAILURE_EXIT_CODE: int = 7
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/run.py / cli/replay.py / cli/diff.py store selection."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _verify_single(store: ReplayStore, session_id: str) -> IntegrityReport:
@@ -54,7 +46,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     if not all_sessions and not session_id:
         raise InfrastructureError("session_id is required (or pass --all)")
 
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     try:
         if all_sessions:
             reports = _verify_all(store)

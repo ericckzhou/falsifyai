@@ -20,8 +20,8 @@ def _args(session_id: str | None = None, *, latest: bool = False, store_path: st
 
 
 def _patched_store(monkeypatch: pytest.MonkeyPatch, store: InMemoryStore) -> InMemoryStore:
-    """Replace _build_store so cmd_replay sees the fixture-populated store."""
-    monkeypatch.setattr(replay_module, "_build_store", lambda _path: store)
+    """Replace build_store so cmd_replay sees the fixture-populated store."""
+    monkeypatch.setattr(replay_module, "build_store", lambda _path: store)
     return store
 
 

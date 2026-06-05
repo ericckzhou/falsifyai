@@ -1,0 +1,66 @@
+# probe-05 / candidate C — one family breaks, another holds → ADVERSARIALLY_VULNERABLE
+#
+# Target verdict: ADVERSARIALLY_VULNERABLE (plan.md §2.2) — a *targeted* failure
+# shape, not diffuse fragility. No backend required; the signal is purely the
+# stratified per-family stability bands the resolver already computes.
+#
+# How it reaches the verdict (failure_shape == "targeted", stratify.py):
+#   - The `unicode` family (homoglyph + zero-width) corrupts the input bytes a
+#     human reads as identical. If the model misreads the confusables it answers
+#     wrong → the family's CI low drops below 0.5 ("broken").
+#   - The `casing` family (UPPER/lower/Title) is benign — a capable model is
+#     robust to case → that family's CI low stays ≥ 0.8 ("holding").
+#   - One family broken AND another holding, across ≥ 2 families → shape
+#     "targeted" → resolver returns ADVERSARIALLY_VULNERABLE (a known attack
+#     vector), distinct from FRAGILE (broad, no family stands out).
+#
+# This is case study 01's invisible-character finding turned into a verdict: the
+# generation side now *produces* the homoglyph/zero-width failure that CS-01
+# could only detect, and stratification names it as targeted rather than diffuse.
+#
+# The empirical question the probe asks: does the model actually break on unicode
+# while holding on casing?
+#   - both hold  → STABLE / INFORMATION_PRESENT (model is robust to confusables)
+#   - both break → FRAGILE (diffuse — no holding family to contrast against)
+#   - unicode breaks, casing holds → ADVERSARIALLY_VULNERABLE  ← the target
+# Downgrading the model (e.g. llama-3.1-8b-instant) raises the odds of the
+# targeted shape, mirroring the CS-03 → CS-04 "downgrade the model" technique.
+#
+# Run: falsifyai run docs/case-studies/probe-05/candidate-c-targeted-unicode.yaml \
+#        --store-path docs/case-studies/data/probe-05.db
+
+falsify:
+  version: "1.0"
+  name: "Targeted vulnerability: unicode confusables break, casing holds"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 64
+
+run:
+  seed: 42
+
+cases:
+  - id: targeted_unicode_gold_symbol
+    tags: ["adversarially-vulnerable", "unicode", "targeted", "stratified"]
+    input:
+      text: >-
+        What is the chemical symbol for gold? Answer with the symbol only.
+    expected:
+      contains: ["Au"]
+      reference: >-
+        The chemical symbol for gold is Au.
+    perturbations:
+      # Two families with deliberately different expected robustness. unicode is
+      # the suspected attack vector; casing is the control that should hold.
+      - type: unicode
+        methods: ["homoglyph", "zero_width"]
+        count: 6
+      - type: casing
+        variants: ["upper", "lower", "title"]
+    invariants:
+      - type: contains
+        values: ["Au"]
+        case_sensitive: true

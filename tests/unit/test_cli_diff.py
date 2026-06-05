@@ -26,7 +26,7 @@ from tests.fixtures.build_artifact import make_artifact
 
 
 def _patched_store(monkeypatch, store):
-    monkeypatch.setattr(diff_module, "_build_store", lambda _path: store)
+    monkeypatch.setattr(diff_module, "build_store", lambda _path: store)
     return store
 
 

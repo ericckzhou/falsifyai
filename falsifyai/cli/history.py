@@ -35,18 +35,9 @@ from typing import TextIO
 
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, ReplayArtifact
-from falsifyai.replay.protocol import ReplayStore
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.registry import build_store
 from falsifyai.verdict.models import Verdict
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/run.py / cli/replay.py / cli/inspect.py store selection."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _matching_cases(artifact: ReplayArtifact, case_id: str) -> list[CaseResult]:
@@ -100,7 +91,7 @@ def cmd_history(args: argparse.Namespace) -> int:
     # int; sys.maxsize is the canonical "as many as you've got" expression.
     effective_limit = sys.maxsize if args.limit == 0 else args.limit
 
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     matched_any = False
     encountered_malformed = False
     stream = sys.stdout
