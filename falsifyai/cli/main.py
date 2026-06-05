@@ -1,10 +1,11 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Seven subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Eight subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
 over preserved evidence), ``diff`` (compare two stored sessions and
 exit 5 on regression), ``history`` (temporal view of one case across
-saved sessions), ``verify`` (replay-artifact integrity validation), and
+saved sessions), ``matrix`` (cross-model reliability profiles over N
+sessions), ``verify`` (replay-artifact integrity validation), and
 ``export`` (write a deterministic portable evidence bundle).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
@@ -28,6 +29,7 @@ from falsifyai.cli import diff as diff_cmd
 from falsifyai.cli import export as export_cmd
 from falsifyai.cli import history as history_cmd
 from falsifyai.cli import inspect as inspect_cmd
+from falsifyai.cli import matrix as matrix_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
 from falsifyai.cli import verify as verify_cmd
@@ -146,6 +148,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Default: .falsifyai/replays.db",
     )
 
+    matrix_parser = subparsers.add_parser(
+        "matrix",
+        help="Cross-model reliability profiles: N sessions x perturbation families.",
+    )
+    matrix_parser.add_argument(
+        "session_ids",
+        nargs="+",
+        help="Two or more session ids to profile side by side.",
+    )
+    matrix_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="ReplayStore path. Default: .falsifyai/replays.db",
+    )
+
     export_parser = subparsers.add_parser(
         "export",
         help=(
@@ -244,6 +261,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return diff_cmd.cmd_diff(args)
         if args.command == "history":
             return history_cmd.cmd_history(args)
+        if args.command == "matrix":
+            return matrix_cmd.cmd_matrix(args)
         if args.command == "verify":
             return verify_cmd.cmd_verify(args)
         if args.command == "export":
