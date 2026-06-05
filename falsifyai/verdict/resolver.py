@@ -27,6 +27,7 @@ import hashlib
 from falsifyai.invariants.base import EmbeddingBackend, Invariant
 from falsifyai.oracles.base import OracleContext
 from falsifyai.oracles.consistency import ConsistencyOracle
+from falsifyai.oracles.meta import MetaOracle
 from falsifyai.replay.models import CaseResult, PerturbedRun, SessionVerdict
 from falsifyai.spec.models import ExpectedSection
 from falsifyai.verdict.models import Verdict
@@ -125,12 +126,10 @@ def _decide_verdict(
     if not perturbed_runs or not invariants:
         return Verdict.INSUFFICIENT
 
-    # CONSISTENTLY_WRONG must take priority over FRAGILE: the model could be
-    # both unstable AND consistently wrong; the latter is the more dangerous
-    # signal and the one the user needs to see. The ConsistencyOracle
-    # pre-arbitrates into an OracleVerdict; the resolver consumes only its
-    # ``triggered`` flag, so this stays one branch (see the branch-count
-    # meta-test). Adding more oracles must not add branches here.
+    # Run primary oracles once, then consume their pre-arbitrated verdicts by
+    # precedence. Each oracle collapses to one OracleVerdict, so adding an
+    # oracle never adds a branch here (see the branch-count meta-test); only
+    # adding a new verdict *class* does.
     consistency = ConsistencyOracle().evaluate(
         OracleContext(
             original_output=original_output,
@@ -139,6 +138,29 @@ def _decide_verdict(
             embedder=embedder,
         )
     )
+
+    # Meta-oracle is the SOLE source of INVALID_EVAL. It sees the full invariant
+    # matrix (baseline + every perturbed run) so it can tell a malformed
+    # invariant (fails even the clean baseline) from a genuinely failing model
+    # (explained by a primary oracle, so degeneration is suppressed). If the
+    # eval itself is broken, no other verdict is trustworthy -> top priority.
+    baseline_results = [inv.check(original_output, original_output, {}) for inv in invariants]
+    invariant_matrix = [baseline_results, *(run.invariant_results for run in perturbed_runs)]
+    meta = MetaOracle().evaluate(
+        OracleContext(
+            original_output=original_output,
+            perturbed_outputs=perturbed_outputs,
+            expected=expected,
+            embedder=embedder,
+            invariant_results=invariant_matrix,
+            peer_verdicts=[consistency],
+        )
+    )
+    if meta.triggered:
+        return Verdict.INVALID_EVAL
+
+    # CONSISTENTLY_WRONG must take priority over FRAGILE: the model could be both
+    # unstable AND consistently wrong; the latter is the more dangerous signal.
     if consistency.triggered:
         return Verdict.CONSISTENTLY_WRONG
 
@@ -167,13 +189,18 @@ def resolve_session(
     consistently_wrong_count = sum(
         1 for c in case_results if c.verdict is Verdict.CONSISTENTLY_WRONG
     )
+    invalid_eval_count = sum(1 for c in case_results if c.verdict is Verdict.INVALID_EVAL)
     case_count = len(case_results)
 
     if case_count == 0:
         verdict = Verdict.INSUFFICIENT
         confidence = 0.0
     else:
-        if consistently_wrong_count > 0:
+        # INVALID_EVAL dominates: if any case's evaluation is broken, the
+        # session result cannot be trusted, regardless of other verdicts.
+        if invalid_eval_count > 0:
+            verdict = Verdict.INVALID_EVAL
+        elif consistently_wrong_count > 0:
             verdict = Verdict.CONSISTENTLY_WRONG
         elif fragile_count > 0:
             verdict = Verdict.FRAGILE
@@ -189,5 +216,6 @@ def resolve_session(
         case_count=case_count,
         fragile_count=fragile_count,
         consistently_wrong_count=consistently_wrong_count,
+        invalid_eval_count=invalid_eval_count,
         falsifyai_falsifiability_score=falsifiability_score,
     )

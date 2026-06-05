@@ -126,6 +126,8 @@ def _make_session_verdict(d: dict[str, Any]) -> SessionVerdict:
         case_count=d["case_count"],
         fragile_count=d["fragile_count"],
         consistently_wrong_count=d["consistently_wrong_count"],
+        # PR-D field; default preserves backward-compat reads.
+        invalid_eval_count=d.get("invalid_eval_count", 0),
         # PR #11+ field; default preserves backward-compat reads.
         falsifyai_falsifiability_score=d.get("falsifyai_falsifiability_score", 0.0),
     )

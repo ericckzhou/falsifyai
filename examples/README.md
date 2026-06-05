@@ -15,6 +15,7 @@ this directory is verified in CI via the dogfood tests in
 | [`paraphrase.yaml`](paraphrase.yaml) | `STABLE` (exit 0) | Paraphrase perturbation family (Phase B): LLM-generated semantic-preserving rewrites with embedding-similarity validity gating. Tests semantic robustness as an axis orthogonal to character-level typo/casing. |
 | [`unicode_regression.yaml`](unicode_regression.yaml) | `FRAGILE` (exit 1) | The `unicode` perturbation family: visually-identical, byte-different input (invisible spaces incl. U+202F, zero-width chars, Cyrillic homoglyphs). Generation-side complement to [case study 01](../case-studies/) — FalsifyAI now *generates* the failure it could previously only *detect*. |
 | [`schema_match.yaml`](schema_match.yaml) | `FRAGILE` (exit 1) | The `schema_match` invariant: asserts output is valid JSON conforming to a schema (required keys, typed properties). The structural assertion `contains` could only approximate for structured-output cases. |
+| [`invalid_eval.yaml`](invalid_eval.yaml) | `INVALID_EVAL` (exit 2) | The meta-oracle: a malformed invariant that rejects every output *including the clean baseline* is flagged as a broken evaluation, not a failing model. Protects users from gating CI on a measurement error. |
 
 ## Running locally
 

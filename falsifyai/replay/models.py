@@ -127,6 +127,9 @@ class SessionVerdict:
     fragile_count: int
     consistently_wrong_count: int
 
+    # PR-D field. Default preserves backward-compat reads of older artifacts.
+    invalid_eval_count: int = 0
+
     # PR #11+ field. Default preserves backward-compat reads of older artifacts.
     falsifyai_falsifiability_score: float = 0.0
 
