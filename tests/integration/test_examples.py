@@ -692,7 +692,9 @@ def test_adversarially_vulnerable_yaml_is_a_valid_spec() -> None:
     assert [c.id for c in spec.cases] == ["capital_of_france_casing_attack"]
 
 
-def test_adversarially_vulnerable_yaml_produces_adversarially_vulnerable(monkeypatch) -> None:
+def test_adversarially_vulnerable_yaml_produces_adversarially_vulnerable(
+    monkeypatch, capsys
+) -> None:
     """typo_noise outputs are correct; casing outputs are wrong -> targeted attack."""
     spec_path = _EXAMPLES / "adversarially_vulnerable.yaml"
     spec, spec_hash = load_spec(spec_path)
@@ -710,6 +712,15 @@ def test_adversarially_vulnerable_yaml_produces_adversarially_vulnerable(monkeyp
 
     rc = cli_run.cmd_run(_args(spec_path))
     assert rc == 2  # ADVERSARIALLY_VULNERABLE -> FAILURE
+
+    # Gate-6 dogfood (case study 05): instability-band verdicts surface the
+    # stability *floor*, not "confidence". The rendered metric is verdict_confidence
+    # = ci_low, near 0 exactly when most broken -- the "confidence" label inverted
+    # its meaning here, so the per-case row must read "stability floor:" instead.
+    out = capsys.readouterr().out
+    assert "ADVERSARIALLY_VULNERABLE" in out
+    assert "stability floor:" in out
+    assert "confidence:" not in out
 
 
 # ---------------------------------------------------------------------------

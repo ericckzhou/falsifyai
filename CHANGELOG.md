@@ -32,6 +32,21 @@ still SQLite, `:memory:` is still the in-memory store.
   `diff`, `history`, `timeline`, `matrix`, `verify`, `export`) are replaced by
   the single shared `build_store()`. No behavioral change; one source of truth
   for store construction.
+- **Per-case confidence label is band-aware.** For instability-band verdicts
+  (`ADVERSARIALLY_VULNERABLE` / `FRAGILE` / `AMBIGUOUS`), `falsifyai run` and
+  `replay` now render `verdict_confidence` as `stability floor:` instead of
+  `confidence:`. The value is the stability CI lower bound — near `0.00` exactly
+  when a case is *most* broken — so the `confidence:` label inverted its meaning
+  for precisely the verdicts that matter most. Stable-band verdicts are
+  unchanged. **Consumer surface only: the verdict resolver and stored artifacts
+  are byte-identical.** See case study 05.
+
+### Documentation
+
+- **Case study 05 — "When the confidence number lies."** A presentation-layer
+  self-falsification over the *same* `probe-03.db` bundle as case study 03: the
+  confidence number, not the verdict, was the false signal. Documents the
+  inversion above and its band-aware fix.
 
 ## [0.6.2] — 2026-06-05
 

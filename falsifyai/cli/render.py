@@ -82,6 +82,32 @@ def _is_legacy_case(case: CaseResult) -> bool:
     )
 
 
+# Verdicts decided by the resolver's instability band (resolver.py: the
+# worst-case stability CI lower bound fell below the stable bar). For these,
+# ``verdict_confidence`` IS that CI *floor* -- it collapses toward 0.00 exactly
+# when the case is most broken and best-supported. Labeling that "confidence"
+# inverts its meaning (a severe, well-backed verdict reads as "low confidence"),
+# so the consumer surface names it for what it is. Verdict logic and the stored
+# field are unchanged -- this is presentation only. See
+# docs/case-studies/05-confidence-floor-inversion.md.
+_INSTABILITY_BAND: frozenset[Verdict] = frozenset(
+    {Verdict.ADVERSARIALLY_VULNERABLE, Verdict.FRAGILE, Verdict.AMBIGUOUS}
+)
+
+
+def _metric_label(case: CaseResult) -> str:
+    """Band-aware label for ``verdict_confidence``.
+
+    Stable-band verdicts read ``ci_low`` as genuine confidence-in-stability and
+    keep the ``confidence:`` label. Instability-band verdicts read the same
+    number as a stability *floor*; relabeling it keeps the number from inverting
+    its meaning for the reader.
+    """
+    if case.verdict in _INSTABILITY_BAND:
+        return f"stability floor: {case.verdict_confidence:.2f}"
+    return f"confidence: {case.verdict_confidence:.2f}"
+
+
 def render_session(
     artifact: ReplayArtifact,
     *,
@@ -92,7 +118,12 @@ def render_session(
     """Print one row per case, then a summary footer.
 
     Per-case row format:
-        case: <id>  verdict: <V>  confidence: <p> (CI: <lo>-<hi>)  worst: <family>?
+        case: <id>  verdict: <V>  <metric>: <p> (CI: <lo>-<hi>)  worst: <family>?
+
+    ``<metric>`` is band-aware (see ``_metric_label``): stable-band verdicts show
+    ``confidence``; instability-band verdicts (ADVERSARIALLY_VULNERABLE / FRAGILE
+    / AMBIGUOUS) show ``stability floor`` so the same ``verdict_confidence`` value
+    does not read as low confidence when it actually signals high severity.
 
     When ``loaded_from`` is set (replay path), an extra header line is
     prepended indicating the session was loaded from the store.
@@ -112,12 +143,12 @@ def render_session(
         if _is_legacy_case(case):
             line = (
                 f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-                f"confidence: {case.verdict_confidence:.2f}  (legacy)"
+                f"{_metric_label(case)}  (legacy)"
             )
         else:
             line = (
                 f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-                f"confidence: {case.verdict_confidence:.2f} "
+                f"{_metric_label(case)} "
                 f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
             )
             if case.verdict is Verdict.FRAGILE and case.worst_case_family:
