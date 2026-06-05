@@ -32,7 +32,18 @@ from falsifyai.verdict import resolver
 #        is a genuinely new verdict class with a new top-priority branch. The
 #        MetaOracle is its sole source; future oracles emitting *existing*
 #        classes must route through the relevant branch, not add a new one.
-_EXPECTED_VERDICT_RETURNS = 5
+#   9 -- + ADVERSARIALLY_VULNERABLE, AMBIGUOUS, INFORMATION_NULL,
+#        INFORMATION_PRESENT (PR-K, the 8-verdict resolver). Sanctioned one-time
+#        growth: four genuine new verdict *classes*, each a single branch over an
+#        already-resolved signal --
+#          * ADVERSARIALLY_VULNERABLE <- stratified failure_shape == "targeted"
+#          * AMBIGUOUS               <- wide CI (ci_high >= fragile_threshold)
+#          * INFORMATION_NULL        <- InformationNullOracle contribution
+#          * INFORMATION_PRESENT     <- GroundingOracle contribution
+#        Detection lives in the oracles / stratify helper, NOT the resolver. The
+#        PR-J semantic oracles added 0 branches; only these verdict classes did.
+#        Each class appears in exactly one ``return`` (count == distinct classes).
+_EXPECTED_VERDICT_RETURNS = 9
 
 
 def _decide_verdict_ast() -> ast.FunctionDef:

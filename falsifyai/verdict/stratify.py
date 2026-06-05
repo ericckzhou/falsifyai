@@ -77,6 +77,43 @@ def stratify_by_family(perturbed_runs: list[PerturbedRun]) -> dict[str, list[boo
     return dict(strata)
 
 
+# A family whose CI lower bound is below this is "broken"; at/above _HOLDING_CI
+# it is "holding". The gap between the two bands is what separates a *targeted*
+# attack (some families collapse while others hold) from *diffuse* fragility.
+_BROKEN_CI: Final[float] = 0.5
+_HOLDING_CI: Final[float] = 0.8
+
+
+def failure_shape(per_family: dict[str, tuple[float, float, float]]) -> str:
+    """Classify the *shape* of failure across perturbation families.
+
+    Returns one of:
+
+    - ``"targeted"`` -- at least one family is broken (CI low < 0.5) AND at least
+      one other family is holding (CI low >= 0.8). A known attack vector: the
+      model survives most perturbations but one family reliably breaks it. This
+      is the ADVERSARIALLY_VULNERABLE signal.
+    - ``"diffuse"`` -- one or more families are broken but none is clearly
+      holding. Broad instability with no single dominating attack -> FRAGILE.
+    - ``"none"`` -- no family is broken.
+
+    Pure interpretation of evidence the resolver already computes (the per-family
+    bootstrap triples); no new evidence generation. Requires >= 2 families to call
+    a failure *targeted* -- a single broken family is ``"diffuse"`` (there is no
+    other family for it to stand out against).
+    """
+    if not per_family:
+        return "none"
+    ci_lows = [lo for (_point, lo, _hi) in per_family.values()]
+    broken = [lo for lo in ci_lows if lo < _BROKEN_CI]
+    if not broken:
+        return "none"
+    if len(per_family) < 2:
+        return "diffuse"
+    holding = [lo for lo in ci_lows if lo >= _HOLDING_CI]
+    return "targeted" if holding else "diffuse"
+
+
 def worst_case_stratified(
     per_family: dict[str, tuple[float, float, float]],
 ) -> tuple[str | None, float, float, float]:

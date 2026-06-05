@@ -1,0 +1,38 @@
+# examples/adversarially_vulnerable.yaml
+#
+# Demonstrates the ADVERSARIALLY_VULNERABLE verdict: a *targeted* failure
+# shape. The model survives one perturbation family but reliably breaks under
+# another -- a known attack vector, not the diffuse instability of FRAGILE
+# (per plan.md section 2.2 and the stratified worst-case engine, section 12).
+#
+# Here the model answers correctly under typo noise but flips to the wrong
+# answer whenever the casing changes. Because one family HOLDS while another
+# COLLAPSES, the resolver reports ADVERSARIALLY_VULNERABLE (exit 2), not FRAGILE.
+
+falsify:
+  version: "1.0"
+  name: "Casing-sensitive model (targeted attack vector)"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france_casing_attack
+    tags: ["geography", "factual", "adversarial-demo"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["Paris"]

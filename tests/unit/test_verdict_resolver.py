@@ -12,6 +12,7 @@ import pytest
 from falsifyai.execution.models import Execution, ModelRequest
 from falsifyai.invariants.base import InvariantResult, Severity
 from falsifyai.invariants.contains import ContainsInvariant
+from falsifyai.oracles.nli import MockNLIBackend, NLILabel
 from falsifyai.perturbation.base import (
     PerturbationCategory,
     PerturbationLineage,
@@ -211,8 +212,13 @@ def test_all_invariants_pass_yields_stable_with_high_ci() -> None:
     assert result.stability_ci_low == pytest.approx(1.0)
 
 
-def test_one_family_drops_to_fragile_via_worst_case_stratification() -> None:
-    """typo_noise all pass; casing_variant all fail. Worst-case wins -> FRAGILE."""
+def test_one_family_collapses_is_adversarially_vulnerable() -> None:
+    """typo_noise all pass; casing_variant all fail -> *targeted* attack shape.
+
+    One family holds while another reliably breaks the model: that is a known
+    attack vector, ADVERSARIALLY_VULNERABLE, not the diffuse instability of
+    FRAGILE. (Before the 8-verdict resolver this case resolved FRAGILE.)
+    """
     perturbed = [
         _perturbed_run("typo_noise", "p1", "Paris.", True),
         _perturbed_run("typo_noise", "p2", "Paris.", True),
@@ -230,7 +236,7 @@ def test_one_family_drops_to_fragile_via_worst_case_stratification() -> None:
         stable_threshold=0.95,
         case_seed=CASE_SEED,
     )
-    assert result.verdict is Verdict.FRAGILE
+    assert result.verdict is Verdict.ADVERSARIALLY_VULNERABLE
     assert result.worst_case_family == "casing_variant"
     # Worst-case CI low is 0.0 (all-fail family); typo data does NOT drown it.
     assert result.stability_ci_low == pytest.approx(0.0)
@@ -336,3 +342,122 @@ def test_session_empty_is_insufficient() -> None:
     sv = resolve_session([], falsifiability_score=0.0)
     assert sv.session_verdict is Verdict.INSUFFICIENT
     assert sv.case_count == 0
+
+
+def test_session_adversarially_vulnerable_beats_fragile() -> None:
+    cases = [
+        _case_result(Verdict.FRAGILE, 0.4),
+        _case_result(Verdict.ADVERSARIALLY_VULNERABLE, 0.3),
+    ]
+    sv = resolve_session(cases, falsifiability_score=0.7)
+    assert sv.session_verdict is Verdict.ADVERSARIALLY_VULNERABLE
+
+
+def test_session_ambiguous_beats_information_null() -> None:
+    cases = [_case_result(Verdict.INFORMATION_NULL, 0.9), _case_result(Verdict.AMBIGUOUS, 0.5)]
+    sv = resolve_session(cases, falsifiability_score=0.7)
+    assert sv.session_verdict is Verdict.AMBIGUOUS
+
+
+def test_session_all_information_present_is_information_present() -> None:
+    cases = [_case_result(Verdict.INFORMATION_PRESENT, 0.99) for _ in range(2)]
+    sv = resolve_session(cases, falsifiability_score=0.9)
+    assert sv.session_verdict is Verdict.INFORMATION_PRESENT
+
+
+def test_session_mixed_present_and_stable_is_stable() -> None:
+    cases = [_case_result(Verdict.INFORMATION_PRESENT, 0.99), _case_result(Verdict.STABLE, 0.96)]
+    sv = resolve_session(cases, falsifiability_score=0.9)
+    assert sv.session_verdict is Verdict.STABLE
+
+
+# ---------------------------------------------------------------------------
+# resolve_case -- the four new verdicts (PR-K)
+# ---------------------------------------------------------------------------
+
+
+def test_wide_ci_single_family_is_ambiguous() -> None:
+    """One family, half pass: low floor but high ceiling -> can't discriminate."""
+    perturbed = [
+        _perturbed_run("typo_noise", "p1", "Paris.", True),
+        _perturbed_run("typo_noise", "p2", "London.", False),
+    ]
+    result = resolve_case(
+        case_id="c",
+        original_input="...",
+        original_execution=_exec("...", "Paris."),
+        perturbed_runs=perturbed,
+        expected=ExpectedSection(contains=["Paris"]),
+        invariants=[ContainsInvariant(values=["Paris"], severity=Severity.HIGH)],
+        stable_threshold=0.95,
+        fragile_threshold=0.5,
+        case_seed=CASE_SEED,
+    )
+    assert result.verdict is Verdict.AMBIGUOUS
+    assert result.stability_ci_low < 0.95
+    assert result.stability_ci_high >= 0.5
+
+
+def test_stable_refusals_are_information_null() -> None:
+    """Stable structure but empty content (refusals) -> INFORMATION_NULL, not STABLE."""
+    refusal = "I cannot help with that."
+    perturbed = [
+        _perturbed_run("typo_noise", "p1", refusal, True),
+        _perturbed_run("typo_noise", "p2", refusal, True),
+        _perturbed_run("casing_variant", "p3", refusal, True),
+    ]
+    result = resolve_case(
+        case_id="c",
+        original_input="...",
+        original_execution=_exec("...", refusal),
+        perturbed_runs=perturbed,
+        # No ground-truth contains (so consistency stays quiet); invariant checks a
+        # token present in the refusal so every run passes -> stable region.
+        expected=ExpectedSection(),
+        invariants=[ContainsInvariant(values=["cannot"], severity=Severity.HIGH)],
+        stable_threshold=0.95,
+        case_seed=CASE_SEED,
+    )
+    assert result.verdict is Verdict.INFORMATION_NULL
+
+
+def test_stable_and_grounded_is_information_present() -> None:
+    """Stable AND the grounding oracle confirms entailment -> INFORMATION_PRESENT."""
+    answer = "Paris is the capital of France."
+    perturbed = [
+        _perturbed_run("typo_noise", "p1", answer, True),
+        _perturbed_run("typo_noise", "p2", answer, True),
+        _perturbed_run("casing_variant", "p3", answer, True),
+    ]
+    result = resolve_case(
+        case_id="c",
+        original_input="...",
+        original_execution=_exec("...", answer),
+        perturbed_runs=perturbed,
+        expected=ExpectedSection(contains=["Paris"], reference="The capital of France is Paris."),
+        invariants=[ContainsInvariant(values=["Paris"], severity=Severity.HIGH)],
+        stable_threshold=0.95,
+        case_seed=CASE_SEED,
+        nli=MockNLIBackend(default_label=NLILabel.ENTAILMENT),
+    )
+    assert result.verdict is Verdict.INFORMATION_PRESENT
+
+
+def test_stable_without_grounding_is_plain_stable() -> None:
+    """Stable but no NLI backend -> grounding can't confirm -> plain STABLE."""
+    answer = "Paris."
+    perturbed = [
+        _perturbed_run("typo_noise", "p1", answer, True),
+        _perturbed_run("casing_variant", "p2", answer, True),
+    ]
+    result = resolve_case(
+        case_id="c",
+        original_input="...",
+        original_execution=_exec("...", answer),
+        perturbed_runs=perturbed,
+        expected=ExpectedSection(contains=["Paris"]),
+        invariants=[ContainsInvariant(values=["Paris"], severity=Severity.HIGH)],
+        stable_threshold=0.95,
+        case_seed=CASE_SEED,
+    )
+    assert result.verdict is Verdict.STABLE

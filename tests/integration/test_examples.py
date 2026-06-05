@@ -679,3 +679,90 @@ def test_history_unknown_case_raises_infrastructure_error(tmp_path, monkeypatch)
                 store_path=db_path,
             )
         )
+
+
+# ---------------------------------------------------------------------------
+# adversarially_vulnerable.yaml (PR-K)
+# ---------------------------------------------------------------------------
+
+
+def test_adversarially_vulnerable_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "adversarially_vulnerable.yaml")
+    assert spec.run.seed == 42
+    assert [c.id for c in spec.cases] == ["capital_of_france_casing_attack"]
+
+
+def test_adversarially_vulnerable_yaml_produces_adversarially_vulnerable(monkeypatch) -> None:
+    """typo_noise outputs are correct; casing outputs are wrong -> targeted attack."""
+    spec_path = _EXAMPLES / "adversarially_vulnerable.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    case = materialized.cases[0]
+    response_map: dict[str, str] = {case.original_input: "Paris is the capital of France."}
+    for pi in case.realized_perturbations:
+        if pi.lineage.perturbation_type == "typo_noise":
+            response_map[pi.text] = "Paris is the capital of France."  # family holds
+        else:  # casing
+            response_map[pi.text] = "London is the capital."  # family collapses
+    adapter = MockAdapter(response_map=response_map)
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 2  # ADVERSARIALLY_VULNERABLE -> FAILURE
+
+
+# ---------------------------------------------------------------------------
+# information_null.yaml (PR-K)
+# ---------------------------------------------------------------------------
+
+
+def test_information_null_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "information_null.yaml")
+    assert [c.id for c in spec.cases] == ["refused_question"]
+
+
+def test_information_null_yaml_produces_information_null(monkeypatch, patch_embed_backend) -> None:
+    """Every output is the same refusal: stable structure, empty information."""
+    spec_path = _EXAMPLES / "information_null.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    refusal = "I cannot answer that question."
+    adapter = MockAdapter(
+        response_map=_build_response_map(spec, materialized, {"refused_question": refusal})
+    )
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 1  # INFORMATION_NULL -> DEGRADED
+
+
+# ---------------------------------------------------------------------------
+# ambiguous.yaml (PR-K)
+# ---------------------------------------------------------------------------
+
+
+def test_ambiguous_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "ambiguous.yaml")
+    assert [c.id for c in spec.cases] == ["capital_of_france_underpowered"]
+    assert spec.cases[0].perturbations[0].count == 2  # deliberately underpowered
+
+
+def test_ambiguous_yaml_produces_ambiguous(monkeypatch) -> None:
+    """Two samples, one right one wrong -> wide CI -> AMBIGUOUS (can't discriminate)."""
+    spec_path = _EXAMPLES / "ambiguous.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    case = materialized.cases[0]
+    response_map: dict[str, str] = {case.original_input: "Paris is the capital of France."}
+    for idx, pi in enumerate(case.realized_perturbations):
+        response_map[pi.text] = (
+            "Paris is the capital of France." if idx % 2 == 0 else "London is the capital."
+        )
+    adapter = MockAdapter(response_map=response_map)
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 1  # AMBIGUOUS -> DEGRADED

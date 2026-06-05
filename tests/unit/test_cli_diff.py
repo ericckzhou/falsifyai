@@ -149,6 +149,49 @@ def test_classify_stable_to_insufficient_is_other_change() -> None:
     assert kind is TransitionKind.OTHER_CHANGE
 
 
+# --- 8-verdict ladder (PR-K) -------------------------------------------------
+
+
+def test_classify_information_present_to_stable_is_regressed() -> None:
+    """Losing confirmed grounding is a downgrade."""
+    assert (
+        _classify_transition(Verdict.INFORMATION_PRESENT, Verdict.STABLE)
+        is TransitionKind.REGRESSED
+    )
+
+
+def test_classify_stable_to_ambiguous_is_regressed() -> None:
+    assert _classify_transition(Verdict.STABLE, Verdict.AMBIGUOUS) is TransitionKind.REGRESSED
+
+
+def test_classify_fragile_to_adversarially_vulnerable_is_regressed() -> None:
+    assert (
+        _classify_transition(Verdict.FRAGILE, Verdict.ADVERSARIALLY_VULNERABLE)
+        is TransitionKind.REGRESSED
+    )
+
+
+def test_classify_adversarially_vulnerable_to_stable_is_improved() -> None:
+    assert (
+        _classify_transition(Verdict.ADVERSARIALLY_VULNERABLE, Verdict.STABLE)
+        is TransitionKind.IMPROVED
+    )
+
+
+def test_classify_same_tier_is_other_change() -> None:
+    """AMBIGUOUS and INFORMATION_NULL are the same severity tier -> no clear up/down."""
+    assert (
+        _classify_transition(Verdict.AMBIGUOUS, Verdict.INFORMATION_NULL)
+        is TransitionKind.OTHER_CHANGE
+    )
+
+
+def test_classify_invalid_eval_transitions_are_other_change() -> None:
+    """INVALID_EVAL is off the quality ladder -> never a regression/improvement."""
+    assert _classify_transition(Verdict.STABLE, Verdict.INVALID_EVAL) is TransitionKind.OTHER_CHANGE
+    assert _classify_transition(Verdict.INVALID_EVAL, Verdict.STABLE) is TransitionKind.OTHER_CHANGE
+
+
 # ---------------------------------------------------------------------------
 # compute_diff
 # ---------------------------------------------------------------------------

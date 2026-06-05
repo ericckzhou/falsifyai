@@ -1,0 +1,38 @@
+# examples/ambiguous.yaml
+#
+# Demonstrates the AMBIGUOUS verdict: the eval RAN but cannot discriminate.
+# With too few samples, the worst-case bootstrap CI is wide -- a low floor but
+# a high ceiling -- so the framework honestly reports "we don't know yet"
+# rather than guessing FRAGILE or STABLE (per plan.md sections 2.2 and 2.4).
+#
+# AMBIGUOUS is distinct from INSUFFICIENT: INSUFFICIENT means there was no
+# material to judge (no perturbations / no invariants); AMBIGUOUS means we ran
+# the eval but the evidence is too thin to land a confident verdict. The fix is
+# more samples, not a different spec. Exit 1 (DEGRADED): act by widening N.
+
+falsify:
+  version: "1.0"
+  name: "Underpowered eval (ambiguous evidence)"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france_underpowered
+    tags: ["geography", "factual", "ambiguous-demo"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+    perturbations:
+      - type: typo_noise
+        count: 2
+    invariants:
+      - type: contains
+        values: ["Paris"]

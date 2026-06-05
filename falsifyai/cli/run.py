@@ -160,6 +160,7 @@ def _run_case(
         expected=case_spec.expected,
         invariants=invariants,
         stable_threshold=case_spec.verdict_config.stable_threshold,
+        fragile_threshold=case_spec.verdict_config.fragile_threshold,
         case_seed=mcase.case_seed,
     )
     return case_result, invariants
