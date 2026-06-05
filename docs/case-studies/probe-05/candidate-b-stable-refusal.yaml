@@ -1,0 +1,63 @@
+# probe-05 / candidate B — stable hedge on an underspecified question → INFORMATION_NULL
+#
+# Target verdict: INFORMATION_NULL (plan.md §2.2) — the cell where the model is
+# stable but says nothing: a consistent refusal/hedge that is structurally
+# self-similar (so naive stability marks it fine) yet carries no information.
+# No backend required; the InformationNullOracle is a content/shape detector.
+#
+# How it reaches the verdict:
+#   1. The question is genuinely underspecified, so a hedging model answers
+#      "It depends on ..." every time. At temperature 0 the hedge is near-identical
+#      across typo/casing pressure → semantic_equivalence(baseline, perturbed) is
+#      high → invariants pass → worst-case stability clears stable_threshold
+#      → stable band.
+#   2. The InformationNullOracle finds the "it depends" / "i'm not sure" marker in
+#      ≥ 50% of outputs → contributes INFORMATION_NULL.
+#   3. Stable band, CONSISTENTLY_WRONG ruled out, INFORMATION_NULL present (checked
+#      before INFORMATION_PRESENT) → resolver returns INFORMATION_NULL.
+#
+# Silence direction (the guard the oracle docstring is explicit about): a valid
+# *terse* answer ("Buy.") must never be flagged null — the oracle keys on
+# refusal/hedge markers, NOT on short length. So if the model commits to an
+# answer, this same spec lands on STABLE, not INFORMATION_NULL. The probe reveals
+# which behavior the model exhibits and confirms the oracle does not over-fire on
+# brevity.
+#
+# Run: falsifyai run docs/case-studies/probe-05/candidate-b-stable-refusal.yaml \
+#        --store-path docs/case-studies/data/probe-05.db
+#   (--nli optional here — INFORMATION_NULL needs no NLI backend.)
+
+falsify:
+  version: "1.0"
+  name: "Stable hedge: underspecified question yields information-empty output"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: stable_hedge_rent_vs_buy
+    tags: ["information-null", "hedge", "refusal", "stable-but-empty"]
+    input:
+      text: >-
+        Is it better to rent or to buy a home?
+    expected:
+      # No correct answer exists for a deliberately underspecified question; the
+      # reference describes the information-empty hedge we expect to recur.
+      reference: >-
+        It depends on individual circumstances such as finances, location, and
+        how long one plans to stay.
+    perturbations:
+      - type: typo_noise
+        count: 8
+      - type: casing
+    invariants:
+      # Consistency of the (empty) answer across perturbation is what lands this
+      # in the stable band; there is no required substring to assert.
+      - type: semantic_equivalence
+        threshold: 0.80

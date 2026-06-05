@@ -1,0 +1,61 @@
+# probe-05 / candidate D — deliberately thin evidence → AMBIGUOUS
+#
+# Target verdict: AMBIGUOUS (plan.md §2.2) — "the eval ran but cannot
+# discriminate." This verdict is a property of the *evidence*, not the model: a
+# wide bootstrap confidence interval (low floor, high ceiling) means there are
+# too few samples to call STABLE or FRAGILE honestly.
+#
+# How it reaches the verdict (resolver instability band, §13.1):
+#   - count is kept deliberately small (3) on a single family, so the per-family
+#     bootstrap CI is wide.
+#   - If the model's pass rate across the 3 perturbed runs is *mixed* (e.g. 2/3),
+#     the worst-case CI low falls below stable_threshold (0.95) → instability band.
+#   - Single family → shape is NOT "targeted". The CI high stays ≥ fragile_threshold
+#     (0.5) because the ceiling is high → the resolver returns AMBIGUOUS rather than
+#     FRAGILE.
+#
+# The honest follow-up the verdict prescribes: AMBIGUOUS is the "collect more
+# evidence" signal. Raising `count` (more samples) on the same case should resolve
+# it toward STABLE or FRAGILE — demonstrating that AMBIGUOUS reports thin evidence,
+# not a stable property of the system under test. The probe is designed to be
+# re-run at count: 3 and then count: 20 to show the verdict move.
+#
+#   - model passes all 3   → STABLE (clean, but on thin evidence)
+#   - model fails all 3     → FRAGILE (ceiling also low)
+#   - model is mixed on 3    → AMBIGUOUS  ← the target; widen N to resolve
+#
+# Run: falsifyai run docs/case-studies/probe-05/candidate-d-thin-evidence.yaml \
+#        --store-path docs/case-studies/data/probe-05.db
+
+falsify:
+  version: "1.0"
+  name: "Thin evidence: small-N perturbation cannot discriminate"
+
+model:
+  provider: groq
+  model: llama-3.1-8b-instant
+  temperature: 0.0
+  max_tokens: 64
+
+run:
+  seed: 42
+
+cases:
+  - id: thin_evidence_author_surname
+    tags: ["ambiguous", "thin-evidence", "small-n", "wide-ci"]
+    input:
+      text: >-
+        What is the surname of the author of the novel "Pride and Prejudice"?
+        Answer with the surname only.
+    expected:
+      contains: ["Austen"]
+      reference: >-
+        Jane Austen wrote the novel "Pride and Prejudice".
+    perturbations:
+      # Single family, small N on purpose. This is the lever the verdict is about:
+      # too few samples to discriminate. Re-run with count: 20 to resolve it.
+      - type: typo_noise
+        count: 3
+    invariants:
+      - type: contains
+        values: ["Austen"]

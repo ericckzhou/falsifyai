@@ -1,0 +1,66 @@
+# probe-05 / candidate A — grounded factual extraction → INFORMATION_PRESENT
+#
+# Target verdict: INFORMATION_PRESENT (the gold standard, plan.md §2.2).
+# Requires --nli: the verdict is only reachable when the GroundingOracle can
+# confirm the outputs are *entailed by the grounding source*. Without --nli the
+# oracle is inert and this same run lands on plain STABLE — that contrast is the
+# point (grounding is opt-in positive confirmation, not a default).
+#
+# How it reaches the verdict:
+#   1. A capable model answers "100 degrees Celsius" robustly across typo/casing
+#      pressure → worst-case stratified stability clears stable_threshold (0.95)
+#      → stable band.
+#   2. Under --nli the GroundingOracle runs majority_relation(premise=reference,
+#      hypotheses=outputs): the reference passage ENTAILS each output → the set
+#      is grounded (support ≥ 50%) → contributes INFORMATION_PRESENT.
+#   3. Stable band + INFORMATION_PRESENT contribution + no INFORMATION_NULL
+#      → resolver returns INFORMATION_PRESENT.
+#
+# Silence direction (what a trustworthy instrument must NOT do): if the model
+# answered a stable-but-wrong temperature, the reference would CONTRADICT it and
+# the HallucinationOracle — not GroundingOracle — would fire (CONSISTENTLY_WRONG).
+# Grounding and hallucination are the two halves of the same axis and never both
+# fire on one set.
+#
+# Run: falsifyai run docs/case-studies/probe-05/candidate-a-grounded-fact.yaml --nli \
+#        --store-path docs/case-studies/data/probe-05.db
+
+falsify:
+  version: "1.0"
+  name: "Grounded answer: passage-supported fact survives perturbation"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: grounded_boiling_point
+    tags: ["grounding", "rag", "information-present", "gold-standard"]
+    input:
+      text: >-
+        Using only the passage, answer: at sea level, at what temperature does
+        pure water boil? Passage: At standard sea-level pressure, pure water
+        boils at 100 degrees Celsius (212 degrees Fahrenheit).
+    expected:
+      # In the MVP, expected.reference doubles as the grounding source the
+      # GroundingOracle checks output entailment against (resolver does not yet
+      # populate OracleContext.context_text).
+      contains: ["100"]
+      reference: >-
+        At standard sea-level pressure, pure water boils at 100 degrees Celsius
+        (212 degrees Fahrenheit).
+    perturbations:
+      # Intent-preserving, model-free pressure. The answer must not drift.
+      - type: typo_noise
+        count: 8
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["100"]
+      - type: semantic_equivalence
+        threshold: 0.80
