@@ -168,11 +168,14 @@ The evidence survives the run. The deeper semantics live in [`docs/EVIDENCE.md`]
 
 A FalsifyAI spec describes three things:
 
-- **Perturbations** — *"what could go wrong on the input side?"* (typo noise, casing variants, paraphrases)
-- **Invariants** — *"what must stay true about the output?"* (required substrings, semantic equivalence)
+- **Perturbations** — *"what could go wrong on the input side?"* (typo noise, casing variants, paraphrases, `unicode` invisible/confusable characters)
+- **Invariants** — *"what must stay true about the output?"* (required substrings, semantic equivalence, JSON `schema_match`)
+- **Oracles** — *"what does the whole execution set imply?"* (`ConsistencyOracle` detects confident, consistent hallucination; the `MetaOracle` is the sole source of `INVALID_EVAL` — it catches a broken *evaluation* before it launders a measurement error into a verdict)
 - **Verdict rules** — *"when is the case fragile?"* (framework-level; not tuned per run)
 
 FalsifyAI runs the model on the original input plus every perturbation, judges every output against every invariant, and resolves a per-case verdict via a deterministic priority chain. The full evidence trail is preserved as a **replay artifact** — the durable product. Every CLI subcommand either produces one or reads one.
+
+Perturbations and invariants are extensible without forking: third-party packages register classes under the `falsifyai.perturbations` / `falsifyai.invariants` entry-point groups and reference them from YAML via `{type: plugin, name: ..., params: {...}}`. The built-ins are registered the same way.
 
 ---
 
@@ -191,7 +194,7 @@ See [`docs/case-studies/`](docs/case-studies/) for the index and the framing con
 
 ## CLI reference
 
-Seven subcommands, one workflow:
+Ten subcommands, one workflow:
 
 ```bash
 falsifyai run <spec.yaml> [--store-path PATH]
@@ -200,10 +203,15 @@ falsifyai replay --latest      [--store-path PATH]
 falsifyai inspect <session_id> [--case CASE_ID] [--full] [--store-path PATH]
 falsifyai diff <baseline_id> <candidate_id> [--store-path PATH] [--strict] [--show-timeline]
 falsifyai history <case_id> [--limit N] [--store-path PATH]
+falsifyai timeline <case_id> [--limit N] [--store-path PATH]    # robustness trend; exit 5 on regression
+falsifyai matrix <session_id> <session_id>... [--store-path PATH]  # N-model x family reliability profile
+falsifyai minimize <spec.yaml> [--case CASE_ID] [--family typo_noise|unicode] [--levels CSV] [--samples N]
 falsifyai verify <session_id> [--store-path PATH]
 falsifyai verify --all         [--store-path PATH]
 falsifyai export <session_id> --bundle <output>.fai.zip [--spec-path PATH] [--allow-corrupted] [--overwrite] [--exported-at ISO8601] [--store-path PATH]
 ```
+
+`history` shows raw newest-first rows and refuses to aggregate; `timeline` is its inference counterpart (chronological trend + regression detection). `matrix` generalizes the pairwise `diff` to N model runs. `minimize` searches for the *smallest* perturbation that breaks a case — the minimal falsifier.
 
 | Exit code | Meaning |
 |---:|---|
@@ -244,7 +252,7 @@ Ship the *evidence* with your PR, not just the pass/fail signal:
 - **Not a prompt optimization suite.** No prompt tuning, no automated A/B over wordings. The spec is authored deliberately.
 - **Not a telemetry platform.** No streaming, no production dashboards, no time-series. The artifact is per-run preserved evidence.
 - **Not a generalized observability product.** The CLI compresses; the artifact preserves. The headline tells you whether to look; the artifact tells you what to look at.
-- **Not a workflow orchestrator.** Seven subcommands are the entire surface.
+- **Not a workflow orchestrator.** Ten subcommands are the entire surface.
 - **Not an AI governance suite.** Governance platforms consume reliability evidence; FalsifyAI produces it.
 
 These exclusions keep the surface compressible. Adding any of them corrupts the discipline.
@@ -298,7 +306,15 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.4.0 (current release) — Artifact-infrastructure track complete.** Adds:
+**0.5.0 (current release) — Capability-breadth track.** Closes the Phase 1 capability gaps the artifact-infrastructure track (0.2–0.4) skipped:
+
+- ✅ **`unicode` perturbation family** — visually-identical, byte-different input (invisible space variants incl. U+202F, zero-width characters, Cyrillic/Greek homoglyphs). The generation-side complement to case study 01: FalsifyAI can now *generate* the failure it could previously only *detect*. First family in the `ADVERSARIAL` category.
+- ✅ **`schema_match` invariant** — strict structural assertion that output is valid JSON conforming to a schema (required keys, typed properties), with no new runtime dependency.
+- ✅ **Oracle layer** — `Oracle` Protocol + `OracleVerdict` + `ConsistencyOracle` (the semantic-judgment surface), and the **`MetaOracle`** that makes `INVALID_EVAL` rigorous (sole source: malformed-invariant degeneration + oracle conflict). Guarded by a resolver branch-count meta-test so oracles pre-arbitrate rather than inflating the resolver.
+- ✅ **Entry-point plugin system** — perturbations and invariants are extensible without forking (`falsifyai.perturbations` / `falsifyai.invariants` groups); built-ins are dogfooded through the same mechanism.
+- ✅ **Reliability analytics (consumer surface):** `matrix` (N-model × perturbation-family profiles), `timeline` (longitudinal robustness trend + regression gate), `minimize` (minimal-falsifier search — the smallest perturbation that breaks a case).
+
+**0.4.0 — Artifact-infrastructure track complete.** Adds:
 
 - ✅ **Persisted `cli_invocation` on `ReplayArtifact`** — descriptive procedural provenance. `CliInvocation` is a frozen dataclass with two fields: `argv` (normalized — `argv[0]` canonicalized to `"falsifyai"` regardless of entry path) and `falsifyai_version` (runtime version at capture time). Captured exactly once at entry to `cmd_run`; read-only consumer surfaces never stamp invocation. Closes the locked three-step sequence `verify` → `export --bundle` → embedded CLI invocation. The bundle's auto-generated README now renders a "Generated by" section with the captured command plus an explicit semantic-boundary disclaimer (*records what command produced the artifact, not a guarantee that re-running will produce identical outputs* — replay-determinism guarantees still live in `materialized_hash` and `bundle_id`). Pre-PR-35 artifacts carry `cli_invocation = None` and load cleanly (backward compat preserved).
 
