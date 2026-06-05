@@ -4,6 +4,35 @@ All notable changes to FalsifyAI are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Extends the entry-point plugin system to **replay store backends** — the third
+declared plugin group (`falsifyai.stores`), after perturbations and invariants.
+This is the out-of-tree path for the `PostgresStore` / `S3Store` backends
+(plan.md §18.4): a team-scale or cloud-durable store can be added by installing
+a package, with no fork. Default behavior is byte-identical — a bare path is
+still SQLite, `:memory:` is still the in-memory store.
+
+### Added
+
+- **`falsifyai.stores` entry-point discovery.** `falsifyai/replay/registry.py`
+  exposes `discover_stores()` and `build_store()`, mirroring the perturbation
+  and invariant registries one tier down (assembly/wiring, not an evidence
+  layer). A store backend registers a factory callable `(uri: str) ->
+  ReplayStore` keyed by a `--store-path` URI scheme; the built-in `sqlite` and
+  `memory` backends are registered the same way and dogfood the mechanism.
+- **`scheme://` store selection.** `--store-path postgres://host/db` dispatches
+  to the plugin registered under `postgres`, which receives the full URI. Bare
+  paths (including Windows drive-letter paths) and `:memory:` are unchanged.
+
+### Changed
+
+- **`_build_store` consolidated.** The nine identical per-command copies of the
+  `:memory:`/SQLite selection helper across the CLI (`run`, `replay`, `inspect`,
+  `diff`, `history`, `timeline`, `matrix`, `verify`, `export`) are replaced by
+  the single shared `build_store()`. No behavioral change; one source of truth
+  for store construction.
+
 ## [0.6.2] — 2026-06-05
 
 Patch release. Hardens the `schema_match` invariant against a false structural

@@ -38,10 +38,10 @@ def _args(
 
 
 def _patched_store(monkeypatch: pytest.MonkeyPatch, store: InMemoryStore) -> InMemoryStore:
-    """Replace history._build_store so cmd_history sees the fixture-populated store."""
+    """Replace history.build_store so cmd_history sees the fixture-populated store."""
     from falsifyai.cli import history as history_module
 
-    monkeypatch.setattr(history_module, "_build_store", lambda _path: store)
+    monkeypatch.setattr(history_module, "build_store", lambda _path: store)
     return store
 
 

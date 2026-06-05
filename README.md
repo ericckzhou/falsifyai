@@ -181,7 +181,7 @@ A FalsifyAI spec describes three things:
 
 FalsifyAI runs the model on the original input plus every perturbation, judges every output against every invariant, and resolves a per-case verdict via a deterministic priority chain. The full evidence trail is preserved as a **replay artifact** — the durable product. Every CLI subcommand either produces one or reads one.
 
-Perturbations and invariants are extensible without forking: third-party packages register classes under the `falsifyai.perturbations` / `falsifyai.invariants` entry-point groups and reference them from YAML via `{type: plugin, name: ..., params: {...}}`. The built-ins are registered the same way.
+Perturbations, invariants, and **store backends** are extensible without forking. Perturbation/invariant packages register classes under the `falsifyai.perturbations` / `falsifyai.invariants` entry-point groups and reference them from YAML via `{type: plugin, name: ..., params: {...}}`. Store backends register a factory under `falsifyai.stores` keyed by a `--store-path` URI scheme — a Postgres backend ships `postgres = mypkg:from_uri` and users select it with `--store-path postgres://host/db`. The built-ins (perturbations, invariants, and the `sqlite` / `memory` stores) are all registered the same way.
 
 ---
 
@@ -232,7 +232,7 @@ falsifyai export <session_id> --bundle <output>.fai.zip [--spec-path PATH] [--al
 | 6 | LOW_FALSIFIABILITY — `falsifyai diff --strict` candidate falsifiability < 0.50 |
 | 7 | INTEGRITY_FAILURE — `falsifyai verify` found at least one failed integrity check |
 
-Default `--store-path` is `.falsifyai/replays.db`. Use `:memory:` for ephemeral test-only runs.
+Default `--store-path` is `.falsifyai/replays.db` (the `sqlite` backend). Use `:memory:` for ephemeral test-only runs, or a `scheme://...` URI to dispatch to an installed store plugin (see [Core concepts](#core-concepts) above).
 
 ### CI integration
 
@@ -326,7 +326,7 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 - ✅ **`unicode` perturbation family** — visually-identical, byte-different input (invisible space variants incl. U+202F, zero-width characters, Cyrillic/Greek homoglyphs). The generation-side complement to case study 01: FalsifyAI can now *generate* the failure it could previously only *detect*. First family in the `ADVERSARIAL` category.
 - ✅ **`schema_match` invariant** — strict structural assertion that output is valid JSON conforming to a schema (required keys, typed properties), with no new runtime dependency.
 - ✅ **Oracle layer** — `Oracle` Protocol + `OracleVerdict` + `ConsistencyOracle` (the semantic-judgment surface), and the **`MetaOracle`** that makes `INVALID_EVAL` rigorous (sole source: malformed-invariant degeneration + oracle conflict). Guarded by a resolver branch-count meta-test so oracles pre-arbitrate rather than inflating the resolver.
-- ✅ **Entry-point plugin system** — perturbations and invariants are extensible without forking (`falsifyai.perturbations` / `falsifyai.invariants` groups); built-ins are dogfooded through the same mechanism.
+- ✅ **Entry-point plugin system** — perturbations, invariants, and store backends are extensible without forking (`falsifyai.perturbations` / `falsifyai.invariants` / `falsifyai.stores` groups); built-ins are dogfooded through the same mechanism.
 - ✅ **Reliability analytics (consumer surface):** `matrix` (N-model × perturbation-family profiles), `timeline` (longitudinal robustness trend + regression gate), `minimize` (minimal-falsifier search — the smallest perturbation that breaks a case).
 
 **0.4.0 — Artifact-infrastructure track complete.** Adds:

@@ -189,3 +189,15 @@ class SQLiteStore:
 
         for (payload,) in self._conn.execute(sql, params):
             yield _ser.artifact_from_json(payload)
+
+
+def from_uri(uri: str) -> SQLiteStore:
+    """Entry-point factory for the ``sqlite`` store scheme (the default backend).
+
+    Accepts either a bare filesystem path (``.falsifyai/replays.db``) or a
+    ``sqlite://`` URI; a leading ``sqlite://`` is stripped and the remainder is
+    the database file path. Registered under the ``falsifyai.stores`` group in
+    ``pyproject.toml``.
+    """
+    path = uri.split("://", 1)[1] if "://" in uri else uri
+    return SQLiteStore(path)

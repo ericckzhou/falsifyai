@@ -43,10 +43,10 @@ def _args(
 
 
 def _patched_store(monkeypatch: pytest.MonkeyPatch, store: InMemoryStore) -> InMemoryStore:
-    """Replace inspect._build_store so cmd_inspect sees the fixture-populated store."""
+    """Replace inspect.build_store so cmd_inspect sees the fixture-populated store."""
     from falsifyai.cli import inspect as inspect_module
 
-    monkeypatch.setattr(inspect_module, "_build_store", lambda _path: store)
+    monkeypatch.setattr(inspect_module, "build_store", lambda _path: store)
     return store
 
 
