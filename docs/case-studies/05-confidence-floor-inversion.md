@@ -83,6 +83,19 @@ case: refund_summary_exception_omission  verdict: ADVERSARIALLY_VULNERABLE  stab
 
 `stability floor: 0.00` reads the way the evidence actually points: the worst-case stability bottoms out at zero. The stored artifact is untouched — only the reading of it changed.
 
+### The label, swept across every consumer surface
+
+`render.py` powers `run` / `replay` / `diff`, but it is not the only place a reader meets this number. A follow-up audited the four other consumer surfaces that read preserved evidence:
+
+| Surface | Before | After |
+|---|---|---|
+| `inspect` | `confidence: 0.00 (CI: …)` per case | `stability floor: 0.00 (CI: …)` — same band-aware label as `replay` |
+| `history` | `0.00 (CI: …)` — an **unlabeled** number that both duplicated the CI floor and, by convention, read as confidence | `(CI: …)` only — the redundant number dropped; the band (history's documented `CI` column) carries the floor honestly |
+| `matrix` | worst-case per-family **stability** | unchanged — already honest (higher = more robust, never called confidence) |
+| `timeline` | `CIlow=0.00` + a stability sparkline | unchanged — already honest (labeled `CIlow`, never confidence) |
+
+The same discipline that produced the fix produced the audit: a presentation defect is structural, so the question is never "is this one row wrong?" but "everywhere this value is read, is it read honestly?" Two surfaces inherited the inversion; two had already escaped it. None of the four touches the resolver.
+
 ---
 
 ## Reproduction

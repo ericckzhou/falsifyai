@@ -20,6 +20,12 @@ Invariants (load-bearing — see PR-19 plan and ``docs/EVIDENCE.md`` for context
   worst-perturbation evidence. ``--case <id>`` expands to every perturbation
   for one case. ``--full`` disables output truncation. See plan §11 decisions
   B (verbosity) and C (truncation).
+- **Band-aware metric label.** The per-case ``verdict_confidence`` is surfaced
+  via ``render._metric_label`` — the same band-aware naming ``run`` / ``replay``
+  use. Stable-band verdicts read it as ``confidence``; instability-band verdicts
+  (ADVERSARIALLY_VULNERABLE / FRAGILE / AMBIGUOUS) read it as ``stability floor``
+  so a near-zero CI floor does not masquerade as low confidence. See
+  docs/case-studies/05-confidence-floor-inversion.md.
 - **Exit codes mirror ``replay`` / ``run``.** STABLE->0, FRAGILE->1,
   CONSISTENTLY_WRONG->2. Code 3 (ERROR) for infrastructure failures (missing
   session, unknown case_id).
@@ -130,13 +136,13 @@ def _render_case_default(case: CaseResult, *, full: bool, stream: TextIO) -> Non
     if is_legacy:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f}  (legacy)  "
+            f"{render._metric_label(case)}  (legacy)  "
             f"perturbations: {perturbation_count}"
         )
     else:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f} "
+            f"{render._metric_label(case)} "
             f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})  "
             f"perturbations: {perturbation_count}"
         )
@@ -179,13 +185,13 @@ def _render_case_expanded(case: CaseResult, *, full: bool, stream: TextIO) -> No
     if is_legacy:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f}  (legacy)  "
+            f"{render._metric_label(case)}  (legacy)  "
             f"perturbations: {perturbation_count}"
         )
     else:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f} "
+            f"{render._metric_label(case)} "
             f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})  "
             f"perturbations: {perturbation_count}"
         )

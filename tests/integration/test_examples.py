@@ -22,6 +22,7 @@ so CI never downloads a real model.
 
 import argparse
 import hashlib
+import re
 from pathlib import Path
 
 import numpy as np
@@ -717,6 +718,50 @@ def test_adversarially_vulnerable_yaml_produces_adversarially_vulnerable(
     # stability *floor*, not "confidence". The rendered metric is verdict_confidence
     # = ci_low, near 0 exactly when most broken -- the "confidence" label inverted
     # its meaning here, so the per-case row must read "stability floor:" instead.
+    out = capsys.readouterr().out
+    assert "ADVERSARIALLY_VULNERABLE" in out
+    assert "stability floor:" in out
+    assert "confidence:" not in out
+
+
+def test_adversarially_vulnerable_inspect_shows_stability_floor(
+    monkeypatch, capsys, tmp_path
+) -> None:
+    """End-to-end dogfood for the band-aware label on the *inspect* surface
+    (case study 05 follow-up). ``inspect`` renders the per-case metric with its
+    own code path, so the band-aware label is proved here through the real
+    run -> save -> inspect pipeline: a genuine near-zero CI floor on a true
+    ADVERSARIALLY_VULNERABLE verdict must read ``stability floor:``, never
+    ``confidence:``."""
+    import falsifyai.cli.inspect as cli_inspect
+
+    spec_path = _EXAMPLES / "adversarially_vulnerable.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    case = materialized.cases[0]
+    response_map: dict[str, str] = {case.original_input: "Paris is the capital of France."}
+    for pi in case.realized_perturbations:
+        if pi.lineage.perturbation_type == "typo_noise":
+            response_map[pi.text] = "Paris is the capital of France."  # family holds
+        else:  # casing
+            response_map[pi.text] = "London is the capital."  # family collapses
+    adapter = MockAdapter(response_map=response_map)
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    db = tmp_path / "replays.db"
+    rc = cli_run.cmd_run(_args(spec_path, store_path=str(db)))
+    assert rc == 2  # ADVERSARIALLY_VULNERABLE -> FAILURE
+    run_out = capsys.readouterr().out
+    m = re.search(r"Session (\S+) ->", run_out)
+    assert m, run_out
+    session_id = m.group(1)
+
+    inspect_args = argparse.Namespace(
+        session_id=session_id, case=None, full=False, store_path=str(db)
+    )
+    ic = cli_inspect.cmd_inspect(inspect_args)
+    assert ic == 2  # inspect mirrors the session-verdict exit code
     out = capsys.readouterr().out
     assert "ADVERSARIALLY_VULNERABLE" in out
     assert "stability floor:" in out

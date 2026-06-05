@@ -419,6 +419,65 @@ def test_inspect_does_not_crash_on_unicode_model_outputs(monkeypatch) -> None:
     assert "\\u202f" in output or "?" in output or "30" in output
 
 
+# ---------------------------------------------------------------------------
+# Band-aware metric label (case study 05) — same fix as render_session,
+# swept across the inspect deep-dive surface (default + --case expanded).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    [Verdict.ADVERSARIALLY_VULNERABLE, Verdict.FRAGILE, Verdict.AMBIGUOUS],
+)
+def test_inspect_relabels_instability_band_as_stability_floor(monkeypatch, capsys, verdict) -> None:
+    """Instability-band verdicts surface ``verdict_confidence`` (== ci_low) as a
+    stability *floor*, not ``confidence`` — a near-zero floor is high severity, so
+    the ``confidence`` label would invert its meaning. See case study 05."""
+    from falsifyai.cli import inspect as inspect_module
+
+    store = InMemoryStore()
+    store.save_session(make_artifact(session_id="band-id", verdict=verdict))
+    _patched_store(monkeypatch, store)
+
+    inspect_module.cmd_inspect(_args(session_id="band-id"))
+    out = capsys.readouterr().out
+    assert "stability floor:" in out, verdict
+    assert "confidence:" not in out, verdict
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    [Verdict.STABLE, Verdict.INFORMATION_PRESENT, Verdict.INFORMATION_NULL],
+)
+def test_inspect_keeps_confidence_label_for_stable_band(monkeypatch, capsys, verdict) -> None:
+    """Stable-band verdicts read ``verdict_confidence`` as genuine
+    confidence-in-stability and keep the ``confidence`` label."""
+    from falsifyai.cli import inspect as inspect_module
+
+    store = InMemoryStore()
+    store.save_session(make_artifact(session_id="stable-id", verdict=verdict))
+    _patched_store(monkeypatch, store)
+
+    inspect_module.cmd_inspect(_args(session_id="stable-id"))
+    out = capsys.readouterr().out
+    assert "confidence:" in out, verdict
+    assert "stability floor:" not in out, verdict
+
+
+def test_inspect_expanded_relabels_instability_band(monkeypatch, capsys) -> None:
+    """The ``--case`` expanded header is band-aware too, not just the default row."""
+    from falsifyai.cli import inspect as inspect_module
+
+    store = InMemoryStore()
+    store.save_session(_make_fragile_artifact(session_id="exp-id"))
+    _patched_store(monkeypatch, store)
+
+    inspect_module.cmd_inspect(_args(session_id="exp-id", case_id="capital_of_france"))
+    out = capsys.readouterr().out
+    assert "stability floor:" in out
+    assert "confidence:" not in out
+
+
 def test_inspect_surfaces_missing_payload_field_explicitly(monkeypatch, capsys) -> None:
     """§12.3 no-synthesis rule: if a field is absent, surface the gap, don't fabricate.
 
