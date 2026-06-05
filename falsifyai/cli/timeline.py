@@ -27,10 +27,8 @@ from typing import TextIO
 
 from falsifyai.cli.diff import TransitionKind, _classify_transition
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, ReplayArtifact
-from falsifyai.replay.protocol import ReplayStore
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.registry import build_store
 from falsifyai.verdict.models import Verdict
 
 # ASCII sparkline ramp (10 levels), cp1252-safe — no unicode block glyphs.
@@ -59,12 +57,6 @@ class TimelineReport:
     @property
     def has_regression(self) -> bool:
         return self.regression_count > 0
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _first_case(artifact: ReplayArtifact, case_id: str) -> CaseResult | None:
@@ -136,7 +128,7 @@ def cmd_timeline(args: argparse.Namespace) -> int:
     """
     case_id = args.case_id
     effective_limit = sys.maxsize if args.limit == 0 else args.limit
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     stream = sys.stdout
     with contextlib.suppress(AttributeError, ValueError):
         stream.reconfigure(errors="backslashreplace")  # type: ignore[union-attr]

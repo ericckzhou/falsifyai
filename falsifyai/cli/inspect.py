@@ -32,23 +32,15 @@ from typing import TextIO
 
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, PerturbedRun, ReplayArtifact
-from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.protocol import SessionNotFoundError
+from falsifyai.replay.registry import build_store
 from falsifyai.verdict.models import Verdict
 
 # Output truncation thresholds (plan §11 decision C1).
 _TRUNCATE_THRESHOLD = 400
 _HEAD_CHARS = 200
 _TAIL_CHARS = 100
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/run.py / cli/replay.py store selection."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _truncate_output(text: str, *, full: bool) -> str:
@@ -276,7 +268,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     if args.session_id is None:
         raise InfrastructureError("session_id is required")
 
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     try:
         try:
             artifact = store.load_session(args.session_id)

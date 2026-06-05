@@ -192,7 +192,7 @@ def test_bundle_readme_omits_generated_by_for_pre_pr35_artifact(
     store = InMemoryStore()
     store.save_session(artifact)
 
-    monkeypatch.setattr(cli_export, "_build_store", lambda _p: store)
+    monkeypatch.setattr(cli_export, "build_store", lambda _p: store)
 
     bundle_path = tmp_path / "out.fai.zip"
     rc = cli_export.cmd_export(

@@ -31,18 +31,10 @@ from falsifyai.bundle.writer import BundleManifest, write_bundle
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
 from falsifyai.integrity.checks import run_integrity_checks
-from falsifyai.replay.in_memory_store import InMemoryStore
-from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.protocol import SessionNotFoundError
+from falsifyai.replay.registry import build_store
 
 INTEGRITY_FAILURE_EXIT_CODE: int = 7
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/verify.py / cli/replay.py store selection."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _falsifyai_version() -> str:
@@ -101,7 +93,7 @@ def cmd_export(args: argparse.Namespace) -> int:
 
     exported_at = _resolve_exported_at(exported_at_raw)
 
-    store = _build_store(store_path)
+    store = build_store(store_path)
     try:
         try:
             artifact = store.load_session(session_id)

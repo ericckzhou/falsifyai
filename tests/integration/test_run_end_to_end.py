@@ -72,10 +72,10 @@ def test_determinism_same_seed_same_materialized_hash(tmp_path, monkeypatch) -> 
 
     store1 = InMemoryStore()
     store2 = InMemoryStore()
-    monkeypatch.setattr(cli_run, "_build_store", lambda p: store1)
+    monkeypatch.setattr(cli_run, "build_store", lambda p: store1)
     cli_run.cmd_run(_args(_SMOKE_SPEC, ":memory:"))
 
-    monkeypatch.setattr(cli_run, "_build_store", lambda p: store2)
+    monkeypatch.setattr(cli_run, "build_store", lambda p: store2)
     cli_run.cmd_run(_args(_SMOKE_SPEC, ":memory:"))
 
     [a1] = list(store1.query_sessions())

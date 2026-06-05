@@ -76,3 +76,13 @@ class InMemoryStore:
         rows.sort(key=lambda r: r.created_at, reverse=True)
         for r in rows[:limit]:
             yield _ser.artifact_from_json(self._sessions[r.session_id])
+
+
+def from_uri(uri: str) -> InMemoryStore:
+    """Entry-point factory for the ``memory`` store scheme (``--store-path :memory:``).
+
+    The in-memory store is ephemeral and carries no location, so ``uri`` is
+    accepted for signature uniformity with other store factories and ignored.
+    Registered under the ``falsifyai.stores`` group in ``pyproject.toml``.
+    """
+    return InMemoryStore()

@@ -25,17 +25,9 @@ from dataclasses import dataclass, field
 from typing import TextIO
 
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import ReplayArtifact
-from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
-from falsifyai.replay.sqlite_store import SQLiteStore
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror the store selection used by run/replay/inspect/diff/history."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
+from falsifyai.replay.protocol import SessionNotFoundError
+from falsifyai.replay.registry import build_store
 
 
 @dataclass(frozen=True)
@@ -132,7 +124,7 @@ def cmd_matrix(args: argparse.Namespace) -> int:
     Exit semantics: 0 on render success (informational, like ``history``);
     3 (ERROR) if a session id is not found in the store.
     """
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     stream = sys.stdout
     with contextlib.suppress(AttributeError, ValueError):
         stream.reconfigure(errors="backslashreplace")  # type: ignore[union-attr]

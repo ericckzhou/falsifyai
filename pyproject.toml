@@ -100,6 +100,13 @@ contains = "falsifyai.invariants.contains:ContainsInvariant"
 semantic_equivalence = "falsifyai.invariants.semantic:SemanticEquivalenceInvariant"
 schema_match = "falsifyai.invariants.schema_match:SchemaMatchInvariant"
 
+# Built-in store backends, keyed by --store-path URI scheme. Each value is a
+# factory callable ``(uri: str) -> ReplayStore`` (see falsifyai/replay/registry.py).
+# Out-of-tree backends (PostgresStore, S3Store) register their own scheme here.
+[project.entry-points."falsifyai.stores"]
+sqlite = "falsifyai.replay.sqlite_store:from_uri"
+memory = "falsifyai.replay.in_memory_store:from_uri"
+
 [tool.hatch.build.targets.wheel]
 packages = ["falsifyai"]
 
