@@ -315,7 +315,12 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.6.2 (current release) — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
+**0.6.3 (current release) — Presentation-integrity patch.** Fixes the confidence-label inversion ([case study 05](docs/case-studies/05-confidence-floor-inversion.md)) across every consumer surface, plus additive store-plugin plumbing:
+
+- ✅ **Band-aware metric label** — instability-band verdicts (`ADVERSARIALLY_VULNERABLE` / `FRAGILE` / `AMBIGUOUS`) render `stability floor:` instead of `confidence:` on `run` / `replay` / `inspect`; `history` drops the redundant unlabeled number for its `(CI: …)` band; `matrix` / `timeline` were audited clean. Consumer-surface only — the resolver and stored artifacts are byte-identical.
+- ✅ **`falsifyai.stores` plugin group** — the third entry-point group; `scheme://` store selection dispatches to out-of-tree backends. Default behavior unchanged (bare path = SQLite, `:memory:` = in-memory).
+
+**0.6.2 — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
 
 - ✅ **NLI backend** — bidirectional entailment/contradiction scoring. `MockNLIBackend` (deterministic, dependency-free) is the default; `TransformersNLIBackend` ships behind the opt-in `[nli]` extra and lazy-loads its model on first use.
 - ✅ **Semantic oracles** — `GroundingOracle` (answer supported by provided context → `INFORMATION_PRESENT`), `HallucinationOracle` (confident claim contradicted by ground truth → `CONSISTENTLY_WRONG`), `ContradictionOracle` (self-inconsistency across the output set).
