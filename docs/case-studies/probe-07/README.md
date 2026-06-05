@@ -18,6 +18,12 @@ blurb. The contract — *the summary must preserve the exclusion* — is a singl
 `contains: ["gift card"]` invariant. Perturbation: `typo_noise` (count 5, rate
 0.12) modeling messy real-world input. `temperature 0.0`, `seed 42`.
 
+These same two specs are reused by [Case Study 08](../08-how-fragile-exactly-the-minimal-falsifier.md),
+which runs `falsifyai minimize` over them to find the *minimal falsifier* — the
+smallest `typo_noise` strength that flips each model out of `STABLE` — and reports
+the threshold gap (8B ~`0.05`, 70B `0.2–0.4`). CS-07 fixes the pressure and reads
+the failure; CS-08 fixes the failure and reads the pressure.
+
 ## Result
 
 | Session | Model | Verdict |

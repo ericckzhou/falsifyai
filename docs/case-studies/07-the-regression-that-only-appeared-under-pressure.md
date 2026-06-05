@@ -8,6 +8,8 @@ A clean eval passed. A model migration looked safe. FalsifyAI `diff` found the c
 
 > **What this is**: the operational, outward-facing counterpart to the self-falsification trilogy (03 / 05 / 06). Those tours showed FalsifyAI auditing *itself*. This one shows the everyday job a buyer puts it in the workflow for: catch a migration regression before it reaches production, and keep the proof. No resolver internals, no NLI edge cases — just *I changed the model; the obvious test passed; the pressured test failed; the artifact showed why.*
 
+> **Companion**: [Case study 08](08-how-fragile-exactly-the-minimal-falsifier.md) is the *quantification* of this result. This study fixes the pressure (`rate: 0.12`) and reads the failure; 08 fixes the failure and reads the pressure — using `minimize` to find the smallest `typo_noise` strength that flips each model out of `STABLE`, and reporting the **threshold gap** between them (the 8B breaks ~4× earlier than the 70B).
+
 ---
 
 ## 1. The migration
