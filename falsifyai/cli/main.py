@@ -55,6 +55,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Use ':memory:' for an ephemeral run. "
         "Default: .falsifyai/replays.db",
     )
+    run_parser.add_argument(
+        "--nli",
+        action="store_true",
+        help="Enable the NLI semantic oracles (contradiction / hallucination / "
+        'grounding). Requires the [nli] extra: pip install "falsifyai[nli]". '
+        "Downloads a local model on first use; unlocks INFORMATION_PRESENT and "
+        "entailment-grade CONSISTENTLY_WRONG. Off by default.",
+    )
 
     replay_parser = subparsers.add_parser(
         "replay", help="Load and re-render a previously stored session."

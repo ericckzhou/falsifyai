@@ -32,6 +32,7 @@ from falsifyai.falsifiability.score import (
 )
 from falsifyai.invariants.base import Invariant
 from falsifyai.invariants.registry import build_invariant
+from falsifyai.oracles.nli import NLIBackend, TransformersNLIBackend
 from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, CliInvocation, PerturbedRun, ReplayArtifact
 from falsifyai.replay.protocol import ReplayStore
@@ -53,6 +54,21 @@ def build_adapter(model: ModelConfig) -> ModelAdapter:
         return LiteLLMAdapter()
     except Exception as exc:  # pragma: no cover - construction is trivial
         raise ConfigError(f"failed to construct LiteLLMAdapter: {exc}") from exc
+
+
+def build_nli_backend(enabled: bool) -> NLIBackend | None:
+    """Construct the NLI backend for the run, or None. Test seam: monkey-patch this.
+
+    Returns a lazy ``TransformersNLIBackend`` when ``--nli`` is passed -- the model
+    only loads on first ``classify()``, so construction stays cheap until an oracle
+    actually needs it. Returns None otherwise, in which case the semantic oracles
+    (contradiction / hallucination / grounding) stay inert and the verdict is
+    unchanged. Tests replace this with one returning ``MockNLIBackend`` so CI never
+    downloads weights.
+    """
+    if not enabled:
+        return None
+    return TransformersNLIBackend()
 
 
 def _build_store(store_path: str) -> ReplayStore:
@@ -108,6 +124,7 @@ def _run_case(
     materialized_case_index: int,
     materialized: MaterializedSpec,
     engine: ExecutionEngine,
+    nli: NLIBackend | None = None,
 ) -> tuple[CaseResult, list[Invariant]]:
     """Run a single case end-to-end. Returns the CaseResult and the list of
     runtime Invariant instances built from the case spec (the caller needs them
@@ -162,6 +179,7 @@ def _run_case(
         stable_threshold=case_spec.verdict_config.stable_threshold,
         fragile_threshold=case_spec.verdict_config.fragile_threshold,
         case_seed=mcase.case_seed,
+        nli=nli,
     )
     return case_result, invariants
 
@@ -188,10 +206,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     cache = InMemoryCache() if spec.run.cache else None
     engine = ExecutionEngine(adapter=adapter, cache=cache)
 
+    # Opt-in NLI backend (``--nli``). None keeps the semantic oracles inert.
+    nli = build_nli_backend(getattr(args, "nli", False))
+
     case_results: list[CaseResult] = []
     case_falsifiability_scores: list[float] = []
     for i in range(len(materialized.cases)):
-        case_result, invariants = _run_case(spec, i, materialized, engine)
+        case_result, invariants = _run_case(spec, i, materialized, engine, nli=nli)
         case_results.append(case_result)
         case_falsifiability_scores.append(case_falsifiability(invariants))
 

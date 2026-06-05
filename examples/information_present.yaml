@@ -1,0 +1,46 @@
+# examples/information_present.yaml
+#
+# Demonstrates the INFORMATION_PRESENT verdict: the gold standard. The model is
+# not just *stable* under perturbation -- its outputs are also *grounded*,
+# entailed by the provided reference (per plan.md section 2.2). STABLE says
+# "consistent"; INFORMATION_PRESENT adds "and confirmed correct."
+#
+# This verdict requires the NLI semantic oracles, which are opt-in (heavy local
+# model). Run it with the --nli flag:
+#
+#     pip install "falsifyai[nli]"
+#     falsifyai run examples/information_present.yaml --nli
+#
+# Without --nli the same spec resolves to STABLE (still a pass, exit 0) -- the
+# grounding signal simply isn't computed. With --nli, the GroundingOracle checks
+# each output for entailment against `expected.reference` and the resolver
+# upgrades STABLE to INFORMATION_PRESENT.
+
+falsify:
+  version: "1.0"
+  name: "Grounded, stable model (information present)"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_of_france_grounded
+    tags: ["geography", "factual", "grounding-demo"]
+    input:
+      text: "What is the capital of France?"
+    expected:
+      contains: ["Paris"]
+      reference: "The capital of France is Paris."
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["Paris"]
