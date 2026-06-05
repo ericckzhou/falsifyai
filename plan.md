@@ -1506,6 +1506,32 @@ Critical: **no SQLite-specific assumptions in core code**. All store access goes
 
 ## 22. Roadmap
 
+> **Reconciliation note (post-0.4, 2026-06).** Actual delivery diverged from the
+> original phase plan below. After 0.1.0 the work went deep on the
+> artifact/provenance track (verify → export --bundle → embedded invocation →
+> evidence-gap docs, shipped through 0.4.0) rather than Phase 1 capability
+> breadth. The capability-breadth gap is now being closed as a sequence of
+> milestones on `dev`:
+>
+> - **0.5.0** — `unicode` perturbation (closes CS-01's detect-but-can't-generate
+>   loop) + `schema_match` invariant (structured-output assertion).
+> - **0.6.0** — the oracle layer: `Oracle` Protocol + `OracleVerdict`,
+>   `ConsistencyOracle`, and the `MetaOracle` that makes `INVALID_EVAL` rigorous.
+>   Guarded by a resolver branch-count meta-test. Hallucination/Grounding +
+>   the full 8-verdict expansion remain a separately-gated future milestone.
+> - **0.7.0** — the entry-point **plugin system**, pulled forward from Phase 2
+>   (§22.3) because it is the OSS-adoption lever. Decision 1A: built-ins keep
+>   their closed, typed discriminated-union specs; plugins use a generic
+>   `{type: plugin, name, params}` spec + runtime discovery. Plugin discovery is
+>   classified as **assembly/wiring infrastructure** — a tier beneath the three
+>   evidence layers (generation / interpretation / preservation), the same tier
+>   as the spec loader and CLI parser — so it does not violate the one-layer
+>   rule. The hard boundary: registries change *how* objects are constructed,
+>   never *what* they do.
+> - **0.8.0** — reliability analytics (consumer surface, never the resolver):
+>   N-model reliability matrix, per-case robustness timeline, minimal-falsifier
+>   search.
+
 ### 22.1 Phase 0 — Falsification MVP (3 Weeks, Public 0.1.0)
 
 **Goal**: ship `pip install falsifyai==0.1.0` that demonstrates the **wedge**, not just the engine.

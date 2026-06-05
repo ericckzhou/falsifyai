@@ -118,8 +118,28 @@ class UnicodePerturbationSpec(BaseModel):
     rate: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
+class PluginPerturbationSpec(BaseModel):
+    """Reference a third-party perturbation registered via entry points.
+
+    Decision 1A: built-ins keep their typed, validated specs; plugins use this
+    generic escape hatch. `name` is the entry-point name under the
+    `falsifyai.perturbations` group; `params` are passed to the plugin class
+    constructor. Plugin perturbations must be constructible from `params` alone
+    (pure/local, no injected resources).
+    """
+
+    model_config = _STRICT
+    type: Literal["plugin"]
+    name: str = Field(min_length=1)
+    params: dict = Field(default_factory=dict)
+
+
 PerturbationSpec = Annotated[
-    TypoNoiseSpec | CasingVariantSpec | ParaphrasePerturbationSpec | UnicodePerturbationSpec,
+    TypoNoiseSpec
+    | CasingVariantSpec
+    | ParaphrasePerturbationSpec
+    | UnicodePerturbationSpec
+    | PluginPerturbationSpec,
     Field(discriminator="type"),
 ]
 
@@ -155,8 +175,25 @@ class SchemaMatchInvariantSpec(BaseModel):
     severity: Severity = "high"
 
 
+class PluginInvariantSpec(BaseModel):
+    """Reference a third-party invariant registered via entry points.
+
+    Decision 1A escape hatch (mirrors `PluginPerturbationSpec`). `name` is the
+    entry-point name under the `falsifyai.invariants` group; `params` are passed
+    to the plugin class constructor.
+    """
+
+    model_config = _STRICT
+    type: Literal["plugin"]
+    name: str = Field(min_length=1)
+    params: dict = Field(default_factory=dict)
+
+
 InvariantSpec = Annotated[
-    ContainsInvariantSpec | SemanticEquivalenceInvariantSpec | SchemaMatchInvariantSpec,
+    ContainsInvariantSpec
+    | SemanticEquivalenceInvariantSpec
+    | SchemaMatchInvariantSpec
+    | PluginInvariantSpec,
     Field(discriminator="type"),
 ]
 

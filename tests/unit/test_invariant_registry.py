@@ -11,6 +11,7 @@ from falsifyai.invariants.semantic import (
 )
 from falsifyai.spec.models import (
     ContainsInvariantSpec,
+    PluginInvariantSpec,
     SchemaMatchInvariantSpec,
     SemanticEquivalenceInvariantSpec,
 )
@@ -49,6 +50,27 @@ def test_build_schema_match_propagates_schema() -> None:
     assert isinstance(inv, SchemaMatchInvariant)
     assert inv.schema == schema
     assert inv.severity.value == "critical"
+
+
+class _StubInvariant:
+    def __init__(self, **params) -> None:
+        self.params = params
+
+
+def test_build_plugin_invariant_by_name(monkeypatch) -> None:
+    """A plugin spec resolves a registered class via discovery and passes params."""
+    monkeypatch.setattr(
+        "falsifyai.invariants.registry.discover_invariants",
+        lambda: {"stub": _StubInvariant},
+    )
+    inv = build_invariant(PluginInvariantSpec(type="plugin", name="stub", params={"x": 1}))
+    assert isinstance(inv, _StubInvariant)
+    assert inv.params == {"x": 1}
+
+
+def test_build_plugin_invariant_unknown_name_raises() -> None:
+    with pytest.raises(ValueError, match="No invariant plugin registered"):
+        build_invariant(PluginInvariantSpec(type="plugin", name="does_not_exist"))
 
 
 def test_build_unknown_spec_raises_value_error() -> None:

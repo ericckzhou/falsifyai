@@ -1,17 +1,22 @@
 """Map a PerturbationSpec into a runtime Perturbation instance.
 
-Phase 0 uses hardcoded ``isinstance`` dispatch. Phase 2 will replace this
-with plugin discovery via ``importlib.metadata.entry_points`` under the
-``falsifyai.perturbations`` group (plan.md section 17).
+Dispatch is two-tier (decision 1A):
 
-PR #22 (paraphrase) introduces the first perturbation that needs runtime
-resources — a ``ModelAdapter`` (for the LLM call) and an
-``EmbeddingBackend`` (for the validity gate). These are passed as keyword
-arguments; pure perturbations (typo_noise, casing_variant) ignore them.
-The materializer at run time decides whether it needs to construct
-these resources based on whether any perturbation in the spec is a
-paraphrase.
+- **Built-ins** use typed, validated specs and hardcoded ``isinstance``
+  dispatch. This keeps the discriminated-union validation that catches bad
+  YAML loudly, and lets resource-needing perturbations (paraphrase) accept
+  injected ``ModelAdapter`` / ``EmbeddingBackend`` keyword arguments.
+- **Plugins** are discovered at runtime from the ``falsifyai.perturbations``
+  entry-point group (:func:`discover_perturbations`) and referenced from YAML
+  via the generic ``{type: plugin, name: ..., params: {...}}`` spec. Plugin
+  classes must be constructible from ``params`` alone (pure/local).
+
+The built-ins are themselves registered as entry points in ``pyproject.toml``,
+so :func:`discover_perturbations` returns them too — the mechanism is dogfooded,
+not bolted on for third parties only.
 """
+
+from importlib.metadata import entry_points
 
 from falsifyai.execution.adapter import ModelAdapter
 from falsifyai.invariants.base import EmbeddingBackend
@@ -25,9 +30,22 @@ from falsifyai.spec.models import (
     ModelConfig,
     ParaphrasePerturbationSpec,
     PerturbationSpec,
+    PluginPerturbationSpec,
     TypoNoiseSpec,
     UnicodePerturbationSpec,
 )
+
+_ENTRY_POINT_GROUP = "falsifyai.perturbations"
+
+
+def discover_perturbations() -> dict[str, type]:
+    """Return ``{name: class}`` for every perturbation registered via entry points.
+
+    Reads the ``falsifyai.perturbations`` group from installed package metadata.
+    Built-ins are registered there too (see ``pyproject.toml``), so this is the
+    single source of truth for "what perturbations exist", including plugins.
+    """
+    return {ep.name: ep.load() for ep in entry_points(group=_ENTRY_POINT_GROUP)}
 
 
 def build_perturbation(
@@ -54,8 +72,9 @@ def build_perturbation(
             ``SentenceTransformerBackend()`` (lazy-loaded on first use).
 
     Raises:
-        ValueError: if the spec type is not recognized, or if a paraphrase
-            spec is supplied without the resources it needs.
+        ValueError: if the spec type is not recognized, if a paraphrase
+            spec is supplied without the resources it needs, or if a plugin
+            spec names a perturbation that is not registered.
     """
     if isinstance(spec, TypoNoiseSpec):
         return TypoNoise(count=spec.count, rate=spec.rate)
@@ -94,4 +113,13 @@ def build_perturbation(
             max_attempts=spec.max_attempts,
             embedder=embedder,
         )
+    if isinstance(spec, PluginPerturbationSpec):
+        registry = discover_perturbations()
+        cls = registry.get(spec.name)
+        if cls is None:
+            raise ValueError(
+                f"No perturbation plugin registered under name {spec.name!r}. "
+                f"Available: {sorted(registry)}"
+            )
+        return cls(**spec.params)
     raise ValueError(f"Unknown perturbation spec type: {type(spec).__name__}")
