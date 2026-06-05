@@ -35,7 +35,7 @@ case: access_policy_extraction_8b  verdict: CONSISTENTLY_WRONG  confidence: 0.00
 
   Eight identical refusals, scored against the reference as eight stable failures → `CONSISTENTLY_WRONG` at a bootstrap CI that collapses to `0.00–0.00`.
 
-The model never failed. The **experiment** failed — and the framework reported the experiment's corruption as the model's unreliability.
+The model never failed. The **experiment** failed — and the framework interpreted invalid generated evidence as model unreliability.
 
 ---
 
