@@ -550,6 +550,8 @@ def test_schema_match_yaml_stable_when_structure_preserved(monkeypatch) -> None:
 
     rc = cli_run.cmd_run(_args(spec_path))
     assert rc == 0  # STABLE -> SUCCESS
+
+
 # ---------------------------------------------------------------------------
 # falsifyai history <case_id> (PR #24)
 # ---------------------------------------------------------------------------
