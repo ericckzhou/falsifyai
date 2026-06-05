@@ -18,7 +18,7 @@ falsifyai diff baseline candidate
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-**Status:** 0.6.1 — Semantic-judgment depth. Adds an opt-in NLI (natural-language-inference) oracle layer — grounding, hallucination, and contradiction detection — and completes the full 8-verdict resolver (`INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five). `falsifyai run --nli` activates the semantic oracles; the flag is purely additive (it enriches the verdict, never flips a pass into a fail on its own). Default installs and the 5-verdict behavior are unchanged; spec language and replay format stay backward-compatible across the 0.x line.
+**Status:** 0.6.2 — Semantic-judgment depth. Adds an opt-in NLI (natural-language-inference) oracle layer — grounding, hallucination, and contradiction detection — and completes the full 8-verdict resolver (`INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five). `falsifyai run --nli` activates the semantic oracles; the flag is purely additive (it enriches the verdict, never flips a pass into a fail on its own). Default installs and the 5-verdict behavior are unchanged; spec language and replay format stay backward-compatible across the 0.x line.
 
 ```bash
 pip install falsifyai
@@ -314,7 +314,7 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.6.1 (current release) — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
+**0.6.2 (current release) — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
 
 - ✅ **NLI backend** — bidirectional entailment/contradiction scoring. `MockNLIBackend` (deterministic, dependency-free) is the default; `TransformersNLIBackend` ships behind the opt-in `[nli]` extra and lazy-loads its model on first use.
 - ✅ **Semantic oracles** — `GroundingOracle` (answer supported by provided context → `INFORMATION_PRESENT`), `HallucinationOracle` (confident claim contradicted by ground truth → `CONSISTENTLY_WRONG`), `ContradictionOracle` (self-inconsistency across the output set).

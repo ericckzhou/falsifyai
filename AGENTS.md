@@ -1,10 +1,10 @@
-# FalsifyAI — Project Context for Claude
+# FalsifyAI — Project Context for Codex
 
-> Project-scoped instructions. Extends, does not replace, user-global `~/.claude/CLAUDE.md`.
+> Project-scoped instructions. Extends, does not replace, user-global `~/.Codex/AGENTS.md`.
 
 ## What this project is
 
-**FalsifyAI** is a falsification-first reliability testing framework for AI systems. Status: **v0.6.2** — semantic-judgment depth (opt-in NLI oracle layer + full 8-verdict resolver) on top of the shipped artifact-infrastructure (0.2–0.4) and capability-breadth (0.5) tracks. The pipeline runs end-to-end (spec → materialize → execute → judge → resolve → save → CLI) with dogfooded examples for every verdict; release history in [CHANGELOG.md](../CHANGELOG.md).
+**FalsifyAI** is a falsification-first reliability testing framework for AI systems. Status: **active Phase 0 implementation toward `falsifyai==0.1.0`**. Core pipeline is shipped (spec → materialize → execute → judge → save → CLI) with two dogfooded examples; remaining Phase 0 work in [plan.md §22.1](../plan.md).
 
 ## Design philosophy (load-bearing)
 

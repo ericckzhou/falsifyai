@@ -4,7 +4,13 @@ All notable changes to FalsifyAI are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.2] — 2026-06-05
+
+Patch release. Hardens the `schema_match` invariant against a false structural
+failure surfaced by dogfooding case study 03 — correct JSON wrapped in a
+markdown fence or embedded in prose was being scored as a shape failure. No new
+fields, verdicts, or spec-language changes; extraction never relaxes the strict
+schema check.
 
 ### Fixed
 
@@ -487,6 +493,7 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.6.2]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.1
 [0.6.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.0
 [0.5.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.5.0
