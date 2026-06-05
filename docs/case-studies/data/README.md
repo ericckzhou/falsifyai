@@ -6,8 +6,9 @@ This directory contains preserved replay artifacts for the published case studie
 |---|---|---|
 | [`case-study-replays.db`](case-study-replays.db) | [01 — Invisible character substitution](../01-invisible-character-substitution.md) | 8 |
 | [`case-study-02.db`](case-study-02.db) | [02 — Resolver arbitration boundary shift](../02-resolver-arbitration-boundary-shift.md) | 2 |
-| [`probe-03.db`](probe-03.db) | [03 — When the evaluator is wrong](../03-evaluator-false-positive.md) | 5 |
+| [`probe-03.db`](probe-03.db) | [03 — When the evaluator is wrong](../03-evaluator-false-positive.md) · [05 — When the confidence number lies](../05-confidence-floor-inversion.md) (same bundle, second reading) | 5 |
 | [`case-study-04.db`](case-study-04.db) | [04 — Overconfident negation](../04-overconfident-negation.md) | 4 |
+| [`probe-05.db`](probe-05.db) | [probe-05 — grounding-verdict quartet](../probe-05/README.md) (probe; not yet promoted to a numbered study) | 5 |
 
 ## Bundle file
 
@@ -254,3 +255,36 @@ Session → candidate: deadline `e93d952b…` (STABLE) · refund `648e7cbe…` �
 
 - **Not a claim that the 8B model is broadly bad.** It is `STABLE` on the deadline task in the same bundle; the value is telling the reliability regimes apart.
 - **Not re-resolved on read.** Sessions are stamped `falsifyai 0.6.1`; verdicts are preserved as run. The `CONSISTENTLY_WRONG` here is the *corrected* oracle firing on a genuine contradiction — the true-positive counterpart to case study 03's preserved false positive.
+
+---
+
+# `probe-05.db` — grounding-verdict quartet
+
+Companion bundle for [`../probe-05/README.md`](../probe-05/README.md). Five single-case sessions from running the four [`../probe-05/`](../probe-05/) candidate specs end-to-end against Groq on 2026-06-05 — candidate A appears twice (the original spec, then a re-run after a perturbation-validity fix).
+
+| Field | Value |
+|---|---|
+| Filename | `probe-05.db` |
+| SHA256 | `30ab23e5e66a9515557dc14d91d830a0398fa50c363f5db0aeed5a9b9d84c1bc` |
+| Sessions | 5 |
+| Models | `groq/llama-3.3-70b-versatile` (A/B/C), `groq/llama-3.1-8b-instant` (D) — temperature 0.0, seed 42; A run with `--nli` |
+| Specs used | [`../probe-05/candidate-{a,b,c,d}-*.yaml`](../probe-05/) |
+| FalsifyAI version | 0.6.2 (stamped on every session) |
+
+```bash
+python -c "import hashlib; print(hashlib.sha256(open('docs/case-studies/data/probe-05.db','rb').read()).hexdigest())"
+# expected: 30ab23e5e66a9515557dc14d91d830a0398fa50c363f5db0aeed5a9b9d84c1bc
+```
+
+| Session ID | Created (UTC) | Candidate | Verdict | Notes |
+|---|---|---|---|---|
+| `ffb8ecf383f34078a258aabfeb0093ca` | 2026-06-05T18:45:51 | B — stable-refusal | STABLE | target INFORMATION_NULL; 70B gave a substantive answer, not a null hedge |
+| `173da9ce722c4bb1a6f8b7cf4603fcfb` | 2026-06-05T18:46:32 | C — targeted-unicode | STABLE | target ADVERSARIALLY_VULNERABLE; 70B robust to confusables |
+| `c0063a4deceb4da69b40b4ac05c561c6` | 2026-06-05T18:46:36 | D — thin-evidence | STABLE | target AMBIGUOUS; 8B answered consistently at N=3 |
+| `c66e3de37f3941dfa5b1a8c9c79b5f24` | 2026-06-05T18:46:57 | A — grounded-fact (original) | AMBIGUOUS | **the "before"** — `typo_noise` corrupted the answer digit inside the embedded passage (perturbation-validity bug); grounding never reached the stable band |
+| `2f6e8a30117c46529164e24977537f5c` | 2026-06-05T18:55:25 | A — grounded-fact (fixed) | INFORMATION_PRESENT | **the "after"** — answer moved to `expected.reference`; first live confirmation of the gold-standard verdict + `--nli` grounding path |
+
+## What this is NOT
+
+- **Not a 4/4 success.** Only `INFORMATION_PRESENT` fired, and only after a fix. The three STABLE rows are the honest result: a capable 70B (and the 8B for D) resists the failure modes B/C/D target. The value is bounding where the verdicts do and don't fire.
+- **Not re-resolved on read.** Sessions are stamped `falsifyai 0.6.2`; verdicts are preserved as run. Both A sessions are kept deliberately — the `AMBIGUOUS` "before" is the replayable evidence of the perturbation-validity bug the fixed "after" resolves.

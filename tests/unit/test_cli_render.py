@@ -64,6 +64,38 @@ def test_render_includes_summary_counts() -> None:
     assert "FRAGILE" in output
 
 
+def test_render_relabels_instability_band_as_stability_floor() -> None:
+    """Instability-band verdicts surface ``verdict_confidence`` as a stability
+    *floor*, not ``confidence``. The number is the CI lower bound -- near 0 when
+    the case is most broken -- so labeling it ``confidence`` would invert its
+    meaning. See docs/case-studies/05-confidence-floor-inversion.md."""
+    for verdict in (
+        Verdict.ADVERSARIALLY_VULNERABLE,
+        Verdict.FRAGILE,
+        Verdict.AMBIGUOUS,
+    ):
+        buf = io.StringIO()
+        render_session(make_artifact(verdict=verdict), store_path=":memory:", stream=buf)
+        output = buf.getvalue()
+        assert "stability floor:" in output, verdict
+        assert "confidence:" not in output, verdict
+
+
+def test_render_keeps_confidence_label_for_stable_band() -> None:
+    """Stable-band verdicts read ``verdict_confidence`` as genuine
+    confidence-in-stability and keep the ``confidence`` label."""
+    for verdict in (
+        Verdict.STABLE,
+        Verdict.INFORMATION_PRESENT,
+        Verdict.INFORMATION_NULL,
+    ):
+        buf = io.StringIO()
+        render_session(make_artifact(verdict=verdict), store_path=":memory:", stream=buf)
+        output = buf.getvalue()
+        assert "confidence:" in output, verdict
+        assert "stability floor:" not in output, verdict
+
+
 def test_render_includes_ci_bounds_per_case() -> None:
     """PR #11 evidence-density choice: CI width changes the engineer's decision."""
     artifact = make_artifact(verdict=Verdict.STABLE)

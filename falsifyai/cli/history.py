@@ -35,18 +35,9 @@ from typing import TextIO
 
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, ReplayArtifact
-from falsifyai.replay.protocol import ReplayStore
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.registry import build_store
 from falsifyai.verdict.models import Verdict
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/run.py / cli/replay.py / cli/inspect.py store selection."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _matching_cases(artifact: ReplayArtifact, case_id: str) -> list[CaseResult]:
@@ -67,10 +58,12 @@ def _render_row(artifact: ReplayArtifact, case: CaseResult, *, stream: TextIO) -
     if is_legacy:
         ci_str = "(legacy)"
     else:
-        ci_str = (
-            f"{case.verdict_confidence:.2f} "
-            f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
-        )
+        # verdict_confidence == stability_ci_low (resolver.py); printed beside
+        # the CI band it was a duplicate of the floor, and being unlabeled it read
+        # as "confidence" -- inverting for instability-band verdicts (case study
+        # 05). The CI band carries the floor honestly for every verdict, and the
+        # D1 column spec is "CI", so show only that.
+        ci_str = f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
     line = f"  {sid_short}  {created_at}  {verdict_str}  {ci_str}"
     if case.verdict is Verdict.FRAGILE and case.worst_case_family:
         line += f"  worst: {case.worst_case_family}"
@@ -100,7 +93,7 @@ def cmd_history(args: argparse.Namespace) -> int:
     # int; sys.maxsize is the canonical "as many as you've got" expression.
     effective_limit = sys.maxsize if args.limit == 0 else args.limit
 
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     matched_any = False
     encountered_malformed = False
     stream = sys.stdout

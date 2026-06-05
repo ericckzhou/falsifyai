@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "falsifyai"
-version = "0.6.2"
+version = "0.6.3"
 description = "Falsification-first reliability testing for AI systems: perturb inputs, preserve replayable evidence, diff reliability across model changes."
 readme = "README.md"
 license = "Apache-2.0"
@@ -99,6 +99,13 @@ unicode = "falsifyai.perturbation.unicode_chars:UnicodePerturbation"
 contains = "falsifyai.invariants.contains:ContainsInvariant"
 semantic_equivalence = "falsifyai.invariants.semantic:SemanticEquivalenceInvariant"
 schema_match = "falsifyai.invariants.schema_match:SchemaMatchInvariant"
+
+# Built-in store backends, keyed by --store-path URI scheme. Each value is a
+# factory callable ``(uri: str) -> ReplayStore`` (see falsifyai/replay/registry.py).
+# Out-of-tree backends (PostgresStore, S3Store) register their own scheme here.
+[project.entry-points."falsifyai.stores"]
+sqlite = "falsifyai.replay.sqlite_store:from_uri"
+memory = "falsifyai.replay.in_memory_store:from_uri"
 
 [tool.hatch.build.targets.wheel]
 packages = ["falsifyai"]

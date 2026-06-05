@@ -1,8 +1,8 @@
 """Meta tests: the entry-point plugin system discovers built-ins and third parties.
 
-These prove the OSS-adoption lever works: someone can add a perturbation or
-invariant by registering an entry point, without forking FalsifyAI. The
-built-ins are dogfooded through the same mechanism.
+These prove the OSS-adoption lever works: someone can add a perturbation,
+invariant, or store backend by registering an entry point, without forking
+FalsifyAI. The built-ins are dogfooded through the same mechanism.
 """
 
 from falsifyai.invariants.contains import ContainsInvariant
@@ -14,6 +14,8 @@ from falsifyai.perturbation.casing_variant import CasingVariant
 from falsifyai.perturbation.registry import discover_perturbations
 from falsifyai.perturbation.typo_noise import TypoNoise
 from falsifyai.perturbation.unicode_chars import UnicodePerturbation
+from falsifyai.replay import in_memory_store, sqlite_store
+from falsifyai.replay.registry import discover_stores
 
 
 def test_builtin_perturbations_are_discoverable() -> None:
@@ -28,6 +30,14 @@ def test_builtin_invariants_are_discoverable() -> None:
     assert found.get("contains") is ContainsInvariant
     assert found.get("semantic_equivalence") is SemanticEquivalenceInvariant
     assert found.get("schema_match") is SchemaMatchInvariant
+
+
+def test_builtin_stores_are_discoverable() -> None:
+    found = discover_stores()
+    # Built-in store backends register a factory callable, not a class, keyed by
+    # the --store-path URI scheme they handle.
+    assert found.get("sqlite") is sqlite_store.from_uri
+    assert found.get("memory") is in_memory_store.from_uri
 
 
 class _FakeEntryPoint:

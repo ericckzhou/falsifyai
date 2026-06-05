@@ -21,16 +21,8 @@ import argparse
 
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
-from falsifyai.replay.sqlite_store import SQLiteStore
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/run.py's store selection: ``:memory:`` -> InMemoryStore."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
+from falsifyai.replay.registry import build_store
 
 
 def _resolve_target_session_id(store: ReplayStore, args: argparse.Namespace) -> str:
@@ -51,7 +43,7 @@ def _resolve_target_session_id(store: ReplayStore, args: argparse.Namespace) -> 
 
 def cmd_replay(args: argparse.Namespace) -> int:
     """Entry point for the ``replay`` subcommand. Returns an exit code."""
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     try:
         session_id = _resolve_target_session_id(store, args)
         try:

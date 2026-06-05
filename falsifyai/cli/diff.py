@@ -29,10 +29,9 @@ from enum import Enum
 
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import ReplayArtifact
 from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.registry import build_store
 from falsifyai.verdict.models import Verdict
 
 # Named thresholds for strict-mode detection (plan decisions B1 and D1).
@@ -216,13 +215,6 @@ def compute_diff(baseline: ReplayArtifact, candidate: ReplayArtifact) -> DiffRep
 # ---------------------------------------------------------------------------
 
 
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/run.py and cli/replay.py's store selection."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
-
-
 def _load_artifact(store: ReplayStore, session_id: str, *, role: str) -> ReplayArtifact:
     """Load an artifact, converting SessionNotFoundError to a user-facing CLIError."""
     try:
@@ -269,7 +261,7 @@ def cmd_diff(args: argparse.Namespace) -> int:
     strict: bool = getattr(args, "strict", False)
     show_timeline: bool = getattr(args, "show_timeline", False)
 
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     try:
         baseline = _load_artifact(store, args.baseline_session_id, role="baseline")
         candidate = _load_artifact(store, args.candidate_session_id, role="candidate")

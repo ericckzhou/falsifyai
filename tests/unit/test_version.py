@@ -11,8 +11,8 @@ from importlib.metadata import version as _installed_version
 import falsifyai
 
 
-def test_dunder_version_is_0_6_2() -> None:
-    assert falsifyai.__version__ == "0.6.2"
+def test_dunder_version_is_0_6_3() -> None:
+    assert falsifyai.__version__ == "0.6.3"
 
 
 def test_dunder_version_matches_installed_metadata() -> None:

@@ -4,6 +4,63 @@ All notable changes to FalsifyAI are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.6.3] — 2026-06-05
+
+Patch release. Fixes a presentation-layer self-falsification surfaced by
+[case study 05](docs/case-studies/05-confidence-floor-inversion.md): the per-case
+`confidence` number inverted its meaning for instability-band verdicts
+(`ADVERSARIALLY_VULNERABLE` / `FRAGILE` / `AMBIGUOUS`), reading near `0.00`
+exactly when a case was *most* broken and best-supported. The verdict resolver
+and stored artifacts are byte-identical — the fix is consumer-surface only. This
+release also lands the additive `falsifyai.stores` plugin group as internal
+plumbing for future store backends; default behavior is byte-identical (a bare
+path is still SQLite, `:memory:` is still the in-memory store).
+
+### Fixed
+
+- **Per-case confidence label is band-aware across every consumer surface.** For
+  instability-band verdicts (`ADVERSARIALLY_VULNERABLE` / `FRAGILE` /
+  `AMBIGUOUS`), `falsifyai run`, `replay`, and `inspect` now render
+  `verdict_confidence` as `stability floor:` instead of `confidence:`. The value
+  is the stability CI lower bound — near `0.00` exactly when a case is *most*
+  broken — so the `confidence:` label inverted its meaning for precisely the
+  verdicts that matter most. `falsifyai history` previously printed the same
+  value as an *unlabeled* number beside the CI band, where it both duplicated the
+  CI floor and read as confidence; that redundant number is dropped, leaving the
+  honest `(CI: …)` band (history's documented column). `matrix` and `timeline`
+  were audited and were already honest (worst-case stability and `CIlow=`,
+  respectively). Stable-band verdicts are unchanged. **Consumer surface only: the
+  verdict resolver and stored artifacts are byte-identical.** See case study 05.
+
+### Added
+
+- **`falsifyai.stores` entry-point discovery.** `falsifyai/replay/registry.py`
+  exposes `discover_stores()` and `build_store()`, mirroring the perturbation
+  and invariant registries one tier down (assembly/wiring, not an evidence
+  layer). A store backend registers a factory callable `(uri: str) ->
+  ReplayStore` keyed by a `--store-path` URI scheme; the built-in `sqlite` and
+  `memory` backends are registered the same way and dogfood the mechanism.
+- **`scheme://` store selection.** `--store-path postgres://host/db` dispatches
+  to the plugin registered under `postgres`, which receives the full URI. Bare
+  paths (including Windows drive-letter paths) and `:memory:` are unchanged.
+
+### Changed
+
+- **`_build_store` consolidated.** The nine identical per-command copies of the
+  `:memory:`/SQLite selection helper across the CLI (`run`, `replay`, `inspect`,
+  `diff`, `history`, `timeline`, `matrix`, `verify`, `export`) are replaced by
+  the single shared `build_store()`. No behavioral change; one source of truth
+  for store construction.
+
+### Documentation
+
+- **Case study 05 — "When the confidence number lies."** A presentation-layer
+  self-falsification over the *same* `probe-03.db` bundle as case study 03: the
+  confidence number, not the verdict, was the false signal. Documents the
+  inversion above and its band-aware fix.
+
 ## [0.6.2] — 2026-06-05
 
 Patch release. Hardens the `schema_match` invariant against a false structural
@@ -493,6 +550,7 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.6.3]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.3
 [0.6.2]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.1
 [0.6.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.0

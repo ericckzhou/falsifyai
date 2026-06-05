@@ -20,6 +20,12 @@ Invariants (load-bearing — see PR-19 plan and ``docs/EVIDENCE.md`` for context
   worst-perturbation evidence. ``--case <id>`` expands to every perturbation
   for one case. ``--full`` disables output truncation. See plan §11 decisions
   B (verbosity) and C (truncation).
+- **Band-aware metric label.** The per-case ``verdict_confidence`` is surfaced
+  via ``render._metric_label`` — the same band-aware naming ``run`` / ``replay``
+  use. Stable-band verdicts read it as ``confidence``; instability-band verdicts
+  (ADVERSARIALLY_VULNERABLE / FRAGILE / AMBIGUOUS) read it as ``stability floor``
+  so a near-zero CI floor does not masquerade as low confidence. See
+  docs/case-studies/05-confidence-floor-inversion.md.
 - **Exit codes mirror ``replay`` / ``run``.** STABLE->0, FRAGILE->1,
   CONSISTENTLY_WRONG->2. Code 3 (ERROR) for infrastructure failures (missing
   session, unknown case_id).
@@ -32,23 +38,15 @@ from typing import TextIO
 
 from falsifyai.cli import render
 from falsifyai.cli.errors import InfrastructureError
-from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, PerturbedRun, ReplayArtifact
-from falsifyai.replay.protocol import ReplayStore, SessionNotFoundError
-from falsifyai.replay.sqlite_store import SQLiteStore
+from falsifyai.replay.protocol import SessionNotFoundError
+from falsifyai.replay.registry import build_store
 from falsifyai.verdict.models import Verdict
 
 # Output truncation thresholds (plan §11 decision C1).
 _TRUNCATE_THRESHOLD = 400
 _HEAD_CHARS = 200
 _TAIL_CHARS = 100
-
-
-def _build_store(store_path: str) -> ReplayStore:
-    """Mirror cli/run.py / cli/replay.py store selection."""
-    if store_path == ":memory:":
-        return InMemoryStore()
-    return SQLiteStore(store_path)
 
 
 def _truncate_output(text: str, *, full: bool) -> str:
@@ -138,13 +136,13 @@ def _render_case_default(case: CaseResult, *, full: bool, stream: TextIO) -> Non
     if is_legacy:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f}  (legacy)  "
+            f"{render._metric_label(case)}  (legacy)  "
             f"perturbations: {perturbation_count}"
         )
     else:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f} "
+            f"{render._metric_label(case)} "
             f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})  "
             f"perturbations: {perturbation_count}"
         )
@@ -187,13 +185,13 @@ def _render_case_expanded(case: CaseResult, *, full: bool, stream: TextIO) -> No
     if is_legacy:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f}  (legacy)  "
+            f"{render._metric_label(case)}  (legacy)  "
             f"perturbations: {perturbation_count}"
         )
     else:
         header = (
             f"case: {case.case_id}  verdict: {case.verdict.value.upper()}  "
-            f"confidence: {case.verdict_confidence:.2f} "
+            f"{render._metric_label(case)} "
             f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})  "
             f"perturbations: {perturbation_count}"
         )
@@ -276,7 +274,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     if args.session_id is None:
         raise InfrastructureError("session_id is required")
 
-    store = _build_store(args.store_path)
+    store = build_store(args.store_path)
     try:
         try:
             artifact = store.load_session(args.session_id)

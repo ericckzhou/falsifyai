@@ -79,7 +79,7 @@ def _args(
 
 
 def _patch_store(monkeypatch, store: _FakeStore) -> _FakeStore:
-    monkeypatch.setattr(cli_export, "_build_store", lambda _p: store)
+    monkeypatch.setattr(cli_export, "build_store", lambda _p: store)
     return store
 
 

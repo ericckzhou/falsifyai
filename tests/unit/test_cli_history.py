@@ -38,10 +38,10 @@ def _args(
 
 
 def _patched_store(monkeypatch: pytest.MonkeyPatch, store: InMemoryStore) -> InMemoryStore:
-    """Replace history._build_store so cmd_history sees the fixture-populated store."""
+    """Replace history.build_store so cmd_history sees the fixture-populated store."""
     from falsifyai.cli import history as history_module
 
-    monkeypatch.setattr(history_module, "_build_store", lambda _path: store)
+    monkeypatch.setattr(history_module, "build_store", lambda _path: store)
     return store
 
 
@@ -150,6 +150,26 @@ def test_history_fragile_row_shows_worst_family(monkeypatch, capsys) -> None:
     out = capsys.readouterr().out
     # The default fixture's worst_case_family is "typo_noise"
     assert "typo_noise" in out
+
+
+def test_history_row_drops_redundant_confidence_number(monkeypatch, capsys) -> None:
+    """The standalone ``verdict_confidence`` value (== stability_ci_low) is no
+    longer printed beside the CI band. Unlabeled, that leading number read as
+    "confidence" and inverted for instability-band verdicts (case study 05); the
+    CI band already carries the floor honestly. The fixture's verdict_confidence
+    is 0.92, so the pre-fix ``0.92 (CI: ...)`` prefix must be gone while the band
+    itself remains.
+    """
+    from falsifyai.cli import history as history_module
+
+    store = InMemoryStore()
+    store.save_session(make_artifact(session_id="band-row-id", verdict=Verdict.FRAGILE))
+    _patched_store(monkeypatch, store)
+
+    history_module.cmd_history(_args())
+    out = capsys.readouterr().out
+    assert "(CI: 0.88-0.96)" in out
+    assert "0.92 (CI:" not in out
 
 
 # ---------------------------------------------------------------------------

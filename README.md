@@ -181,7 +181,7 @@ A FalsifyAI spec describes three things:
 
 FalsifyAI runs the model on the original input plus every perturbation, judges every output against every invariant, and resolves a per-case verdict via a deterministic priority chain. The full evidence trail is preserved as a **replay artifact** — the durable product. Every CLI subcommand either produces one or reads one.
 
-Perturbations and invariants are extensible without forking: third-party packages register classes under the `falsifyai.perturbations` / `falsifyai.invariants` entry-point groups and reference them from YAML via `{type: plugin, name: ..., params: {...}}`. The built-ins are registered the same way.
+Perturbations, invariants, and **store backends** are extensible without forking. Perturbation/invariant packages register classes under the `falsifyai.perturbations` / `falsifyai.invariants` entry-point groups and reference them from YAML via `{type: plugin, name: ..., params: {...}}`. Store backends register a factory under `falsifyai.stores` keyed by a `--store-path` URI scheme — a Postgres backend ships `postgres = mypkg:from_uri` and users select it with `--store-path postgres://host/db`. The built-ins (perturbations, invariants, and the `sqlite` / `memory` stores) are all registered the same way.
 
 ---
 
@@ -195,6 +195,7 @@ Worked tours over real preserved artifacts. Each case study *is* a FalsifyAI art
 | 02 | [Resolver arbitration: boundary-allocation effect](docs/case-studies/02-resolver-arbitration-boundary-shift.md) | A small operating-context revision changed *where* a model permitted additional architectural complexity to exist without changing its top-level recommendation — the kind of subtle drift a pass/fail evaluator would miss. |
 | 03 | [When the evaluator is wrong](docs/case-studies/03-evaluator-false-positive.md) | FalsifyAI's own interpretation layer stamped a *correct* model `CONSISTENTLY_WRONG` @ 1.00; the preserved evidence overturned the verdict and drove the 0.6.1 `HallucinationOracle` fix — the framework falsifying itself. |
 | 04 | [Overconfident negation](docs/case-studies/04-overconfident-negation.md) | A downgraded model (8B) cites a retention clause's legal carve-out and still answers the wrong yes/no — a genuine `CONSISTENTLY_WRONG`. The mirror of 03: proof the 0.6.1 oracle fix catches real contradictions without false-firing on correct paraphrases. |
+| 05 | [When the confidence number lies](docs/case-studies/05-confidence-floor-inversion.md) | A second reading of the *same* bundle as 03: instability-band verdicts rendered `confidence: 0.00`, a number that *inverts* — the stability floor reads as low certainty when it signals high severity. A presentation-layer self-falsification; drove a band-aware label fix with the verdict resolver left byte-identical. |
 
 See [`docs/case-studies/`](docs/case-studies/) for the index and the framing convention case studies follow.
 
@@ -232,7 +233,7 @@ falsifyai export <session_id> --bundle <output>.fai.zip [--spec-path PATH] [--al
 | 6 | LOW_FALSIFIABILITY — `falsifyai diff --strict` candidate falsifiability < 0.50 |
 | 7 | INTEGRITY_FAILURE — `falsifyai verify` found at least one failed integrity check |
 
-Default `--store-path` is `.falsifyai/replays.db`. Use `:memory:` for ephemeral test-only runs.
+Default `--store-path` is `.falsifyai/replays.db` (the `sqlite` backend). Use `:memory:` for ephemeral test-only runs, or a `scheme://...` URI to dispatch to an installed store plugin (see [Core concepts](#core-concepts) above).
 
 ### CI integration
 
@@ -314,7 +315,12 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.6.2 (current release) — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
+**0.6.3 (current release) — Presentation-integrity patch.** Fixes the confidence-label inversion ([case study 05](docs/case-studies/05-confidence-floor-inversion.md)) across every consumer surface, plus additive store-plugin plumbing:
+
+- ✅ **Band-aware metric label** — instability-band verdicts (`ADVERSARIALLY_VULNERABLE` / `FRAGILE` / `AMBIGUOUS`) render `stability floor:` instead of `confidence:` on `run` / `replay` / `inspect`; `history` drops the redundant unlabeled number for its `(CI: …)` band; `matrix` / `timeline` were audited clean. Consumer-surface only — the resolver and stored artifacts are byte-identical.
+- ✅ **`falsifyai.stores` plugin group** — the third entry-point group; `scheme://` store selection dispatches to out-of-tree backends. Default behavior unchanged (bare path = SQLite, `:memory:` = in-memory).
+
+**0.6.2 — Semantic-judgment depth (NLI + full 8-verdict resolver).** Deepens the oracle layer with natural-language inference and completes the verdict taxonomy:
 
 - ✅ **NLI backend** — bidirectional entailment/contradiction scoring. `MockNLIBackend` (deterministic, dependency-free) is the default; `TransformersNLIBackend` ships behind the opt-in `[nli]` extra and lazy-loads its model on first use.
 - ✅ **Semantic oracles** — `GroundingOracle` (answer supported by provided context → `INFORMATION_PRESENT`), `HallucinationOracle` (confident claim contradicted by ground truth → `CONSISTENTLY_WRONG`), `ContradictionOracle` (self-inconsistency across the output set).
@@ -326,7 +332,7 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 - ✅ **`unicode` perturbation family** — visually-identical, byte-different input (invisible space variants incl. U+202F, zero-width characters, Cyrillic/Greek homoglyphs). The generation-side complement to case study 01: FalsifyAI can now *generate* the failure it could previously only *detect*. First family in the `ADVERSARIAL` category.
 - ✅ **`schema_match` invariant** — strict structural assertion that output is valid JSON conforming to a schema (required keys, typed properties), with no new runtime dependency.
 - ✅ **Oracle layer** — `Oracle` Protocol + `OracleVerdict` + `ConsistencyOracle` (the semantic-judgment surface), and the **`MetaOracle`** that makes `INVALID_EVAL` rigorous (sole source: malformed-invariant degeneration + oracle conflict). Guarded by a resolver branch-count meta-test so oracles pre-arbitrate rather than inflating the resolver.
-- ✅ **Entry-point plugin system** — perturbations and invariants are extensible without forking (`falsifyai.perturbations` / `falsifyai.invariants` groups); built-ins are dogfooded through the same mechanism.
+- ✅ **Entry-point plugin system** — perturbations, invariants, and store backends are extensible without forking (`falsifyai.perturbations` / `falsifyai.invariants` / `falsifyai.stores` groups); built-ins are dogfooded through the same mechanism.
 - ✅ **Reliability analytics (consumer surface):** `matrix` (N-model × perturbation-family profiles), `timeline` (longitudinal robustness trend + regression gate), `minimize` (minimal-falsifier search — the smallest perturbation that breaks a case).
 
 **0.4.0 — Artifact-infrastructure track complete.** Adds:
