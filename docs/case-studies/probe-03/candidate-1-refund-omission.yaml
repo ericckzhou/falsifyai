@@ -1,0 +1,53 @@
+# probe-03 / candidate 1 — refund summarization, exception omission
+#
+# Failure shape: OMISSION. Summarization compresses a refund policy to its
+# salient clause ("30-day refund") and silently drops the exception ("final
+# sale / clearance items are never eligible"). This is a compression bias, not
+# prompt-sensitivity, so the omission is STABLE across reworded instructions —
+# the signature of a CONSISTENTLY_WRONG verdict rather than FRAGILE.
+#
+# Primary signal: `expected.contains: ["clearance"]` is missing from every
+# output (deterministic ConsistencyOracle path) AND the blanket summary
+# contradicts `expected.reference` (NLI ContradictionOracle, --nli).
+#
+# Run: falsifyai run docs/case-studies/probe-03/candidate-1-refund-omission.yaml --nli \
+#        --store-path docs/case-studies/data/probe-03.db
+
+falsify:
+  version: "1.0"
+  name: "Confidently wrong: refund summary drops the clearance exception"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: refund_summary_exception_omission
+    tags: ["policy", "summarization", "omission", "confidently-wrong"]
+    input:
+      text: >-
+        Summarize this refund policy in one sentence: Customers may request a
+        refund within 30 days of delivery. Items marked final sale or clearance
+        are not eligible for a refund under any circumstances.
+    expected:
+      # A faithful one-sentence summary must preserve the exception.
+      contains: ["clearance"]
+      reference: >-
+        Customers may request a refund within 30 days of delivery, except items
+        marked final sale or clearance, which are never eligible for a refund.
+    perturbations:
+      # Intent-preserving pressure: reword the instruction (paraphrase) and
+      # vary surface casing. Both keep "what is being asked" identical.
+      - type: paraphrase
+        count: 8
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["clearance"]
+      - type: semantic_equivalence
+        threshold: 0.80

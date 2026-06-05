@@ -1,0 +1,55 @@
+# probe-03 / candidate 5 — free-shipping threshold, scope misattribution
+#
+# Failure shape: ANCHOR MISATTRIBUTION. The prominent "$50" is a domestic
+# threshold; the question asks about international orders, which "do not qualify
+# for free shipping." Models anchor on the salient number and answer "$50,"
+# misattributing the domestic threshold to the wrong scope. Stable anchoring.
+#
+# Primary signal: `expected.contains: ["not qualify"]` is absent from every
+# "$50" answer (deterministic ConsistencyOracle path) AND the misattributed
+# answer contradicts `expected.reference` (NLI, --nli).
+#
+# NOTE: no `not_contains: ["$50"]` — a CORRECT answer legitimately mentions $50
+# while scoping it to the US ("$50 applies only domestically"), so that token is
+# not a clean wrong-signal here.
+#
+# Run: falsifyai run docs/case-studies/probe-03/candidate-5-threshold-anchor.yaml --nli \
+#        --store-path docs/case-studies/data/probe-03.db
+
+falsify:
+  version: "1.0"
+  name: "Confidently wrong: shipping threshold misattributed across scope"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: shipping_threshold_scope_misattribution
+    tags: ["policy", "extraction", "anchor-misattribution", "confidently-wrong"]
+    input:
+      text: >-
+        What is the free-shipping threshold for international orders? Orders over
+        $50 ship free within the United States. International orders do not
+        qualify for free shipping.
+    expected:
+      contains: ["not qualify"]
+      reference: >-
+        International orders do not qualify for free shipping; the $50
+        free-shipping threshold applies only within the United States.
+    perturbations:
+      - type: paraphrase
+        count: 8
+      - type: casing
+      - type: typo_noise
+        count: 3
+    invariants:
+      - type: contains
+        values: ["not qualify"]
+      - type: semantic_equivalence
+        threshold: 0.80

@@ -1,0 +1,65 @@
+# probe-03 / candidate 3 — structured extraction, well-formed but wrong
+#
+# Failure shape: STRUCTURAL-VS-SEMANTIC SPLIT. The model emits perfectly
+# well-formed JSON ({"allowed":[...],"forbidden":[...]}) but drops the "only
+# administrators may delete" qualifier and places `delete` in `allowed` for a
+# standard user. The OUTPUT IS WELL-FORMED AND WRONG.
+#
+# Strongest evidence-density story of the five: `schema_match` PASSES (valid
+# JSON, both arrays present) while the NLI ContradictionOracle flags the
+# content as contradicting `expected.reference`. Two oracles, opposite signals,
+# same output — the contrast is the headline. Requires --nli for the content
+# verdict.
+#
+# casing is deliberately NOT used here (it would corrupt the JSON key casing in
+# the instruction); typo_noise runs at its low default rate to keep the braces
+# intact.
+#
+# Run: falsifyai run docs/case-studies/probe-03/candidate-3-extraction-schema.yaml --nli \
+#        --store-path docs/case-studies/data/probe-03.db
+
+falsify:
+  version: "1.0"
+  name: "Confidently wrong: access-policy extraction, valid JSON wrong content"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: access_policy_extraction_wrong
+    tags: ["policy", "structured-output", "json", "structural-vs-semantic", "confidently-wrong"]
+    input:
+      text: >-
+        From this access policy, output {"allowed":[...],"forbidden":[...]} for a
+        standard (non-admin) user: All users may read records. Only
+        administrators may delete records. No user may export records.
+    expected:
+      reference: >-
+        For a standard non-admin user, the allowed actions are ["read"] and the
+        forbidden actions are ["delete", "export"]. Deleting records is
+        restricted to administrators; exporting is forbidden for all users.
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: paraphrase
+        count: 8
+    invariants:
+      # Shape assertion: passes on any output that is a JSON object with both
+      # arrays — including the wrong one. The "well-formed" half of the story.
+      - type: schema_match
+        schema:
+          type: object
+          required: ["allowed", "forbidden"]
+          properties:
+            allowed:
+              type: array
+            forbidden:
+              type: array
+      - type: semantic_equivalence
+        threshold: 0.80

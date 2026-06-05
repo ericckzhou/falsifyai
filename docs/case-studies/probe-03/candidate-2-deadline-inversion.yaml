@@ -1,0 +1,55 @@
+# probe-03 / candidate 2 — cancellation deadline, condition inversion
+#
+# Failure shape: DIRECTIONAL INVERSION. "Cancel at least 14 days BEFORE
+# renewal" is a documented directional trap: models restate it as "within 14
+# days" (window inverted) while keeping the number correct. The error is in the
+# *relation*, not the token.
+#
+# This is the candidate that DEMONSTRATES THE NLI LAYER'S VALUE: the
+# `contains: ["14 days"]` invariant PASSES on a directionally-wrong answer —
+# only the NLI ContradictionOracle (output contradicts `expected.reference`)
+# catches the inversion. Pure evidence for "contains is necessary but not
+# sufficient." Requires --nli; without it this likely resolves STABLE.
+#
+# Run: falsifyai run docs/case-studies/probe-03/candidate-2-deadline-inversion.yaml --nli \
+#        --store-path docs/case-studies/data/probe-03.db
+
+falsify:
+  version: "1.0"
+  name: "Confidently wrong: cancellation deadline direction inverted"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: cancellation_deadline_inversion
+    tags: ["policy", "qa", "directional-inversion", "confidently-wrong", "nli-required"]
+    input:
+      text: >-
+        Per this policy, how many days before the renewal date must a customer
+        cancel to avoid the charge? Subscriptions renew automatically. To avoid
+        the renewal charge, cancel at least 14 days before your renewal date.
+    expected:
+      # NOTE: contains passes even when direction is wrong — that is the point.
+      contains: ["14 days"]
+      # Best-effort deterministic catch for the classic inverted phrasing.
+      not_contains: ["within 14"]
+      reference: >-
+        To avoid the renewal charge, a customer must cancel at least 14 days
+        before the renewal date.
+    perturbations:
+      - type: paraphrase
+        count: 8
+      - type: typo_noise
+        count: 3
+    invariants:
+      - type: contains
+        values: ["14 days"]
+      - type: semantic_equivalence
+        threshold: 0.80

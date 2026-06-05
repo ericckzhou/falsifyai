@@ -1,0 +1,54 @@
+# probe-03 / candidate 4 — clause interpretation, overconfident negation
+#
+# Failure shape: OVERCONFIDENT NEGATION. Asked whether a retention clause
+# permits keeping data after closure, the model gives a flat "No — deleted
+# within 30 days," dropping the "except where longer retention is required by
+# law" carve-out. The over-strong negation is stable across rewordings.
+#
+# Primary signal: `expected.contains: ["required by law"]` is absent from every
+# output (deterministic ConsistencyOracle path) AND the flat "No" contradicts
+# `expected.reference` (NLI, --nli).
+#
+# GUARDRAIL: this case tests interpretation of PROVIDED clause text only. It is
+# not legal advice and the reference answer is grounded entirely in the clause
+# as written.
+#
+# Run: falsifyai run docs/case-studies/probe-03/candidate-4-clause-exception.yaml --nli \
+#        --store-path docs/case-studies/data/probe-03.db
+
+falsify:
+  version: "1.0"
+  name: "Confidently wrong: retention clause, legal-exception dropped"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: retention_clause_exception_dropped
+    tags: ["policy", "clause-interpretation", "overconfident-negation", "confidently-wrong"]
+    input:
+      text: >-
+        Does this clause permit retaining customer data after account closure?
+        Answer yes or no and cite the condition: Customer data is deleted within
+        30 days of account closure, except where longer retention is required by
+        law.
+    expected:
+      contains: ["required by law"]
+      reference: >-
+        Yes. The clause permits retaining customer data after account closure
+        where longer retention is required by law.
+    perturbations:
+      - type: paraphrase
+        count: 8
+      - type: casing
+    invariants:
+      - type: contains
+        values: ["required by law"]
+      - type: semantic_equivalence
+        threshold: 0.80
