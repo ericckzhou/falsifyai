@@ -1,23 +1,33 @@
-"""Tests for falsifyai.verdict.models.Verdict (MVP 5-verdict subset).
+"""Tests for falsifyai.verdict.models.Verdict (full 8-verdict taxonomy).
 
-Per plan.md section 22.1, the Phase 0 MVP ships 5 verdicts:
-STABLE, FRAGILE, CONSISTENTLY_WRONG, INSUFFICIENT, INVALID_EVAL.
+The 0.6.0 milestone adds the four remaining classes (INFORMATION_PRESENT,
+ADVERSARIALLY_VULNERABLE, INFORMATION_NULL, AMBIGUOUS) to the 0.5.0 set, giving
+the full §2.2 taxonomy plus INSUFFICIENT (the structural-gap class) and
+INVALID_EVAL (the meta-verdict).
 
-The full 8-verdict taxonomy (per plan.md section 2.2) lands in Phase 1.
+String values are part of the public replay-store on-disk format and must never
+change once written -- this test pins them so a rename or value change is caught.
 """
 
 from falsifyai.verdict.models import Verdict
 
+# Frozen: value strings persisted in replay artifacts. Add members, never rename.
+_FROZEN_VALUES = {
+    "INFORMATION_PRESENT": "information_present",
+    "STABLE": "stable",
+    "CONSISTENTLY_WRONG": "consistently_wrong",
+    "ADVERSARIALLY_VULNERABLE": "adversarially_vulnerable",
+    "FRAGILE": "fragile",
+    "INFORMATION_NULL": "information_null",
+    "AMBIGUOUS": "ambiguous",
+    "INSUFFICIENT": "insufficient",
+    "INVALID_EVAL": "invalid_eval",
+}
 
-def test_enum_has_exactly_five_mvp_values() -> None:
-    """Per plan.md section 22.1: MVP set is exactly these 5, no more, no less."""
-    assert {v.name for v in Verdict} == {
-        "STABLE",
-        "FRAGILE",
-        "CONSISTENTLY_WRONG",
-        "INSUFFICIENT",
-        "INVALID_EVAL",
-    }
+
+def test_all_members_present_and_frozen() -> None:
+    """The full taxonomy: 8 verdicts (§2.2) + INSUFFICIENT, with frozen values."""
+    assert {v.name: v.value for v in Verdict} == _FROZEN_VALUES
 
 
 def test_string_values_match_plan() -> None:
@@ -27,6 +37,10 @@ def test_string_values_match_plan() -> None:
     assert Verdict.CONSISTENTLY_WRONG.value == "consistently_wrong"
     assert Verdict.INSUFFICIENT.value == "insufficient"
     assert Verdict.INVALID_EVAL.value == "invalid_eval"
+    assert Verdict.INFORMATION_PRESENT.value == "information_present"
+    assert Verdict.ADVERSARIALLY_VULNERABLE.value == "adversarially_vulnerable"
+    assert Verdict.INFORMATION_NULL.value == "information_null"
+    assert Verdict.AMBIGUOUS.value == "ambiguous"
 
 
 def test_members_compare_and_hash_correctly() -> None:

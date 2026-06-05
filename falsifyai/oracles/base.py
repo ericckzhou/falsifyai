@@ -62,6 +62,10 @@ class OracleContext:
     embedder: "EmbeddingBackend | None" = None
     invariant_results: list[list["InvariantResult"]] = field(default_factory=list)
     peer_verdicts: list[OracleVerdict] = field(default_factory=list)
+    # Retrieved/grounding context for RAG-style cases. The GroundingOracle checks
+    # output entailment against this; when absent it falls back to
+    # ``expected.reference`` (MVP: reference doubles as the grounding source).
+    context_text: str | None = None
 
     @property
     def all_outputs(self) -> list[str]:
