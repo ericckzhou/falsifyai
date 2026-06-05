@@ -32,14 +32,19 @@ still SQLite, `:memory:` is still the in-memory store.
   `diff`, `history`, `timeline`, `matrix`, `verify`, `export`) are replaced by
   the single shared `build_store()`. No behavioral change; one source of truth
   for store construction.
-- **Per-case confidence label is band-aware.** For instability-band verdicts
-  (`ADVERSARIALLY_VULNERABLE` / `FRAGILE` / `AMBIGUOUS`), `falsifyai run` and
-  `replay` now render `verdict_confidence` as `stability floor:` instead of
-  `confidence:`. The value is the stability CI lower bound — near `0.00` exactly
-  when a case is *most* broken — so the `confidence:` label inverted its meaning
-  for precisely the verdicts that matter most. Stable-band verdicts are
-  unchanged. **Consumer surface only: the verdict resolver and stored artifacts
-  are byte-identical.** See case study 05.
+- **Per-case confidence label is band-aware across every consumer surface.** For
+  instability-band verdicts (`ADVERSARIALLY_VULNERABLE` / `FRAGILE` /
+  `AMBIGUOUS`), `falsifyai run`, `replay`, and `inspect` now render
+  `verdict_confidence` as `stability floor:` instead of `confidence:`. The value
+  is the stability CI lower bound — near `0.00` exactly when a case is *most*
+  broken — so the `confidence:` label inverted its meaning for precisely the
+  verdicts that matter most. `falsifyai history` previously printed the same
+  value as an *unlabeled* number beside the CI band, where it both duplicated the
+  CI floor and read as confidence; that redundant number is dropped, leaving the
+  honest `(CI: …)` band (history's documented column). `matrix` and `timeline`
+  were audited and were already honest (worst-case stability and `CIlow=`,
+  respectively). Stable-band verdicts are unchanged. **Consumer surface only: the
+  verdict resolver and stored artifacts are byte-identical.** See case study 05.
 
 ### Documentation
 

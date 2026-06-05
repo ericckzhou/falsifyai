@@ -58,10 +58,12 @@ def _render_row(artifact: ReplayArtifact, case: CaseResult, *, stream: TextIO) -
     if is_legacy:
         ci_str = "(legacy)"
     else:
-        ci_str = (
-            f"{case.verdict_confidence:.2f} "
-            f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
-        )
+        # verdict_confidence == stability_ci_low (resolver.py); printed beside
+        # the CI band it was a duplicate of the floor, and being unlabeled it read
+        # as "confidence" -- inverting for instability-band verdicts (case study
+        # 05). The CI band carries the floor honestly for every verdict, and the
+        # D1 column spec is "CI", so show only that.
+        ci_str = f"(CI: {case.stability_ci_low:.2f}-{case.stability_ci_high:.2f})"
     line = f"  {sid_short}  {created_at}  {verdict_str}  {ci_str}"
     if case.verdict is Verdict.FRAGILE and case.worst_case_family:
         line += f"  worst: {case.worst_case_family}"
