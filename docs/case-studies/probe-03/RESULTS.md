@@ -3,6 +3,8 @@
 > **Status: RUN COMPLETE (2026-06-05). No case study promoted.** The bake-off
 > did not find a confidently-wrong *model* — and that negative result, plus what
 > it surfaced about FalsifyAI's own interpretation layer, is the real finding.
+> **Finding 1 (the high-severity HallucinationOracle false positive) was fixed
+> the same day in commit `2a03644`.**
 
 ## Run metadata
 
@@ -78,6 +80,13 @@ set" as intentional MVP behavior. In practice that is too aggressive: **"could
 not prove entailment" is being reported as "confidently, repeatably wrong."**
 Candidate 2's verdict (CONSISTENTLY_WRONG @ 1.00) is entirely this effect.
 
+> **Resolved (commit `2a03644`).** `HallucinationOracle` now fires only on
+> majority **CONTRADICTION**; NEUTRAL/ENTAILMENT abstain. A NEUTRAL-majority set
+> (correct paraphrases) falls back to the statistical verdict (STABLE when
+> stable). A regression test
+> (`tests/unit/test_oracle_hallucination.py::test_probe03_correct_paraphrase_does_not_hallucinate`)
+> reproduces candidate 2's scenario and asserts the oracle abstains.
+
 ## Finding 2 (medium): `semantic_equivalence` is style/length-sensitive
 
 `semantic_equivalence` embeds the *whole output text*, so a correct answer
@@ -117,10 +126,11 @@ falsifyai inspect 15b1fc160643494dac4e9d69ff517e91 --case cancellation_deadline_
 
 ## Recommended next steps (decisions for the maintainer)
 
-1. **File Finding 1 as a bug/issue** — `HallucinationOracle` should treat NEUTRAL
-   as *abstain*, not *hallucinate*; reserve CONSISTENTLY_WRONG for CONTRADICTION
-   (or require a much higher bar than "not entailment"). This is the
-   highest-value outcome of the probe.
+1. ~~**File Finding 1 as a bug/issue** — `HallucinationOracle` should treat
+   NEUTRAL as *abstain*, not *hallucinate*; reserve CONSISTENTLY_WRONG for
+   CONTRADICTION.~~ **DONE** — fixed in commit `2a03644`; issue draft at
+   `dev_notes/issues/2026-06-05-hallucination-neutral-false-positive.md`
+   (optional `gh issue create`). This was the highest-value outcome of the probe.
 2. **Re-probe for a genuine confidently-wrong model** with (a) a weaker model
    (e.g. `groq/llama-3.1-8b-instant`) and (b) tighter invariants — references
    that strictly entail the correct answer, concept-level rather than lexical
