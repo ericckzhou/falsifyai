@@ -1,0 +1,56 @@
+# Case Study 07 / CANDIDATE — support-bot promo summarization, the cost downgrade.
+#
+# Byte-identical to baseline-promo-70b.yaml EXCEPT the `model:` line. That single
+# line IS the migration: groq/llama-3.3-70b-versatile -> groq/llama-3.1-8b-instant
+# (a realistic cost-saving downgrade).
+#
+# Hypothesis (Gate C in PLAN.md): the clean eval still passes (the 8B keeps the
+# gift-card exclusion on the un-perturbed promo), but under typo_noise pressure
+# the 8B drops the exclusion from its one-sentence summary — the same qualifier-
+# dropping weakness case study 04 already proved this model has — while the 70B
+# baseline holds. STABLE (baseline) -> degraded (candidate) is a `falsifyai diff`
+# regression: exit 5.
+#
+# If the 8B also holds under typo: raise rate. If it STILL holds after honest
+# tuning: document the negative, do not synthesize.
+#
+# Run: falsifyai run docs/case-studies/probe-07/candidate-promo-8b.yaml \
+#        --store-path docs/case-studies/data/case-study-07.db
+
+falsify:
+  version: "1.0"
+  name: "Promo-summary migration (candidate): exception-preservation contract, cost downgrade"
+
+model:
+  provider: groq
+  model: llama-3.1-8b-instant
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: promo_faq_summary
+    tags: ["summarization", "exception-omission", "migration", "support-bot", "policy"]
+    input:
+      text: >-
+        Summarize the following promotion in a single sentence for our customer
+        help center. Promotion: Summer's here, and so is our biggest sale yet!
+        For a limited time, every customer gets 20% off their entire order — no
+        coupon code needed, the discount is applied automatically at checkout.
+        Stock up on your favorites and treat yourself. Please note: gift cards
+        are excluded from this promotion and are never discounted.
+    expected:
+      reference: >-
+        Get 20% off your entire order this summer, applied automatically at
+        checkout — note that gift cards are excluded and never discounted.
+    perturbations:
+      - type: typo_noise
+        count: 5
+        rate: 0.12
+    invariants:
+      - type: contains
+        values: ["gift card"]
+        case_sensitive: false
+        severity: high
