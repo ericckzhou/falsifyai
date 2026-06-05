@@ -506,6 +506,53 @@ def test_unicode_regression_yaml_produces_fragile_verdict(monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
+# schema_match.yaml (PR-B) — structural JSON assertion
+# ---------------------------------------------------------------------------
+
+
+def test_schema_match_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "schema_match.yaml")
+    assert spec.run.seed == 42
+    assert [c.id for c in spec.cases] == ["capital_json_schema"]
+    inv = spec.cases[0].invariants[0]
+    assert inv.type == "schema_match"
+    assert inv.json_schema["required"] == ["capital"]
+
+
+def test_schema_match_yaml_produces_fragile_verdict(monkeypatch) -> None:
+    """Baseline returns valid JSON; every perturbation degrades to prose, which
+    fails the schema -> FRAGILE. This is the structured-output assertion the
+    `contains` invariant could only approximate."""
+    spec_path = _EXAMPLES / "schema_match.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    case = materialized.cases[0]
+    response_map: dict[str, str] = {case.original_input: '{"capital": "Tokyo"}'}
+    for pi in case.realized_perturbations:
+        response_map[pi.text] = "The capital is Tokyo."  # prose -> not valid JSON
+    adapter = MockAdapter(response_map=response_map)
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 1  # FRAGILE -> DEGRADED
+
+
+def test_schema_match_yaml_stable_when_structure_preserved(monkeypatch) -> None:
+    """When every output is valid JSON conforming to the schema -> STABLE."""
+    spec_path = _EXAMPLES / "schema_match.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    responses = {"capital_json_schema": '{"capital": "Tokyo"}'}
+    adapter = MockAdapter(response_map=_build_response_map(spec, materialized, responses))
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 0  # STABLE -> SUCCESS
+
+
+# ---------------------------------------------------------------------------
 # falsifyai history <case_id> (PR #24)
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,41 @@
+# examples/schema_match.yaml
+#
+# The structured-output assertion the README's model-migration walkthrough
+# always wanted but couldn't express: instead of a `contains` check for the
+# substring `"capital"`, this asserts the output is *valid JSON conforming to a
+# schema* — top-level object, a required `capital` key, typed as a string.
+#
+# A model that returns well-formed JSON for the clean prompt but degrades to
+# prose ("The capital is Tokyo.") under perturbation breaks the *shape* of its
+# answer. `schema_match` catches that structural break directly, where
+# `contains` could only approximate it.
+
+falsify:
+  version: "1.0"
+  name: "Structured output: perturbation breaks JSON schema conformance"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: capital_json_schema
+    tags: ["structured-output", "json", "schema"]
+    input:
+      text: 'Return the capital of Japan as JSON like {"capital": "<city>"}'
+    perturbations:
+      - type: typo_noise
+        count: 5
+    invariants:
+      - type: schema_match
+        schema:
+          type: object
+          required: ["capital"]
+          properties:
+            capital:
+              type: string

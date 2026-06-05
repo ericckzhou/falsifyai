@@ -4,12 +4,14 @@ import pytest
 
 from falsifyai.invariants.contains import ContainsInvariant
 from falsifyai.invariants.registry import build_invariant
+from falsifyai.invariants.schema_match import SchemaMatchInvariant
 from falsifyai.invariants.semantic import (
     SemanticEquivalenceInvariant,
     SentenceTransformerBackend,
 )
 from falsifyai.spec.models import (
     ContainsInvariantSpec,
+    SchemaMatchInvariantSpec,
     SemanticEquivalenceInvariantSpec,
 )
 
@@ -38,6 +40,15 @@ def test_build_semantic_equivalence_propagates_threshold() -> None:
     assert inv.severity.value == "high"
     # Default embedder is the lazy SentenceTransformerBackend.
     assert isinstance(inv.embedder, SentenceTransformerBackend)
+
+
+def test_build_schema_match_propagates_schema() -> None:
+    schema = {"type": "object", "required": ["capital"]}
+    spec = SchemaMatchInvariantSpec(type="schema_match", schema=schema, severity="critical")
+    inv = build_invariant(spec)
+    assert isinstance(inv, SchemaMatchInvariant)
+    assert inv.schema == schema
+    assert inv.severity.value == "critical"
 
 
 def test_build_unknown_spec_raises_value_error() -> None:
