@@ -9,12 +9,15 @@ have had no equivalent test. This probe is engineered to make each one fire on a
 real model, and documents what the *other* outcome would mean so a run that
 *doesn't* produce the target verdict is still informative.
 
-> **STATUS (2026-06-05): NOT YET RUN.** Designed and statically validated only —
-> all four specs parse and materialize offline (model-free perturbation families),
-> and each verdict path below is traced to the resolver source. No model calls
-> have been made: the environment this was authored in has no `GROQ_*` key. The
-> verdict-boundary table is a **hypothesis**, not a result. Run it where a key is
-> available, then promote the outcome per [Promotion](#promotion-after-a-run).
+> **STATUS (2026-06-05): RAN.** Executed live against Groq (A/B/C on
+> `llama-3.3-70b-versatile`, D on `llama-3.1-8b-instant`); evidence bundled at
+> [`../data/probe-05.db`](../data/probe-05.db) (provenance in
+> [`../data/README.md`](../data/README.md#probe-05db--grounding-verdict-quartet)).
+> **Outcome: 1 of 4 targets fired — `INFORMATION_PRESENT` (candidate A), and only
+> after the probe caught a real perturbation-validity bug.** The other three are
+> honest negatives: a capable 70B (and the 8B for D) resists the failure modes
+> B/C/D were designed to elicit. The verdict-boundary table below was the
+> *hypothesis*; [Run results](#run-results-2026-06-05) records what actually fired.
 
 ## Why these four
 
@@ -58,6 +61,42 @@ yet must split — C into `ADVERSARIALLY_VULNERABLE` (a real, targeted attack
 vector) and D into `AMBIGUOUS` (an evidence shortfall, not a model property). If
 a run collapses both into `FRAGILE`, the stratified shape/CI machinery is not
 discriminating and *that* is the finding.
+
+## Run results (2026-06-05)
+
+Ran live against Groq — A/B/C on `llama-3.3-70b-versatile`, D on
+`llama-3.1-8b-instant` (temperature 0.0, seed 42; A with `--nli`). Evidence:
+[`../data/probe-05.db`](../data/probe-05.db), 5 sessions.
+
+| Candidate | Target | Actual | Read |
+|-----------|--------|--------|------|
+| A — grounded | `INFORMATION_PRESENT` | **`INFORMATION_PRESENT`** (1.00) | ✅ confirmed — *after* a perturbation-validity fix (below) |
+| B — hedge | `INFORMATION_NULL` | `STABLE` (1.00) | honest negative — the 70B answered with a full both-sides breakdown closing on "…depends on various factors", not an information-empty hedge. `InformationNullOracle` correctly declined (it keys on bare non-answers, not answers that *mention* tradeoffs). Right verdict, wrong hypothesis. |
+| C — targeted | `ADVERSARIALLY_VULNERABLE` | `STABLE` (1.00) | honest negative — the 70B was robust to the unicode confusables; both families held. Predicted in the caveats ("a finding about the model, not a flaw in the probe"). |
+| D — thin | `AMBIGUOUS` | `STABLE` (1.00) | honest negative — even the 8B answered the author-surname question identically across N=3, so the pass rate was unanimous, not mixed. |
+
+**The headline result is the bug candidate A caught.** As first written, A embedded
+the grounding passage *in the perturbed input* ("…boils at **100** degrees
+Celsius"), so `typo_noise` mutated the answer itself (`100` → `10l0`) and the model
+faithfully echoed the corrupted digit — a **spurious** `contains:["100"]` failure (1
+of 11 variants). That lone failure dropped the case out of the stable band into
+`AMBIGUOUS` (session `c66e3de3…`, preserved as the "before"), and since
+`GroundingOracle` only fires in the stable band (`resolver.py:236`), the gold-standard
+verdict was unreachable. This violated the framework's own intent-preservation rule
+(plan.md §9.3): a perturbation must not change the ground truth.
+
+**Fix → confirmation.** Moving the grounding source into the un-perturbed
+`expected.reference` and asking a self-contained, answer-free question restored
+validity. All 11 variants then answered "100 degrees Celsius", the case cleared the
+stable band, and `GroundingOracle` confirmed majority-ENTAILMENT against the
+reference → **`INFORMATION_PRESENT`, confidence 1.00** (session `2f6e8a30…`). First
+live end-to-end proof of both the gold-standard verdict and the `--nli` grounding
+path on real model output.
+
+**Net:** `INFORMATION_PRESENT` is demonstrated; `INFORMATION_NULL`,
+`ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` remain designed-but-not-yet-fired —
+open work that needs prompts eliciting genuine refusals, a model that actually
+misreads confusables, or genuinely mixed evidence at small N.
 
 ## How each verdict is produced (resolver references)
 

@@ -42,10 +42,17 @@ cases:
   - id: grounded_boiling_point
     tags: ["grounding", "rag", "information-present", "gold-standard"]
     input:
+      # PERTURBATION-VALIDITY FIX (2026-06-05): the answer ("100") must NOT live
+      # in the perturbed input. The first design embedded the passage here, so
+      # typo_noise mutated "100"->"10l0" inside it and the model faithfully echoed
+      # the corrupted digit -- a *spurious* contains:["100"] failure that dropped
+      # the case out of the stable band (AMBIGUOUS) and the GroundingOracle never
+      # ran. The grounding source now lives ONLY in expected.reference (which is
+      # not perturbed); the question is self-contained and answer-free, so
+      # typo/casing pressure stays intent-preserving (plan.md §9.3).
       text: >-
-        Using only the passage, answer: at sea level, at what temperature does
-        pure water boil? Passage: At standard sea-level pressure, pure water
-        boils at 100 degrees Celsius (212 degrees Fahrenheit).
+        At sea level, at what temperature does pure water boil? Give the
+        temperature in degrees Celsius.
     expected:
       # In the MVP, expected.reference doubles as the grounding source the
       # GroundingOracle checks output entailment against (resolver does not yet
