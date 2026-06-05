@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "falsifyai"
-version = "0.4.0"
+version = "0.5.0"
 description = "Falsification-first reliability testing for AI systems: perturb inputs, preserve replayable evidence, diff reliability across model changes."
 readme = "README.md"
 license = "Apache-2.0"

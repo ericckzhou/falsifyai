@@ -6,6 +6,51 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-06-04
+
+Capability-breadth track. Closes the Phase 1 capability gaps the
+artifact-infrastructure track (0.2–0.4) skipped: the semantic-judgment
+(oracle) layer, byte-level adversarial perturbation, structural assertion,
+extensibility, and cross-run/cross-model analytics. Spec language is a
+superset of 0.4.0 (new perturbation/invariant/plugin spec types); the
+5-verdict set and replay format are unchanged (a new `invalid_eval_count`
+field on `SessionVerdict` defaults for backward-compatible reads).
+
+### Added
+
+- **`unicode` perturbation family** (`ADVERSARIAL` category) — visually-identical,
+  byte-different input: invisible space variants (incl. U+202F), zero-width
+  characters, Cyrillic/Greek homoglyphs. The generation-side complement to case
+  study 01; FalsifyAI now *generates* the failure it could previously only detect.
+- **`schema_match` invariant** — strict structural assertion that output is valid
+  JSON conforming to a declared schema (top-level type, required keys, typed
+  properties), implemented over stdlib `json` with no new runtime dependency.
+- **Oracle layer** — `Oracle` Protocol + `OracleVerdict` + `OracleContext` (the
+  semantic-judgment surface), and a real `ConsistencyOracle` (ground-truth
+  contradiction + optional embedding-agreement signal).
+- **`MetaOracle`** — the sole, rigorous source of `INVALID_EVAL`: invariant
+  degeneration (an invariant failing >95% of outputs including the clean baseline)
+  and oracle conflict. Guarded by a resolver branch-count meta-test so oracles
+  pre-arbitrate rather than inflating the verdict resolver.
+- **Entry-point plugin system** — perturbations and invariants are extensible
+  without forking via the `falsifyai.perturbations` / `falsifyai.invariants`
+  entry-point groups and a generic `{type: plugin, name, params}` spec; built-ins
+  are registered through the same mechanism (dogfooded).
+- **`falsifyai matrix`** — cross-model reliability profiles: N sessions × perturbation
+  families, each cell the model's worst-case stability in that family.
+- **`falsifyai timeline`** — longitudinal robustness trend for one case (chronological
+  `stability_ci_low` sparkline) with regression detection; exit 5 on a verdict-class
+  downgrade. The inference counterpart to `history`.
+- **`falsifyai minimize`** — minimal-falsifier search: the smallest perturbation
+  strength that flips a case out of STABLE.
+
+### Notes
+
+- Resolver verdict-branch count moved 4 → 5 (the new `INVALID_EVAL` class), guarded
+  by `tests/meta/test_resolver_branch_count.py`. Adding an oracle must not grow it.
+- Consumer surfaces (`matrix`, `timeline`) are forbidden from importing the resolver
+  (enforced by meta-tests); `minimize` is an orchestrator and legitimately resolves.
+
 ## [0.4.0] — 2026-05-24
 
 Artifact-infrastructure track **complete** (3 of 3 locked items shipped).
