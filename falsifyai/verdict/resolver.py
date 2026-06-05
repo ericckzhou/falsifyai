@@ -27,7 +27,11 @@ import hashlib
 from falsifyai.invariants.base import EmbeddingBackend, Invariant
 from falsifyai.oracles.base import OracleContext
 from falsifyai.oracles.consistency import ConsistencyOracle
+from falsifyai.oracles.contradiction import ContradictionOracle
+from falsifyai.oracles.grounding import GroundingOracle
+from falsifyai.oracles.hallucination import HallucinationOracle
 from falsifyai.oracles.meta import MetaOracle
+from falsifyai.oracles.nli import NLIBackend
 from falsifyai.replay.models import CaseResult, PerturbedRun, SessionVerdict
 from falsifyai.spec.models import ExpectedSection
 from falsifyai.verdict.models import Verdict
@@ -60,6 +64,7 @@ def resolve_case(
     stable_threshold: float,
     case_seed: int,
     embedder: EmbeddingBackend | None = None,
+    nli: NLIBackend | None = None,
 ) -> CaseResult:
     """Build the full case-level result, including stratified CI evidence.
 
@@ -68,6 +73,12 @@ def resolve_case(
     ``embedder`` is optional and only used by the ConsistencyOracle's
     reference-agreement path. When None (the default), consistency falls back to
     the ground-truth string check, identical to the pre-oracle behavior.
+
+    ``nli`` is optional and drives the PR-J semantic oracles (contradiction /
+    hallucination / grounding). When None (the default), those oracles degrade to
+    ``triggered=False`` and contribute nothing -- the resolver's emitted verdict
+    is unchanged. Their contributions feed the meta-oracle's conflict detection
+    and the replay artifact only when a backend is supplied.
     """
     bootstrap_seed = _bootstrap_seed_for_case(case_seed)
 
@@ -91,6 +102,7 @@ def resolve_case(
         stability_ci_low=ci_low,
         stable_threshold=stable_threshold,
         embedder=embedder,
+        nli=nli,
     )
 
     return CaseResult(
@@ -118,10 +130,17 @@ def _decide_verdict(
     stability_ci_low: float,
     stable_threshold: float,
     embedder: EmbeddingBackend | None = None,
+    nli: NLIBackend | None = None,
 ) -> Verdict:
     """Apply the verdict priority chain.
 
     Order: INSUFFICIENT -> CONSISTENTLY_WRONG -> FRAGILE -> STABLE.
+
+    PR-J note: the semantic oracles (contradiction / hallucination / grounding)
+    are evaluated here and fed to the meta-oracle as peers, but no resolver
+    branch consumes their contributions yet -- the emitted verdict set is
+    unchanged (branch count stays 5). PR-K adds the branches that turn their
+    evidence into INFORMATION_PRESENT / AMBIGUOUS / etc.
     """
     if not perturbed_runs or not invariants:
         return Verdict.INSUFFICIENT
@@ -130,14 +149,24 @@ def _decide_verdict(
     # precedence. Each oracle collapses to one OracleVerdict, so adding an
     # oracle never adds a branch here (see the branch-count meta-test); only
     # adding a new verdict *class* does.
-    consistency = ConsistencyOracle().evaluate(
-        OracleContext(
-            original_output=original_output,
-            perturbed_outputs=perturbed_outputs,
-            expected=expected,
-            embedder=embedder,
-        )
+    oracle_context = OracleContext(
+        original_output=original_output,
+        perturbed_outputs=perturbed_outputs,
+        expected=expected,
+        embedder=embedder,
     )
+    consistency = ConsistencyOracle().evaluate(oracle_context)
+
+    # PR-J semantic oracles. Inert (triggered=False) when ``nli`` is None, which
+    # is the default for ``falsifyai run`` -- so they change nothing in production
+    # runs that have not opted into the [nli] extra. When a backend is supplied
+    # they become live peers, which is what makes the meta-oracle's oracle-conflict
+    # detection reachable (it needs >= 2 primary oracles disagreeing).
+    semantic_peers = [
+        ContradictionOracle(nli).evaluate(oracle_context),
+        HallucinationOracle(nli).evaluate(oracle_context),
+        GroundingOracle(nli).evaluate(oracle_context),
+    ]
 
     # Meta-oracle is the SOLE source of INVALID_EVAL. It sees the full invariant
     # matrix (baseline + every perturbed run) so it can tell a malformed
@@ -153,7 +182,7 @@ def _decide_verdict(
             expected=expected,
             embedder=embedder,
             invariant_results=invariant_matrix,
-            peer_verdicts=[consistency],
+            peer_verdicts=[consistency, *semantic_peers],
         )
     )
     if meta.triggered:

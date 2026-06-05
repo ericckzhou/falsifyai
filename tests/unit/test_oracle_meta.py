@@ -2,7 +2,10 @@
 
 from falsifyai.invariants.base import InvariantResult, Severity
 from falsifyai.oracles.base import OracleContext, OracleVerdict
+from falsifyai.oracles.consistency import ConsistencyOracle
+from falsifyai.oracles.contradiction import ContradictionOracle
 from falsifyai.oracles.meta import MetaOracle
+from falsifyai.oracles.nli import MockNLIBackend, NLILabel
 from falsifyai.spec.models import ExpectedSection
 from falsifyai.verdict.models import Verdict
 
@@ -112,3 +115,39 @@ def test_clean_eval_does_not_trigger() -> None:
     v = MetaOracle().evaluate(_ctx(invariant_results=matrix))
     assert v.triggered is False
     assert v.oracle_name == "meta"
+
+
+# --- conflict via REAL oracles (PR-J: now reachable) -------------------------
+
+
+def test_real_consistency_vs_contradiction_conflict_is_detected() -> None:
+    """PR-J makes the oracle-conflict path live for the first time.
+
+    Before PR-J only ConsistencyOracle existed as a primary peer, so the
+    meta-oracle's conflict detector (needs >= 2 disagreeing high-confidence
+    oracles) could never fire. With ContradictionOracle as a second NLI-driven
+    peer, a set that ConsistencyOracle reads as CONSISTENTLY_WRONG (agrees on a
+    known-wrong answer) while ContradictionOracle reads as AMBIGUOUS (the outputs
+    contradict each other) is a genuine, mutually-exclusive conflict -> INVALID_EVAL.
+    """
+    # Ground truth requires "Paris"; every output says "London" -> ConsistencyOracle
+    # ground-truth path triggers CONSISTENTLY_WRONG at confidence 1.0.
+    oracle_ctx = OracleContext(
+        original_output="London",
+        perturbed_outputs=["London", "London"],
+        expected=ExpectedSection(contains=["Paris"]),
+    )
+    consistency = ConsistencyOracle().evaluate(oracle_ctx)
+    assert consistency.verdict_contribution is Verdict.CONSISTENTLY_WRONG
+
+    # No reference -> ContradictionOracle takes the intra-set path; mock forces
+    # every pair to contradict -> AMBIGUOUS at confidence 1.0.
+    contradiction = ContradictionOracle(
+        MockNLIBackend(default_label=NLILabel.CONTRADICTION)
+    ).evaluate(oracle_ctx)
+    assert contradiction.verdict_contribution is Verdict.AMBIGUOUS
+
+    meta = MetaOracle().evaluate(_ctx(peer_verdicts=[consistency, contradiction]))
+    assert meta.triggered is True
+    assert meta.verdict_contribution is Verdict.INVALID_EVAL
+    assert "conflict" in meta.reasoning.lower()
