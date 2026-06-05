@@ -70,3 +70,8 @@ desktop.ini
 
 # Notebooks
 .ipynb_checkpoints/
+
+# Local agent tooling (per-user, not committed)
+.claude/settings.local.json
+.agents/
+scripts/validate_groq.ps1

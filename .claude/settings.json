@@ -17,7 +17,14 @@
       "Bash(uv run:*)",
       "Bash(uv add:*)",
       "Bash(uv lock*)",
-      "Bash(uv tree*)"
+      "Bash(uv tree*)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "Bash(git checkout *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }
