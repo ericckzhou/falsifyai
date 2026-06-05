@@ -6,6 +6,52 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.4] — 2026-06-05
+
+Patch release. Closes a self-falsification in the *evidence-generation* layer
+surfaced by [case study 06](docs/case-studies/06-perturbation-validity-omission.md):
+the `paraphrase` validity gate used embedding cosine similarity, which preserves
+*topic* but not *task completeness*, so an `llm_rewrite` that deleted a task's
+grounding while keeping its vocabulary passed the gate, drove the model to refuse,
+and the refusal was scored as a stable failure — manufacturing
+`CONSISTENTLY_WRONG @ 0.00` over a *correct* `llama-3.1-8b-instant`. The
+`BidirectionalNLIValidator` from [plan.md §9.3](plan.md) — entailment in both
+directions — now rejects such lossy rewrites **under `--nli`**. This completes the
+self-falsification trilogy across all three layers (03 interpretation, 05
+presentation, 06 generation). `--nli`-less runs are byte-identical.
+
+### Added
+
+- **Bidirectional-NLI perturbation validity gate (`perturbation/validity.py`).**
+  The `BidirectionalNLIValidator` that [plan.md §9.3](plan.md) specified as the
+  *default* validity check — but which the MVP deferred in favor of cosine
+  similarity — now exists. A paraphrase is valid only if it **entails the
+  original and is entailed by it**; an omission (the perturbed text drops a
+  load-bearing clause) breaks the reverse direction and is rejected. The gate is
+  wired into the `paraphrase` perturbation and fed the *same* NLI backend
+  `--nli` already provisions for the semantic oracles — generation-layer logic,
+  resolver untouched. Surfaced by [case study 06](docs/case-studies/06-perturbation-validity-omission.md).
+
+### Fixed
+
+- **`paraphrase` validity no longer admits intent-destroying rewrites under
+  `--nli`.** Cosine similarity is symmetric and topical: an `llm_rewrite` that
+  deleted a task's grounding but kept its vocabulary embedded ≥ 0.85 to the
+  original and passed, then drove the model to refuse — a refusal scored as a
+  stable failure. On the bundled [probe-06](docs/case-studies/probe-06/) extraction
+  case this manufactured `CONSISTENTLY_WRONG @ 0.00` over a *correct*
+  `llama-3.1-8b-instant`; with the bidirectional gate the 8 invalid paraphrases
+  are rejected and dropped, and the case resolves `STABLE @ 1.00`. **`--nli`-less
+  runs are byte-identical** (cosine-only gate unchanged); the validity method
+  used is now stamped into each paraphrase's replay lineage (`validity_method`).
+
+### Documentation
+
+- **Case study 06 — "When the test deletes the question."** The third
+  self-falsification study, completing one per architectural layer (03 =
+  interpretation, 05 = presentation, 06 = evidence generation). Before/after
+  evidence bundles preserved under [`docs/case-studies/data/`](docs/case-studies/data/).
+
 ## [0.6.3] — 2026-06-05
 
 Patch release. Fixes a presentation-layer self-falsification surfaced by
@@ -550,6 +596,7 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.6.4]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.4
 [0.6.3]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.3
 [0.6.2]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.1

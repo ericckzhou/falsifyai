@@ -48,6 +48,7 @@ from falsifyai.perturbation.base import (
     ValidityResult,
     hash_input,
 )
+from falsifyai.perturbation.validity import BidirectionalNLIValidator
 from falsifyai.spec.models import ModelConfig
 
 # Prompt template. Variation hints (sample_index + attempt) make each call
@@ -82,6 +83,11 @@ class Paraphrase:
     max_attempts: int = 3
     embedder: EmbeddingBackend = field(default_factory=SentenceTransformerBackend)
     timeout_seconds: int = 30
+    # Optional second validity gate. When provided (the run was given an NLI
+    # backend, e.g. via ``--nli``), a paraphrase must ALSO pass bidirectional
+    # entailment, not just cosine similarity. Cosine cannot catch
+    # intent-destruction-by-omission — see ``validity.py`` and case study 06.
+    nli_validator: "BidirectionalNLIValidator | None" = None
 
     name: ClassVar[str] = "paraphrase"
     category: ClassVar[PerturbationCategory] = PerturbationCategory.SEMANTIC
@@ -115,6 +121,7 @@ class Paraphrase:
                             "similarity_threshold": self.similarity_threshold,
                             "model": self.model_config.model,
                             "validity_score": validity.validity_score,
+                            "validity_method": validity.method,
                         },
                         parent_input_hash=parent_hash,
                     )
@@ -133,18 +140,38 @@ class Paraphrase:
         return results
 
     def validate(self, original: str, perturbed: str) -> ValidityResult:
-        """Cosine similarity of embeddings vs threshold."""
+        """Cosine-similarity gate, optionally tightened by bidirectional NLI.
+
+        Cosine is the always-on cheap gate. It is symmetric and topical, so it
+        cannot detect a paraphrase that *omits* the original's load-bearing
+        content while keeping its vocabulary (case study 06). When an
+        ``nli_validator`` is configured, a cosine-passing paraphrase must
+        ADDITIONALLY entail and be entailed by the original; otherwise it is
+        rejected. With no NLI validator the behavior is byte-identical to the
+        cosine-only gate (``--nli``-less runs are unchanged).
+        """
         embeddings = self.embedder.embed([original, perturbed])
         similarity = _cosine_similarity(embeddings[0], embeddings[1])
-        is_valid = similarity >= self.similarity_threshold
+        cosine_ok = similarity >= self.similarity_threshold
+        if not cosine_ok or self.nli_validator is None:
+            return ValidityResult(
+                is_valid=cosine_ok,
+                validity_score=similarity,
+                reason=(
+                    f"cosine_similarity={similarity:.4f} "
+                    f"{'>=' if cosine_ok else '<'} threshold={self.similarity_threshold}"
+                ),
+                method="embedding_cosine",
+            )
+        nli = self.nli_validator.validate(original, perturbed)
         return ValidityResult(
-            is_valid=is_valid,
-            validity_score=similarity,
+            is_valid=nli.is_valid,
+            validity_score=min(similarity, nli.validity_score),
             reason=(
-                f"cosine_similarity={similarity:.4f} "
-                f"{'>=' if is_valid else '<'} threshold={self.similarity_threshold}"
+                f"cosine_similarity={similarity:.4f} >= threshold={self.similarity_threshold}; "
+                f"{nli.reason}"
             ),
-            method="embedding_cosine",
+            method="embedding_cosine+nli_bidirectional",
         )
 
     def _build_request(

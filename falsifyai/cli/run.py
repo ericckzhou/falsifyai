@@ -192,13 +192,16 @@ def cmd_run(args: argparse.Namespace) -> int:
     # is then reused by the execution engine below.
     adapter = build_adapter(spec.model)
 
-    materialized = materialize(spec, spec_hash, adapter=adapter)
+    # Opt-in NLI backend (``--nli``). None keeps the semantic oracles inert.
+    # Built BEFORE materialization so it can also tighten paraphrase validity
+    # with bidirectional entailment (case study 06) — same backend, both the
+    # generation-layer validity gate and the interpretation-layer oracles.
+    nli = build_nli_backend(getattr(args, "nli", False))
+
+    materialized = materialize(spec, spec_hash, adapter=adapter, nli_backend=nli)
 
     cache = InMemoryCache() if spec.run.cache else None
     engine = ExecutionEngine(adapter=adapter, cache=cache)
-
-    # Opt-in NLI backend (``--nli``). None keeps the semantic oracles inert.
-    nli = build_nli_backend(getattr(args, "nli", False))
 
     case_results: list[CaseResult] = []
     case_falsifiability_scores: list[float] = []

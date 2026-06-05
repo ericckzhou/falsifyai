@@ -299,7 +299,7 @@ this guarantee true.
 
 ---
 
-## 6. Portability infrastructure (not core guarantees) *(intended, Phase 1)*
+## 6. Portability infrastructure (not core guarantees)
 
 The four guarantees in section 5 are **load-bearing** semantics —
 what makes the evidence trustworthy *within* a single team, repo, or
@@ -308,16 +308,15 @@ CI system. They are the core of what the artifact *is*.
 For evidence transferred *across* organizational boundaries — handed
 to an external reader, archived for cross-quarter retention,
 exchanged between teams that don't share infrastructure — additional
-supporting infrastructure is planned:
+supporting infrastructure helps the core artifact travel:
 
 - **Cryptographic signatures** so a recipient can verify the artifact
-  came from a specific producer
-- **A bundled export format** (`.falsifyai-bundle`) packaging the
-  artifact with its lineage for portability
-- **Content-addressable identity** so the artifact's content alone
-  determines its identity
-
-This work is planned for Phase 1.
+  came from a specific producer (deferred until an external trust-boundary
+  use case pulls it forward)
+- **A bundled export format** (`.fai.zip` recommended) packaging the
+  artifact with its lineage for portability (shipped in v0.3.0)
+- **Content-addressable identity** so the artifact's content participates
+  in its identity via `bundle_id` (shipped in v0.3.0)
 
 **Important framing: signing does not define the artifact's value.**
 The four core guarantees in section 5 do. Signing makes the evidence

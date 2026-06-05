@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     # execution or invariants packages at runtime when not needed.
     from falsifyai.execution.adapter import ModelAdapter
     from falsifyai.invariants.base import EmbeddingBackend
+    from falsifyai.oracles.nli import NLIBackend
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,7 @@ def materialize(
     *,
     adapter: "ModelAdapter | None" = None,
     embedder: "EmbeddingBackend | None" = None,
+    nli_backend: "NLIBackend | None" = None,
 ) -> MaterializedSpec:
     """Realize all perturbations in ``spec`` and return a MaterializedSpec.
 
@@ -111,7 +113,12 @@ def materialize(
     session_seed = spec.run.seed
     cases = [
         _materialize_case(
-            case, session_seed, adapter=adapter, embedder=embedder, primary_model=spec.model
+            case,
+            session_seed,
+            adapter=adapter,
+            embedder=embedder,
+            nli_backend=nli_backend,
+            primary_model=spec.model,
         )
         for case in spec.cases
     ]
@@ -132,6 +139,7 @@ def _materialize_case(
     *,
     adapter: "ModelAdapter | None" = None,
     embedder: "EmbeddingBackend | None" = None,
+    nli_backend: "NLIBackend | None" = None,
     primary_model: "ModelConfig | None" = None,
 ) -> MaterializedCase:
     case_seed = _derive_case_seed(session_seed, case.id)
@@ -142,6 +150,7 @@ def _materialize_case(
             primary_model=primary_model,
             adapter=adapter,
             embedder=embedder,
+            nli_backend=nli_backend,
         )
         per_perturbation_seed = _derive_perturbation_seed(case_seed, index)
         realized.extend(perturbation.apply(case.input.text, seed=per_perturbation_seed))
