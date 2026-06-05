@@ -12,6 +12,7 @@ For the categorical framing the case studies operationalize — *why capability 
 |---|---|---|---|
 | 01 | [Invisible character substitution](01-invisible-character-substitution.md) | Cross-model `contains`-contract brittleness as a persistent class; a model-migration regression (U+202F substitution between "30" and "days") as the vivid instance. | `history`, `diff`, `inspect`, `replay` |
 | 02 | [Resolver arbitration: boundary shift without verdict shift](02-resolver-arbitration-boundary-shift.md) | An operationally motivated CLAUDE.md revision changed *where* a model permitted additional architectural complexity to exist without changing its top-level recommendation — the kind of subtle drift a pass/fail evaluator would miss. Manual retrospective probe; reproduction specs at [`specs/`](specs/). | manual probe + machine-reproducible [`specs/`](specs/) |
+| 03 | [When the evaluator is wrong: a self-falsification study](03-evaluator-false-positive.md) | A *correct, stable* model assigned the framework's harshest verdict (`CONSISTENTLY_WRONG` @ 1.00) by FalsifyAI's own interpretation layer; the preserved evidence overturned every false-positive verdict and drove the 0.6.1 `HallucinationOracle` fix. Self-falsification — differs from the model-behavior charter on purpose. | `inspect` over the bundled [`probe-03/`](probe-03/) store |
 
 ## How to read a case study
 

@@ -1,10 +1,11 @@
 # probe-03 — results
 
-> **Status: RUN COMPLETE (2026-06-05). No case study promoted.** The bake-off
-> did not find a confidently-wrong *model* — and that negative result, plus what
-> it surfaced about FalsifyAI's own interpretation layer, is the real finding.
-> **Finding 1 (the high-severity HallucinationOracle false positive) was fixed
-> the same day in commit `2a03644`.**
+> **Status: PROMOTED to [case study 03](../03-evaluator-false-positive.md) (2026-06-05).**
+> The bake-off did not find a confidently-wrong *model* — and that negative
+> result, plus the framework's own false positive it surfaced, became the
+> published self-falsification case study. **Finding 1 (the high-severity
+> HallucinationOracle false positive) was fixed the same day in commit
+> `2a03644`** and shipped in 0.6.1.
 
 ## Run metadata
 

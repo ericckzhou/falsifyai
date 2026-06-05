@@ -6,6 +6,7 @@ This directory contains preserved replay artifacts for the published case studie
 |---|---|---|
 | [`case-study-replays.db`](case-study-replays.db) | [01 — Invisible character substitution](../01-invisible-character-substitution.md) | 8 |
 | [`case-study-02.db`](case-study-02.db) | [02 — Resolver arbitration boundary shift](../02-resolver-arbitration-boundary-shift.md) | 2 |
+| [`probe-03.db`](probe-03.db) | [03 — When the evaluator is wrong](../03-evaluator-false-positive.md) | 5 |
 
 ## Bundle file
 
@@ -198,3 +199,30 @@ falsifyai verify --all --store-path docs/case-studies/data/case-study-02.db
 - Not a measurement of the model's "design ability." The manual probe (`../02-resolver-arbitration-boundary-shift.md`) is the canonical evidence for the boundary-shift finding; this bundle is the *reproduction surface*, not a re-investigation.
 - Not a benchmark of `typo_noise` perturbation quality. The FRAGILE outcomes reflect the `semantic_equivalence` threshold's strictness on long structured responses, not a model failure.
 - Not synthesized data. Both sessions were produced by `falsifyai run` against the committed specs against Claude Sonnet 4.6 via the Anthropic API on 2026-05-24.
+
+---
+
+# `probe-03.db` — When the evaluator is wrong
+
+Companion bundle for [`../03-evaluator-false-positive.md`](../03-evaluator-false-positive.md). Five single-case sessions produced by running the [`../probe-03/`](../probe-03/) candidate specs end-to-end against `groq/llama-3.3-70b-versatile` on 2026-06-05.
+
+| Field | Value |
+|---|---|
+| Filename | `probe-03.db` |
+| SHA256 | `5a6c77ba6231c260209ac0669b6fc9206381f02ca2f48f9f9a24de947ece6e62` |
+| Sessions | 5 |
+| Model | `groq/llama-3.3-70b-versatile` (temperature 0.0, seed 42, `--nli`) |
+| Specs used | [`../probe-03/candidate-1..5-*.yaml`](../probe-03/) |
+| FalsifyAI version | 0.6.0 (stamped on every session) |
+
+```bash
+python -c "import hashlib; print(hashlib.sha256(open('docs/case-studies/data/probe-03.db','rb').read()).hexdigest())"
+# expected: 5a6c77ba6231c260209ac0669b6fc9206381f02ca2f48f9f9a24de947ece6e62
+```
+
+Session → candidate map: 1 `4be3d5f2…` (refund omission) · 2 `15b1fc16…` (deadline inversion — the `CONSISTENTLY_WRONG` @ 1.00 false positive) · 3 `c42633a1…` (extraction schema) · 4 `db7d00a5…` (clause exception) · 5 `0efc23e3…` (threshold anchor).
+
+## What this is NOT
+
+- **Not evidence of a confidently-wrong model.** The model answered all five tasks correctly; every non-trivial verdict in the store is a false positive from the interpretation layer. That inversion *is* the case study.
+- **Not re-resolved on read.** Sessions are stamped `falsifyai 0.6.0` and preserve the pre-fix verdicts. `inspect` on 0.6.1 still shows `CONSISTENTLY_WRONG` for session 2 because replay is read-only — the bundle is the deliberate "before" record of the false positive that 0.6.1 (`2a03644`) fixed.
