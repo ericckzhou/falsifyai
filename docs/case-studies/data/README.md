@@ -6,7 +6,7 @@ This directory contains preserved replay artifacts for the published case studie
 |---|---|---|
 | [`case-study-replays.db`](case-study-replays.db) | [01 — Invisible character substitution](../01-invisible-character-substitution.md) | 8 |
 | [`case-study-02.db`](case-study-02.db) | [02 — Resolver arbitration boundary shift](../02-resolver-arbitration-boundary-shift.md) | 2 |
-| [`probe-03.db`](probe-03.db) | [03 — When the evaluator is wrong](../03-evaluator-false-positive.md) | 5 |
+| [`probe-03.db`](probe-03.db) | [03 — When the evaluator is wrong](../03-evaluator-false-positive.md) · [05 — When the confidence number lies](../05-confidence-floor-inversion.md) (same bundle, second reading) | 5 |
 | [`case-study-04.db`](case-study-04.db) | [04 — Overconfident negation](../04-overconfident-negation.md) | 4 |
 | [`probe-05.db`](probe-05.db) | [probe-05 — grounding-verdict quartet](../probe-05/README.md) (probe; not yet promoted to a numbered study) | 5 |
 
