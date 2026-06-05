@@ -12,9 +12,9 @@ over N sessions), ``minimize`` (smallest perturbation that breaks a case),
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
-- 0 SUCCESS — session verdict STABLE
-- 1 DEGRADED — session verdict FRAGILE
-- 2 FAILURE — session verdict CONSISTENTLY_WRONG / INVALID_EVAL
+- 0 SUCCESS — session verdict STABLE / INFORMATION_PRESENT
+- 1 DEGRADED — session verdict FRAGILE / AMBIGUOUS / INFORMATION_NULL
+- 2 FAILURE — session verdict CONSISTENTLY_WRONG / ADVERSARIALLY_VULNERABLE / INVALID_EVAL
 - 3 ERROR — infrastructure failure (bad spec, missing credential, model call)
 - 4 INSUFFICIENT — not enough evidence to discriminate
 

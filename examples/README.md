@@ -16,6 +16,9 @@ this directory is verified in CI via the dogfood tests in
 | [`unicode_regression.yaml`](unicode_regression.yaml) | `FRAGILE` (exit 1) | The `unicode` perturbation family: visually-identical, byte-different input (invisible spaces incl. U+202F, zero-width chars, Cyrillic homoglyphs). Generation-side complement to [case study 01](../case-studies/) — FalsifyAI now *generates* the failure it could previously only *detect*. |
 | [`schema_match.yaml`](schema_match.yaml) | `FRAGILE` (exit 1) | The `schema_match` invariant: asserts output is valid JSON conforming to a schema (required keys, typed properties). The structural assertion `contains` could only approximate for structured-output cases. |
 | [`invalid_eval.yaml`](invalid_eval.yaml) | `INVALID_EVAL` (exit 2) | The meta-oracle: a malformed invariant that rejects every output *including the clean baseline* is flagged as a broken evaluation, not a failing model. Protects users from gating CI on a measurement error. |
+| [`adversarially_vulnerable.yaml`](adversarially_vulnerable.yaml) | `ADVERSARIALLY_VULNERABLE` (exit 2) | A *targeted* attack shape: the model survives typo noise but reliably breaks under casing changes. One family holds while another collapses — a known attack vector, distinct from the diffuse instability of `FRAGILE` ([plan §2.2](../plan.md)). |
+| [`information_null.yaml`](information_null.yaml) | `INFORMATION_NULL` (exit 1) | Stable in structure, empty of information: the model refuses identically under every perturbation. Naive stability scoring would call this fine; the `InformationNullOracle` recognises the refusal pattern. |
+| [`ambiguous.yaml`](ambiguous.yaml) | `AMBIGUOUS` (exit 1) | An underpowered eval: too few samples leave a wide worst-case CI, so the framework honestly reports "can't discriminate yet" rather than guessing. Distinct from `INSUFFICIENT` (which has no material to judge at all). |
 
 ## Running locally
 
@@ -47,10 +50,11 @@ falsifyai run examples/model_migration.yaml
 falsifyai diff <session_A_id> <session_B_id>
 ```
 
-The regression criterion is **verdict-class downgrade**:
-`STABLE → FRAGILE`, `STABLE → CONSISTENTLY_WRONG`, or
-`FRAGILE → CONSISTENTLY_WRONG`. Same-verdict transitions (even with
-stability drops) do not trigger exit 5; the binary criterion is
+The regression criterion is **verdict-class downgrade**, ranked over the
+8-verdict quality ladder: a move to a worse rank triggers exit 5 (e.g.
+`STABLE → FRAGILE`, `FRAGILE → ADVERSARIALLY_VULNERABLE`,
+`INFORMATION_PRESENT → STABLE`). Same-tier and same-verdict transitions
+(even with stability drops) do not trigger exit 5; the criterion is
 predictable by design.
 
 ## Replaying a stored session

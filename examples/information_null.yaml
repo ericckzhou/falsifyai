@@ -1,0 +1,39 @@
+# examples/information_null.yaml
+#
+# Demonstrates the INFORMATION_NULL verdict: outputs that are structurally
+# *stable* but semantically *empty* -- refusals, hedging, or non-answers
+# (per plan.md section 2.2). Naive stability scoring marks this fine (the
+# outputs barely vary!); INFORMATION_NULL catches that the variation is low
+# because the model is saying nothing, not because it is reliably correct.
+#
+# The model refuses identically under every perturbation. The
+# semantic_equivalence invariant passes (all refusals are mutually identical,
+# so the behavior is "stable"), but the InformationNullOracle recognises the
+# refusal pattern and the resolver returns INFORMATION_NULL (exit 1).
+# Note: no `expected.contains` ground truth -- this is the no-grounding-claim row.
+
+falsify:
+  version: "1.0"
+  name: "Consistently refusing model (information-null)"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 128
+
+run:
+  seed: 42
+
+cases:
+  - id: refused_question
+    tags: ["refusal", "information-null-demo"]
+    input:
+      text: "What is the capital of France?"
+    perturbations:
+      - type: typo_noise
+        count: 3
+      - type: casing
+    invariants:
+      - type: semantic_equivalence
+        threshold: 0.9

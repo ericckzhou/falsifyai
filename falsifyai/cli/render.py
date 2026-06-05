@@ -43,10 +43,19 @@ if TYPE_CHECKING:
 # layer before a verdict exists; code 5 (REGRESSION) and 6 (LOW_FALSIFIABILITY)
 # land with the Week 2 features.
 _EXIT_CODES: dict[Verdict, int] = {
+    # SUCCESS (0): high stability, optionally grounded.
+    Verdict.INFORMATION_PRESENT: 0,
     Verdict.STABLE: 0,
+    # DEGRADED (1): instability or thin/empty evidence -- reliability not refuted
+    # outright, but the claim is weakened.
     Verdict.FRAGILE: 1,
+    Verdict.AMBIGUOUS: 1,
+    Verdict.INFORMATION_NULL: 1,
+    # FAILURE (2): a known-wrong, targeted, or broken-eval result.
     Verdict.CONSISTENTLY_WRONG: 2,
+    Verdict.ADVERSARIALLY_VULNERABLE: 2,
     Verdict.INVALID_EVAL: 2,
+    # INSUFFICIENT (4): not enough structure to judge.
     Verdict.INSUFFICIENT: 4,
 }
 

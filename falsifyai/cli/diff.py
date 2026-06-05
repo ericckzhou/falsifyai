@@ -14,9 +14,11 @@ regressions with a single command.
 - The diff does NOT re-resolve verdicts under the current resolver. The
   verdicts compared are the ones assigned at each ``run`` time. Diff is a
   consumer of already-resolved artifacts; the resolver stays untouched.
-- Regression criterion is **verdict-class downgrade only**: STABLE -> FRAGILE,
-  STABLE -> CONSISTENTLY_WRONG, FRAGILE -> CONSISTENTLY_WRONG. No thresholds,
-  no per-stability deltas as regression signals. Predictable by design.
+- Regression criterion is **verdict-class downgrade only**, ranked over the
+  8-verdict quality ladder (``_QUALITY_RANK``): a move to a worse rank is a
+  regression (e.g. STABLE -> FRAGILE, FRAGILE -> ADVERSARIALLY_VULNERABLE,
+  INFORMATION_PRESENT -> STABLE). No thresholds, no per-stability deltas as
+  regression signals. Predictable by design.
 - Cases present in only one side are surfaced as ADDED / REMOVED but do NOT
   trigger exit 5. Specs evolve legitimately.
 """
@@ -83,34 +85,51 @@ class DiffReport:
 # ---------------------------------------------------------------------------
 
 
-# Verdict-class downgrades that count as REGRESSED.
-# Read as: baseline_verdict -> {candidate_verdicts that are regressions}.
-_REGRESSION_DOWNGRADES: dict[Verdict, frozenset[Verdict]] = {
-    Verdict.STABLE: frozenset({Verdict.FRAGILE, Verdict.CONSISTENTLY_WRONG}),
-    Verdict.FRAGILE: frozenset({Verdict.CONSISTENTLY_WRONG}),
+# Quality rank over the 8-verdict taxonomy (lower = better). A move to a higher
+# rank is a REGRESSION; to a lower rank, an IMPROVEMENT; a tie (e.g. AMBIGUOUS vs
+# INFORMATION_NULL, both "degraded") is OTHER_CHANGE -- not a clear up or down.
+#
+# The two cross-cutting meta-verdicts are intentionally OFF the ladder:
+#   - INVALID_EVAL: a broken eval is not a point on the quality axis.
+#   - INSUFFICIENT: "couldn't judge" -- handled asymmetrically below (recovering
+#     FROM it to a positive verdict is an improvement, but degrading INTO it is
+#     informational, not a regression).
+_QUALITY_RANK: dict[Verdict, int] = {
+    Verdict.INFORMATION_PRESENT: 0,
+    Verdict.STABLE: 1,
+    Verdict.AMBIGUOUS: 2,
+    Verdict.INFORMATION_NULL: 2,
+    Verdict.FRAGILE: 3,
+    Verdict.ADVERSARIALLY_VULNERABLE: 4,
+    Verdict.CONSISTENTLY_WRONG: 4,
 }
 
-# Reverse direction: IMPROVED. STABLE is the "good" pole; transitioning toward
-# it (from any worse verdict) counts as improvement.
-_IMPROVEMENT_TARGETS: dict[Verdict, frozenset[Verdict]] = {
-    Verdict.STABLE: frozenset({Verdict.FRAGILE, Verdict.CONSISTENTLY_WRONG, Verdict.INSUFFICIENT})
-}
+# Confident-positive verdicts: recovering to one of these from INSUFFICIENT counts
+# as an improvement (the eval went from "couldn't judge" to a clean result).
+_POSITIVE_VERDICTS: frozenset[Verdict] = frozenset({Verdict.STABLE, Verdict.INFORMATION_PRESENT})
 
 
 def _classify_transition(baseline: Verdict, candidate: Verdict) -> TransitionKind:
     """Decide what kind of transition this verdict-pair represents.
 
-    See ``_REGRESSION_DOWNGRADES`` and ``_IMPROVEMENT_TARGETS`` for the
-    canonical mappings. Any other transition (e.g., STABLE -> INSUFFICIENT
-    or anything involving INVALID_EVAL) is OTHER_CHANGE -- informational
-    but not a regression.
+    Ranked verdicts compare by ``_QUALITY_RANK``: worse rank -> REGRESSED, better
+    rank -> IMPROVED, tie -> OTHER_CHANGE. Recovering from INSUFFICIENT to a
+    positive verdict is IMPROVED. Anything else (degrading into INSUFFICIENT, or
+    any transition touching INVALID_EVAL) is OTHER_CHANGE -- informational, not a
+    regression.
     """
     if baseline is candidate:
         return TransitionKind.UNCHANGED
-    if candidate in _REGRESSION_DOWNGRADES.get(baseline, frozenset()):
-        return TransitionKind.REGRESSED
-    # Improvement: candidate is STABLE and baseline was a worse verdict.
-    if baseline in _IMPROVEMENT_TARGETS.get(candidate, frozenset()):
+    base_rank = _QUALITY_RANK.get(baseline)
+    cand_rank = _QUALITY_RANK.get(candidate)
+    if base_rank is not None and cand_rank is not None:
+        if cand_rank > base_rank:
+            return TransitionKind.REGRESSED
+        if cand_rank < base_rank:
+            return TransitionKind.IMPROVED
+        return TransitionKind.OTHER_CHANGE
+    # Recovered from "couldn't judge" to a clean positive verdict.
+    if baseline is Verdict.INSUFFICIENT and candidate in _POSITIVE_VERDICTS:
         return TransitionKind.IMPROVED
     return TransitionKind.OTHER_CHANGE
 

@@ -17,9 +17,47 @@ from falsifyai.perturbation.base import (
 from falsifyai.replay.models import PerturbedRun
 from falsifyai.verdict.stratify import (
     bootstrap_stability,
+    failure_shape,
     stratify_by_family,
     worst_case_stratified,
 )
+
+# ---------------------------------------------------------------------------
+# failure_shape (PR-K: ADVERSARIALLY_VULNERABLE vs FRAGILE discriminator)
+# ---------------------------------------------------------------------------
+
+
+def _triple(ci_low: float) -> tuple[float, float, float]:
+    """A per-family bootstrap triple keyed on its CI lower bound (what shape reads)."""
+    return (ci_low, ci_low, ci_low)
+
+
+def test_failure_shape_empty_is_none() -> None:
+    assert failure_shape({}) == "none"
+
+
+def test_failure_shape_all_holding_is_none() -> None:
+    assert failure_shape({"typo": _triple(1.0), "casing": _triple(0.9)}) == "none"
+
+
+def test_failure_shape_one_breaks_one_holds_is_targeted() -> None:
+    # casing collapses, typo holds -> a known attack vector.
+    assert failure_shape({"typo": _triple(1.0), "casing": _triple(0.0)}) == "targeted"
+
+
+def test_failure_shape_all_broken_is_diffuse() -> None:
+    assert failure_shape({"typo": _triple(0.2), "casing": _triple(0.1)}) == "diffuse"
+
+
+def test_failure_shape_single_broken_family_is_diffuse() -> None:
+    # One family, broken: no other family for it to stand out against -> diffuse.
+    assert failure_shape({"typo": _triple(0.0)}) == "diffuse"
+
+
+def test_failure_shape_broken_with_midband_family_is_diffuse() -> None:
+    # A broken family plus a mid-band (0.6: neither broken<0.5 nor holding>=0.8)
+    # family is NOT a clean targeted attack.
+    assert failure_shape({"typo": _triple(0.6), "casing": _triple(0.0)}) == "diffuse"
 
 
 def _execution() -> Execution:

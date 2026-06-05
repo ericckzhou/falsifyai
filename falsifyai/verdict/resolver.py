@@ -30,6 +30,7 @@ from falsifyai.oracles.consistency import ConsistencyOracle
 from falsifyai.oracles.contradiction import ContradictionOracle
 from falsifyai.oracles.grounding import GroundingOracle
 from falsifyai.oracles.hallucination import HallucinationOracle
+from falsifyai.oracles.information_null import InformationNullOracle
 from falsifyai.oracles.meta import MetaOracle
 from falsifyai.oracles.nli import NLIBackend
 from falsifyai.replay.models import CaseResult, PerturbedRun, SessionVerdict
@@ -37,6 +38,7 @@ from falsifyai.spec.models import ExpectedSection
 from falsifyai.verdict.models import Verdict
 from falsifyai.verdict.stratify import (
     bootstrap_stability,
+    failure_shape,
     stratify_by_family,
     worst_case_stratified,
 )
@@ -63,6 +65,7 @@ def resolve_case(
     invariants: list[Invariant],
     stable_threshold: float,
     case_seed: int,
+    fragile_threshold: float = 0.5,
     embedder: EmbeddingBackend | None = None,
     nli: NLIBackend | None = None,
 ) -> CaseResult:
@@ -70,15 +73,20 @@ def resolve_case(
 
     All keyword-only -- the signature is too wide for positional clarity.
 
+    ``stable_threshold`` / ``fragile_threshold`` bound the confidence bands: a
+    worst-case CI lower bound at/above ``stable_threshold`` is confidently stable;
+    a CI *upper* bound below ``fragile_threshold`` is confidently broken; the band
+    between them (a wide CI) is AMBIGUOUS -- the eval ran but cannot discriminate.
+
     ``embedder`` is optional and only used by the ConsistencyOracle's
     reference-agreement path. When None (the default), consistency falls back to
     the ground-truth string check, identical to the pre-oracle behavior.
 
     ``nli`` is optional and drives the PR-J semantic oracles (contradiction /
     hallucination / grounding). When None (the default), those oracles degrade to
-    ``triggered=False`` and contribute nothing -- the resolver's emitted verdict
-    is unchanged. Their contributions feed the meta-oracle's conflict detection
-    and the replay artifact only when a backend is supplied.
+    ``triggered=False`` and contribute nothing. The InformationNullOracle and the
+    stratified failure-shape read need no backend, so INFORMATION_NULL and
+    ADVERSARIALLY_VULNERABLE are reachable without opting into [nli].
     """
     bootstrap_seed = _bootstrap_seed_for_case(case_seed)
 
@@ -92,6 +100,7 @@ def resolve_case(
         per_family_point[family] = triple[0]
 
     worst_family, stability, ci_low, ci_high = worst_case_stratified(per_family_triples)
+    shape = failure_shape(per_family_triples)
 
     verdict = _decide_verdict(
         original_output=original_execution.output_text,
@@ -100,7 +109,10 @@ def resolve_case(
         invariants=invariants,
         perturbed_runs=perturbed_runs,
         stability_ci_low=ci_low,
+        stability_ci_high=ci_high,
         stable_threshold=stable_threshold,
+        fragile_threshold=fragile_threshold,
+        shape=shape,
         embedder=embedder,
         nli=nli,
     )
@@ -128,27 +140,30 @@ def _decide_verdict(
     invariants: list[Invariant],
     perturbed_runs: list[PerturbedRun],
     stability_ci_low: float,
+    stability_ci_high: float,
     stable_threshold: float,
+    fragile_threshold: float,
+    shape: str,
     embedder: EmbeddingBackend | None = None,
     nli: NLIBackend | None = None,
 ) -> Verdict:
-    """Apply the verdict priority chain.
+    """Apply the 8-verdict priority chain (plan.md §13.1), worst/most-certain first.
 
-    Order: INSUFFICIENT -> CONSISTENTLY_WRONG -> FRAGILE -> STABLE.
+    INSUFFICIENT -> INVALID_EVAL -> CONSISTENTLY_WRONG -> [instability band:
+    ADVERSARIALLY_VULNERABLE | FRAGILE | AMBIGUOUS] -> [stable band:
+    INFORMATION_NULL | INFORMATION_PRESENT | STABLE].
 
-    PR-J note: the semantic oracles (contradiction / hallucination / grounding)
-    are evaluated here and fed to the meta-oracle as peers, but no resolver
-    branch consumes their contributions yet -- the emitted verdict set is
-    unchanged (branch count stays 5). PR-K adds the branches that turn their
-    evidence into INFORMATION_PRESENT / AMBIGUOUS / etc.
+    Discipline (``.claude/CLAUDE.md`` + ``tests/meta/test_resolver_branch_count``):
+    every branch is a single condition over an *already-resolved* signal -- an
+    oracle's pre-arbitrated contribution, or a stratified-stats field computed
+    upstream (``shape``, the CI bounds). No detection logic lives here. The branch
+    count grows from 5 to 9 because four genuine new verdict *classes* are wired in
+    -- the one-time growth the meta-test sanctions -- not because an oracle leaked
+    a branch. Each verdict class appears in exactly one ``return``.
     """
     if not perturbed_runs or not invariants:
         return Verdict.INSUFFICIENT
 
-    # Run primary oracles once, then consume their pre-arbitrated verdicts by
-    # precedence. Each oracle collapses to one OracleVerdict, so adding an
-    # oracle never adds a branch here (see the branch-count meta-test); only
-    # adding a new verdict *class* does.
     oracle_context = OracleContext(
         original_output=original_output,
         perturbed_outputs=perturbed_outputs,
@@ -157,22 +172,21 @@ def _decide_verdict(
     )
     consistency = ConsistencyOracle().evaluate(oracle_context)
 
-    # PR-J semantic oracles. Inert (triggered=False) when ``nli`` is None, which
-    # is the default for ``falsifyai run`` -- so they change nothing in production
-    # runs that have not opted into the [nli] extra. When a backend is supplied
-    # they become live peers, which is what makes the meta-oracle's oracle-conflict
-    # detection reachable (it needs >= 2 primary oracles disagreeing).
+    # PR-J semantic oracles (NLI). Inert when ``nli`` is None. They are meta-oracle
+    # peers, so their disagreement is what makes oracle-conflict detection live.
     semantic_peers = [
         ContradictionOracle(nli).evaluate(oracle_context),
         HallucinationOracle(nli).evaluate(oracle_context),
         GroundingOracle(nli).evaluate(oracle_context),
     ]
+    # InformationNullOracle needs no backend. It is NOT a meta peer (a shape
+    # detector, not a truth oracle -- it must not manufacture an oracle conflict).
+    info_null = InformationNullOracle().evaluate(oracle_context)
 
     # Meta-oracle is the SOLE source of INVALID_EVAL. It sees the full invariant
-    # matrix (baseline + every perturbed run) so it can tell a malformed
-    # invariant (fails even the clean baseline) from a genuinely failing model
-    # (explained by a primary oracle, so degeneration is suppressed). If the
-    # eval itself is broken, no other verdict is trustworthy -> top priority.
+    # matrix (baseline + every perturbed run) so it can tell a malformed invariant
+    # (fails even the clean baseline) from a genuinely failing model. If the eval
+    # itself is broken, no other verdict is trustworthy -> top priority.
     baseline_results = [inv.check(original_output, original_output, {}) for inv in invariants]
     invariant_matrix = [baseline_results, *(run.invariant_results for run in perturbed_runs)]
     meta = MetaOracle().evaluate(
@@ -188,13 +202,39 @@ def _decide_verdict(
     if meta.triggered:
         return Verdict.INVALID_EVAL
 
-    # CONSISTENTLY_WRONG must take priority over FRAGILE: the model could be both
-    # unstable AND consistently wrong; the latter is the more dangerous signal.
-    if consistency.triggered:
+    # Pre-arbitrated contributions, collapsed to a set the branches read by name.
+    contributions = {
+        v.verdict_contribution
+        for v in (consistency, *semantic_peers, info_null)
+        if v.triggered and v.verdict_contribution is not None
+    }
+
+    # CONSISTENTLY_WRONG: consistent, confident, and known-wrong. Highest-priority
+    # substantive verdict -- more dangerous than any instability signal.
+    if Verdict.CONSISTENTLY_WRONG in contributions:
         return Verdict.CONSISTENTLY_WRONG
 
+    # Instability band: the worst-case family's CI lower bound failed the stable
+    # bar. Three sub-cases by *shape* and *certainty*.
     if stability_ci_low < stable_threshold:
-        return Verdict.FRAGILE
+        # Targeted: one family collapses while others hold -> a known attack vector.
+        if shape == "targeted":
+            return Verdict.ADVERSARIALLY_VULNERABLE
+        # Confidently broken: even the optimistic CI upper bound is below the
+        # fragile bar -> diffuse, real fragility.
+        if stability_ci_high < fragile_threshold:
+            return Verdict.FRAGILE
+        # Wide CI: low floor but high ceiling -- the eval ran but cannot
+        # discriminate (typically small N). Honest "we don't know yet."
+        return Verdict.AMBIGUOUS
+
+    # Stable band: worst-case CI lower bound cleared the stable bar.
+    # INFORMATION_NULL: stable in structure but empty of information (refusals).
+    if Verdict.INFORMATION_NULL in contributions:
+        return Verdict.INFORMATION_NULL
+    # INFORMATION_PRESENT: stable AND grounding confirmed -- the gold standard.
+    if Verdict.INFORMATION_PRESENT in contributions:
+        return Verdict.INFORMATION_PRESENT
 
     return Verdict.STABLE
 
@@ -206,11 +246,11 @@ def resolve_session(
 ) -> SessionVerdict:
     """Roll case-level verdicts up into a session-level verdict.
 
-    Priority (worst-first):
-    1. Any CONSISTENTLY_WRONG -> CONSISTENTLY_WRONG
-    2. Any FRAGILE -> FRAGILE
-    3. All INSUFFICIENT -> INSUFFICIENT
-    4. Otherwise -> STABLE
+    Priority (worst-first): INVALID_EVAL -> CONSISTENTLY_WRONG ->
+    ADVERSARIALLY_VULNERABLE -> FRAGILE -> AMBIGUOUS -> INFORMATION_NULL ->
+    (all INSUFFICIENT) INSUFFICIENT -> (all INFORMATION_PRESENT)
+    INFORMATION_PRESENT -> STABLE. The session takes its colour from its worst
+    case: one broken case taints the run.
 
     Confidence is the mean of per-case confidences (0.0 on empty input).
     """
@@ -220,6 +260,9 @@ def resolve_session(
     )
     invalid_eval_count = sum(1 for c in case_results if c.verdict is Verdict.INVALID_EVAL)
     case_count = len(case_results)
+
+    def _any(verdict: Verdict) -> bool:
+        return any(c.verdict is verdict for c in case_results)
 
     if case_count == 0:
         verdict = Verdict.INSUFFICIENT
@@ -231,10 +274,18 @@ def resolve_session(
             verdict = Verdict.INVALID_EVAL
         elif consistently_wrong_count > 0:
             verdict = Verdict.CONSISTENTLY_WRONG
+        elif _any(Verdict.ADVERSARIALLY_VULNERABLE):
+            verdict = Verdict.ADVERSARIALLY_VULNERABLE
         elif fragile_count > 0:
             verdict = Verdict.FRAGILE
+        elif _any(Verdict.AMBIGUOUS):
+            verdict = Verdict.AMBIGUOUS
+        elif _any(Verdict.INFORMATION_NULL):
+            verdict = Verdict.INFORMATION_NULL
         elif all(c.verdict is Verdict.INSUFFICIENT for c in case_results):
             verdict = Verdict.INSUFFICIENT
+        elif all(c.verdict is Verdict.INFORMATION_PRESENT for c in case_results):
+            verdict = Verdict.INFORMATION_PRESENT
         else:
             verdict = Verdict.STABLE
         confidence = sum(c.verdict_confidence for c in case_results) / case_count
