@@ -22,13 +22,17 @@ import inspect
 
 from falsifyai.verdict import resolver
 
-# Locked baseline. PR-C (oracle protocol + ConsistencyOracle) does NOT change
-# this: ConsistencyOracle replaces the ``is_consistently_wrong`` call inside the
-# existing CONSISTENTLY_WRONG branch, adding no new return.
+# Locked baseline. Changes ONLY when a new verdict *class* is wired in, never
+# when an oracle is added (oracles pre-arbitrate; the resolver consumes their
+# verdicts by precedence).
 #
 # History:
 #   4 -- INSUFFICIENT, CONSISTENTLY_WRONG, FRAGILE, STABLE (PR-#11 resolver, PR-C)
-_EXPECTED_VERDICT_RETURNS = 4
+#   5 -- + INVALID_EVAL via the MetaOracle (PR-D). One-time growth: INVALID_EVAL
+#        is a genuinely new verdict class with a new top-priority branch. The
+#        MetaOracle is its sole source; future oracles emitting *existing*
+#        classes must route through the relevant branch, not add a new one.
+_EXPECTED_VERDICT_RETURNS = 5
 
 
 def _decide_verdict_ast() -> ast.FunctionDef:

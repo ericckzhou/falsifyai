@@ -1,0 +1,39 @@
+# examples/invalid_eval.yaml
+#
+# Demonstrates INVALID_EVAL: the evaluation itself is broken, so no STABLE /
+# FRAGILE / CONSISTENTLY_WRONG verdict would be trustworthy.
+#
+# The invariant requires the substring "ELEPHANT", which the model never
+# produces for an arithmetic question. Because the invariant fails on the clean
+# baseline output too (not just the perturbations), the meta-oracle flags it as
+# a malformed invariant rather than a failing model. There is no expected ground
+# truth, so the ConsistencyOracle does not fire — nothing "explains" the
+# universal failure except a broken assertion.
+#
+# This is the signal that protects users from launching a green/red CI gate on a
+# measurement error.
+
+falsify:
+  version: "1.0"
+  name: "Invalid eval: malformed invariant rejects every output"
+
+model:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 64
+
+run:
+  seed: 42
+
+cases:
+  - id: arithmetic_malformed_invariant
+    tags: ["meta-oracle", "invalid-eval"]
+    input:
+      text: "What is 2 + 2?"
+    perturbations:
+      - type: typo_noise
+        count: 5
+    invariants:
+      - type: contains
+        values: ["ELEPHANT"]

@@ -553,6 +553,34 @@ def test_schema_match_yaml_stable_when_structure_preserved(monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
+# invalid_eval.yaml (PR-D) — meta-oracle / INVALID_EVAL
+# ---------------------------------------------------------------------------
+
+
+def test_invalid_eval_yaml_is_a_valid_spec() -> None:
+    spec, _ = load_spec(_EXAMPLES / "invalid_eval.yaml")
+    assert spec.run.seed == 42
+    assert [c.id for c in spec.cases] == ["arithmetic_malformed_invariant"]
+    assert spec.cases[0].invariants[0].values == ["ELEPHANT"]
+
+
+def test_invalid_eval_yaml_produces_invalid_eval_verdict(monkeypatch) -> None:
+    """The contains invariant fails on the baseline AND every perturbation, with
+    no ground truth to explain it -> the meta-oracle flags INVALID_EVAL (exit 2)."""
+    spec_path = _EXAMPLES / "invalid_eval.yaml"
+    spec, spec_hash = load_spec(spec_path)
+    materialized = materialize(spec, spec_hash)
+
+    # Model answers correctly ("4") everywhere; the invariant is the broken part.
+    responses = {"arithmetic_malformed_invariant": "The answer is 4."}
+    adapter = MockAdapter(response_map=_build_response_map(spec, materialized, responses))
+    monkeypatch.setattr(cli_run, "build_adapter", lambda model: adapter)
+
+    rc = cli_run.cmd_run(_args(spec_path))
+    assert rc == 2  # INVALID_EVAL -> exit 2
+
+
+# ---------------------------------------------------------------------------
 # falsifyai history <case_id> (PR #24)
 # ---------------------------------------------------------------------------
 
