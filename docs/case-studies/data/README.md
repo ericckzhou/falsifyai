@@ -7,6 +7,7 @@ This directory contains preserved replay artifacts for the published case studie
 | [`case-study-replays.db`](case-study-replays.db) | [01 — Invisible character substitution](../01-invisible-character-substitution.md) | 8 |
 | [`case-study-02.db`](case-study-02.db) | [02 — Resolver arbitration boundary shift](../02-resolver-arbitration-boundary-shift.md) | 2 |
 | [`probe-03.db`](probe-03.db) | [03 — When the evaluator is wrong](../03-evaluator-false-positive.md) | 5 |
+| [`case-study-04.db`](case-study-04.db) | [04 — Overconfident negation](../04-overconfident-negation.md) | 4 |
 
 ## Bundle file
 
@@ -226,3 +227,30 @@ Session → candidate map: 1 `4be3d5f2…` (refund omission) · 2 `15b1fc16…` 
 
 - **Not evidence of a confidently-wrong model.** The model answered all five tasks correctly; every non-trivial verdict in the store is a false positive from the interpretation layer. That inversion *is* the case study.
 - **Not re-resolved on read.** Sessions are stamped `falsifyai 0.6.0` and preserve the pre-fix verdicts. `inspect` on 0.6.1 still shows `CONSISTENTLY_WRONG` for session 2 because replay is read-only — the bundle is the deliberate "before" record of the false positive that 0.6.1 (`2a03644`) fixed.
+
+---
+
+# `case-study-04.db` — Overconfident negation
+
+Companion bundle for [`../04-overconfident-negation.md`](../04-overconfident-negation.md). The [`../probe-03/`](../probe-03/) candidate specs run against the weaker `groq/llama-3.1-8b-instant` on 2026-06-05, under fixed `falsifyai 0.6.1`.
+
+| Field | Value |
+|---|---|
+| Filename | `case-study-04.db` |
+| SHA256 | `7cacc572a99b709c82ff48f99f93865367c0a51f9f5666b69773771691c16803` |
+| Sessions | 4 |
+| Model | `groq/llama-3.1-8b-instant` (temperature 0.0, seed 42, `--nli`) |
+| Specs used | [`../probe-03/candidate-{1,2,4,5}-*.yaml`](../probe-03/) |
+| FalsifyAI version | 0.6.1 (stamped on every session) |
+
+```bash
+python -c "import hashlib; print(hashlib.sha256(open('docs/case-studies/data/case-study-04.db','rb').read()).hexdigest())"
+# expected: 7cacc572a99b709c82ff48f99f93865367c0a51f9f5666b69773771691c16803
+```
+
+Session → candidate: deadline `e93d952b…` (STABLE) · refund `648e7cbe…` · threshold `02fe5d1b…` (FRAGILE, paraphrase hallucination) · clause `9b9c4ecd…` (CONSISTENTLY_WRONG).
+
+## What this is NOT
+
+- **Not a claim that the 8B model is broadly bad.** It is `STABLE` on the deadline task in the same bundle; the value is telling the reliability regimes apart.
+- **Not re-resolved on read.** Sessions are stamped `falsifyai 0.6.1`; verdicts are preserved as run. The `CONSISTENTLY_WRONG` here is the *corrected* oracle firing on a genuine contradiction — the true-positive counterpart to case study 03's preserved false positive.
