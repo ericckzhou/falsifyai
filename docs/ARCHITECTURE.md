@@ -87,8 +87,8 @@ Operational consequences for the architecture:
 - **`replay`** re-presents preserved evidence without re-deriving the
   claim.
 - **`diff`** compares two preserved (claim + evidence) pairs.
-- **`inspect`** (Phase 1) will expand the preserved evidence on
-  demand for legibility.
+- **`inspect`** expands preserved evidence on demand for
+  legibility.
 
 Perturbation engines are **replaceable** evidence generators.
 Different families (paraphrase, retrieval, ordering) all feed the
@@ -415,7 +415,7 @@ Operationally, the win is:
 - Lower cognitive load on engineers reviewing migration regressions
 - Bounded inspection surfaces — a careful reader knows where to look
   and roughly how long it will take
-- The deep view exists when needed (`replay` today, `inspect` Phase 1);
+- The deep view exists when needed (`replay` and `inspect`);
   it just doesn't crowd the moment of decision
 
 ---

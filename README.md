@@ -18,7 +18,7 @@ falsifyai diff baseline candidate
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-**Status:** 0.6.2 — Semantic-judgment depth. Adds an opt-in NLI (natural-language-inference) oracle layer — grounding, hallucination, and contradiction detection — and completes the full 8-verdict resolver (`INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five). `falsifyai run --nli` activates the semantic oracles; the flag is purely additive (it enriches the verdict, never flips a pass into a fail on its own). Default installs and the 5-verdict behavior are unchanged; spec language and replay format stay backward-compatible across the 0.x line.
+**Status:** 0.6.3 — Presentation-integrity patch. Fixes the confidence-label inversion for instability-band verdicts across consumer surfaces and adds store-backend plugin plumbing (`falsifyai.stores`) without changing default behavior. The semantic-judgment depth from 0.6.2 remains available via the opt-in NLI oracle layer (`falsifyai run --nli`); spec language and replay format stay backward-compatible across the 0.x line.
 
 ```bash
 pip install falsifyai

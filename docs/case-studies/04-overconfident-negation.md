@@ -108,7 +108,7 @@ Every command runs against the bundled SQLite store — no model calls, no API k
 
 ```bash
 # 1. Install the version that contains this case study.
-pip install falsifyai==0.6.1
+pip install falsifyai==0.6.3
 
 # 2. Verify the bundle's integrity.
 python -c "import hashlib; \

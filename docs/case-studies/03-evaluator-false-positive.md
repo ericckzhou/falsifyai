@@ -90,7 +90,7 @@ The stored `falsifyai 0.6.0` provenance stamp in the `inspect` header is the tel
 
 ## 4. The broader pattern: brittle instruments penalize correct paraphrases
 
-Finding 1 was the most *severe* (the harshest verdict from a correct model), but it was not the most *pervasive*. Four of the five false positives came from the **invariant layer**, and those remain open as of 0.6.1:
+Finding 1 was the most *severe* (the harshest verdict from a correct model), but it was not the most *pervasive*. Four of the five false positives came from the **invariant layer**; at the 0.6.1 boundary, those were still unresolved:
 
 - **`semantic_equivalence` is style/length-sensitive** (candidates 1, 4). It embeds the whole output, so a correct answer wrapped in conversational preamble or rendered more tersely than the baseline drops below the 0.80 cosine threshold even though the meaning is identical.
 - **`contains` is lexical** (candidates 4, 5). Concept-correct paraphrases — "the law requires it" vs "required by law"; "does not extend to international" vs "not qualify" — fail a literal substring check, and baseline-passes / paraphrase-fails reads as `ADVERSARIALLY_VULNERABLE`.
@@ -98,7 +98,7 @@ Finding 1 was the most *severe* (the harshest verdict from a correct model), but
 
 The shared shape: **the instrument is measuring surface form where it claims to measure meaning.** A confidently-wrong *model* hunt is contaminated by this — the model's real mistakes would be indistinguishable from the instrument's false positives. Hardening these instruments is the prerequisite for any honest model-behavior probe that follows.
 
-> **Update (post-0.6.1, on `dev`).** The `schema_match` gap is now fixed: the invariant extracts the JSON value from a markdown fence or surrounding prose before validating, while the schema check stays strict (a wrong type inside a fence still fails). `contains` and `semantic_equivalence` are left **unchanged on purpose** — the former is the deliberate cheap-literal first pass, and the latter's whole-text cosine is an inherent limitation whose robust alternative is the NLI entailment oracle (use the right invariant, don't inflate the wrong one). Recognizing that two of the three "findings" are *not* bugs is the same anti-inflation discipline this case study exists to demonstrate.
+> **Update (0.6.2+).** The `schema_match` gap is fixed: the invariant extracts the JSON value from a markdown fence or surrounding prose before validating, while the schema check stays strict (a wrong type inside a fence still fails). `contains` and `semantic_equivalence` are left **unchanged on purpose** — the former is the deliberate cheap-literal first pass, and the latter's whole-text cosine is an inherent limitation whose robust alternative is the NLI entailment oracle (use the right invariant, don't inflate the wrong one). Recognizing that two of the three "findings" are *not* bugs is the same anti-inflation discipline this case study exists to demonstrate.
 
 ---
 
@@ -118,7 +118,7 @@ Every command runs against the bundled SQLite store — no model calls, no API k
 
 ```bash
 # 1. Install the version that contains this case study.
-pip install falsifyai==0.6.1
+pip install falsifyai==0.6.3
 
 # 2. Verify the bundle's integrity.
 python -c "import hashlib; \
@@ -126,7 +126,7 @@ python -c "import hashlib; \
 # expected: 5a6c77ba6231c260209ac0669b6fc9206381f02ca2f48f9f9a24de947ece6e62
 
 # 3. The vivid instance — correct output, CONSISTENTLY_WRONG @ 1.00, still reproduces
-#    on 0.6.1 because replay is read-only (the stored 0.6.0 verdict is preserved).
+#    on current releases because replay is read-only (the stored 0.6.0 verdict is preserved).
 falsifyai inspect 15b1fc160643494dac4e9d69ff517e91 --full \
   --store-path docs/case-studies/data/probe-03.db
 ```
