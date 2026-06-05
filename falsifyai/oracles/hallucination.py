@@ -1,19 +1,28 @@
-"""HallucinationOracle -- detects outputs unsupported by the reference.
+"""HallucinationOracle -- detects outputs that CONTRADICT the reference.
 
-Hallucination is the negative half of the grounding axis: when the outputs are
-*not* entailed by ``expected.reference`` (the NLI relation is NEUTRAL or
-CONTRADICTION rather than ENTAILMENT), the model is asserting claims the
-reference does not support. Read against the §2.1 grid, ungrounded outputs that
-are also mutually consistent are the CONSISTENTLY_WRONG cell -- the confident,
-repeatable falsehood. So this oracle pre-arbitrates to CONSISTENTLY_WRONG, the
-most dangerous reading of "ungrounded."
+Hallucination is the strong-negative end of the grounding axis. The outputs
+hold one of three NLI relations to ``expected.reference``:
 
-It is an *independent* signal from :class:`ContradictionOracle`'s vs-reference
-path: hallucination fires on entailment-*failure* (the broad NEUTRAL∪CONTRADICTION
-set), contradiction fires on explicit CONTRADICTION. They can agree (defense in
-depth) or disagree (feeding the meta-oracle's conflict detection). MVP overlap on
-the grounding axis is intentional; splitting reference-grounding from
-retrieved-context grounding is a Phase 1 refinement.
+- **ENTAILMENT** -- outputs are grounded; :class:`GroundingOracle` argues
+  INFORMATION_PRESENT.
+- **CONTRADICTION** -- outputs assert the opposite of the reference; this oracle
+  argues CONSISTENTLY_WRONG (the confident, repeatable falsehood of the §2.1
+  grid).
+- **NEUTRAL** -- entailment could not be established either way. This is
+  *grounding unconfirmed*, NOT wrongness: a correct answer that merely rephrases
+  the reference is routinely labeled NEUTRAL by a sentence-pair NLI head. So
+  NEUTRAL is an **abstention** -- the oracle does not fire, and the statistical
+  verdict (e.g. STABLE) stands.
+
+Folding NEUTRAL into "unsupported" was a 0.6.0 false positive: it reported
+correct, stable, paraphrased outputs as CONSISTENTLY_WRONG at full confidence
+(see ``docs/case-studies/probe-03/RESULTS.md``, case
+``cancellation_deadline_inversion``). Reserving the verdict for genuine
+CONTRADICTION fixes that.
+
+This overlaps :class:`ContradictionOracle`'s vs-reference path by design
+(defense in depth; agreement strengthens the meta-oracle's confidence). A future
+refactor may merge them; they are kept separate for now.
 
 No backend or no reference -> ``triggered=False`` (inert without opt-in NLI).
 """
@@ -25,12 +34,13 @@ from falsifyai.oracles.entailment_support import majority_relation
 from falsifyai.oracles.nli import NLIBackend, NLILabel
 from falsifyai.verdict.models import Verdict
 
-# Fraction of outputs that must be unsupported for the set to count as hallucinating.
-_UNSUPPORTED_SUPPORT = 0.5
+# Fraction of outputs that must contradict the reference for the set to count
+# as hallucinating.
+_CONTRADICTION_SUPPORT = 0.5
 
 
 class HallucinationOracle:
-    """Argues CONSISTENTLY_WRONG when outputs are unsupported by the reference."""
+    """Argues CONSISTENTLY_WRONG when outputs contradict the reference."""
 
     name: ClassVar[str] = "hallucination"
 
@@ -49,25 +59,30 @@ class HallucinationOracle:
             )
 
         label, support = majority_relation(self._nli, reference, context.all_outputs)
-        unsupported = label is not NLILabel.ENTAILMENT and support >= _UNSUPPORTED_SUPPORT
-        if unsupported:
+        contradicts = label is NLILabel.CONTRADICTION and support >= _CONTRADICTION_SUPPORT
+        if contradicts:
             return OracleVerdict(
                 oracle_name=self.name,
                 triggered=True,
                 verdict_contribution=Verdict.CONSISTENTLY_WRONG,
                 confidence=support,
                 reasoning=(
-                    f"{support:.0%} of outputs are not entailed by the reference "
+                    f"{support:.0%} of outputs contradict the reference "
                     f"(majority relation {label.value}); claims are unsupported"
                 ),
             )
+        # ENTAILMENT (grounded, GroundingOracle's job) or NEUTRAL (grounding
+        # unconfirmed) -> abstain. NEUTRAL is NOT wrongness; firing here was the
+        # 0.6.0 false positive.
+        unconfirmed = label is NLILabel.NEUTRAL
         return OracleVerdict(
             oracle_name=self.name,
             triggered=False,
             verdict_contribution=None,
             confidence=support,
             reasoning=(
-                f"outputs are supported: majority relation to reference is "
-                f"{label.value} (support {support:.0%})"
+                f"no contradiction: majority relation to reference is "
+                f"{label.value} (support {support:.0%}); "
+                f"{'grounding unconfirmed' if unconfirmed else 'grounded'}, abstaining"
             ),
         )
