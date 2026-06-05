@@ -162,6 +162,30 @@ The upload returns a public URL. Add it to the README and pin it to the
 GitHub Release. If you'd rather self-host, the `.cast` file pairs with
 the asciinema-player JS for embedding.
 
+## Optional: showcase the 0.6.0 NLI layer
+
+The core demo above stays on the migration wedge. For the 0.6.0 release you
+may want a second short clip showing the opt-in NLI oracle layer turning a
+silent pass into a graded verdict:
+
+```bash
+# Without --nli: the case looks STABLE.
+falsifyai run examples/information_present.yaml
+sleep 2
+
+# With --nli: the grounding oracle surfaces INFORMATION_PRESENT.
+falsifyai run examples/information_present.yaml --nli
+sleep 2
+```
+
+The point to narrate: `--nli` is **purely additive** — it never flips a pass
+into a fail, it adds grounding/hallucination evidence that the resolver
+compresses into the full 8-verdict taxonomy (`INFORMATION_PRESENT`,
+`INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, `AMBIGUOUS` joined the prior
+five in 0.6.0). Requires `pip install "falsifyai[nli]"`; the NLI model
+downloads on the first run, so mention that in the caption to keep the pause
+from reading as a hang.
+
 ## Tips
 
 - **Type slowly** — the recording captures keystrokes. Real-time typing
