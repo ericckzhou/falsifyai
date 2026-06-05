@@ -96,7 +96,9 @@ Finding 1 was the most *severe* (the harshest verdict from a correct model), but
 - **`contains` is lexical** (candidates 4, 5). Concept-correct paraphrases — "the law requires it" vs "required by law"; "does not extend to international" vs "not qualify" — fail a literal substring check, and baseline-passes / paraphrase-fails reads as `ADVERSARIALLY_VULNERABLE`.
 - **`schema_match` parses the raw output** (candidate 3). Correct JSON emitted inside an explanatory sentence or a ```` ```json ```` fence fails to parse.
 
-The shared shape: **the instrument is measuring surface form where it claims to measure meaning.** A confidently-wrong *model* hunt is contaminated by this — the model's real mistakes would be indistinguishable from the instrument's false positives. Hardening these invariants (entailment-based references, concept-level matching, JSON-extracting `schema_match`) is the prerequisite for any honest model-behavior probe that follows.
+The shared shape: **the instrument is measuring surface form where it claims to measure meaning.** A confidently-wrong *model* hunt is contaminated by this — the model's real mistakes would be indistinguishable from the instrument's false positives. Hardening these instruments is the prerequisite for any honest model-behavior probe that follows.
+
+> **Update (post-0.6.1, on `dev`).** The `schema_match` gap is now fixed: the invariant extracts the JSON value from a markdown fence or surrounding prose before validating, while the schema check stays strict (a wrong type inside a fence still fails). `contains` and `semantic_equivalence` are left **unchanged on purpose** — the former is the deliberate cheap-literal first pass, and the latter's whole-text cosine is an inherent limitation whose robust alternative is the NLI entailment oracle (use the right invariant, don't inflate the wrong one). Recognizing that two of the three "findings" are *not* bugs is the same anti-inflation discipline this case study exists to demonstrate.
 
 ---
 

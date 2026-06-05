@@ -1,8 +1,11 @@
 """SchemaMatchInvariant -- strict structural assertion on JSON output.
 
 For cases where the model is expected to emit structured output (JSON), this
-invariant asserts that the perturbed output (a) parses as JSON and (b) conforms
-to a declared schema: required keys present, and declared property types match.
+invariant asserts that the perturbed output (a) contains a parseable JSON value
+-- extracted from a surrounding markdown fence or sentence when present -- and
+(b) conforms to a declared schema: required keys present, and declared property
+types match. Extraction makes the *shape* check robust to how chat models wrap
+JSON; it does not relax validation (a wrong type inside a fence still fails).
 
 It deliberately implements a *small* subset of JSON Schema rather than pulling
 in the ``jsonschema`` package. The supported keys are ``type``, ``required``,
@@ -16,10 +19,46 @@ Like ``ContainsInvariant``, this is a per-output assertion: it ignores
 """
 
 import json
+import re
 from dataclasses import dataclass
 from typing import ClassVar
 
 from falsifyai.invariants.base import InvariantResult, Severity
+
+# Models frequently wrap JSON in a markdown fence (```json ... ```) or a
+# sentence. The first capture group is the fenced block's content.
+_FENCE_RE = re.compile(r"```[A-Za-z0-9_-]*\s*\n(.*?)```", re.DOTALL)
+
+
+def _extract_json(text: str) -> object:
+    """Best-effort extraction of one JSON value from model output.
+
+    Tries, in order: (1) the whole stripped string, (2) the first fenced code
+    block's content, (3) the first balanced JSON value beginning at a ``{`` or
+    ``[`` anywhere in the text (via ``raw_decode``, which ignores trailing
+    prose). Raises ``ValueError`` if none parse -- the caller treats that as a
+    parse failure, so output containing no JSON value (genuine prose) still
+    fails the invariant. Extraction never relaxes downstream schema validation.
+    """
+    candidates = [text.strip()]
+    fence = _FENCE_RE.search(text)
+    if fence is not None:
+        candidates.append(fence.group(1).strip())
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char in "{[":
+            try:
+                obj, _end = decoder.raw_decode(text, index)
+                return obj
+            except (json.JSONDecodeError, ValueError):
+                continue
+    raise ValueError("no JSON value found in output")
+
 
 # JSON Schema primitive type -> Python type(s). ``bool`` is handled specially
 # because Python's ``bool`` is a subclass of ``int``.
@@ -77,11 +116,11 @@ class SchemaMatchInvariant:
         context: dict[str, object],  # noqa: ARG002 -- forward-compat, currently unused
     ) -> InvariantResult:
         try:
-            data = json.loads(perturbed_output)
+            data = _extract_json(perturbed_output)
         except (json.JSONDecodeError, ValueError) as exc:
             return self._fail(
                 score=0.0,
-                details=f"output is not valid JSON: {exc}",
+                details=f"output does not contain valid JSON: {exc}",
                 evidence={"parse_error": str(exc)},
             )
 

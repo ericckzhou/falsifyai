@@ -104,6 +104,13 @@ others fail on style alone, the resolver reads it as ADVERSARIALLY_VULNERABLE.
 - `schema_match` parses the raw output as JSON; correct JSON emitted inside an
   explanatory sentence or a ```` ```json ```` fence fails to parse (candidate 3).
 
+> **Resolved for `schema_match` (post-0.6.1, on `dev`).** `schema_match` now
+> extracts JSON from a markdown fence or surrounding prose before validating
+> (strict schema check unchanged). `contains` and `semantic_equivalence` are
+> deliberately left as-is — selecting the right invariant (NLI entailment for
+> paraphrase-tolerant meaning) is the fix, not inflating the literal/cosine
+> checks. See CHANGELOG `[Unreleased]`.
+
 ## Why no case study was promoted
 
 A case study must document a **real** model reliability behavior over preserved
