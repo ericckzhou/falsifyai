@@ -1,12 +1,13 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Nine subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Ten subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
 over preserved evidence), ``diff`` (compare two stored sessions and
 exit 5 on regression), ``history`` (temporal view of one case across
 saved sessions), ``timeline`` (longitudinal robustness trend for one
 case; exit 5 on regression), ``matrix`` (cross-model reliability profiles
-over N sessions), ``verify`` (replay-artifact integrity validation), and
+over N sessions), ``minimize`` (smallest perturbation that breaks a case),
+``verify`` (replay-artifact integrity validation), and
 ``export`` (write a deterministic portable evidence bundle).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
@@ -31,6 +32,7 @@ from falsifyai.cli import export as export_cmd
 from falsifyai.cli import history as history_cmd
 from falsifyai.cli import inspect as inspect_cmd
 from falsifyai.cli import matrix as matrix_cmd
+from falsifyai.cli import minimize as minimize_cmd
 from falsifyai.cli import replay as replay_cmd
 from falsifyai.cli import run as run_cmd
 from falsifyai.cli import timeline as timeline_cmd
@@ -185,6 +187,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Default: .falsifyai/replays.db",
     )
 
+    minimize_parser = subparsers.add_parser(
+        "minimize",
+        help="Find the smallest perturbation strength that breaks a case (minimal falsifier).",
+    )
+    minimize_parser.add_argument("spec_path", help="Path to the YAML spec file.")
+    minimize_parser.add_argument(
+        "--case",
+        default=None,
+        help="Case id to minimize. Defaults to the first case in the spec.",
+    )
+    minimize_parser.add_argument(
+        "--family",
+        default="typo_noise",
+        choices=["typo_noise", "unicode"],
+        help="Perturbation family to escalate. Default: typo_noise.",
+    )
+    minimize_parser.add_argument(
+        "--levels",
+        default=None,
+        help="Comma-separated ascending strengths to try. Default: 0.02,0.05,0.1,0.2,0.4,0.8.",
+    )
+    minimize_parser.add_argument(
+        "--samples",
+        type=int,
+        default=5,
+        help="Perturbation samples per strength level. Default: 5.",
+    )
+
     export_parser = subparsers.add_parser(
         "export",
         help=(
@@ -287,6 +317,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return timeline_cmd.cmd_timeline(args)
         if args.command == "matrix":
             return matrix_cmd.cmd_matrix(args)
+        if args.command == "minimize":
+            return minimize_cmd.cmd_minimize(args)
         if args.command == "verify":
             return verify_cmd.cmd_verify(args)
         if args.command == "export":
