@@ -1,0 +1,64 @@
+# Case Study 07 / BASELINE — support-bot promo summarization, the incumbent model.
+#
+# Migration scenario: a team runs a customer-facing feature that summarizes a
+# marketing promotion into a one-sentence FAQ blurb. The promo carries fine-print
+# fine print: an EXCLUSION (gift cards never get the discount). Dropping that
+# exclusion in customer-facing copy is a real operational/compliance failure.
+#
+# Representative by design (see PLAN.md): the prompt is what a dev actually
+# ships, the content is realistic marketing copy, and the CONTRACT lives in the
+# `contains` invariant — NOT as JSON keys echoed out of a corruptible prompt. The
+# model produces "gift card" from UNDERSTANDING the promo, so a strong model
+# recovers it even when typo_noise roughens the source; a weaker model drops the
+# exclusion under the same pressure. typo_noise models real-world input variation.
+#
+# Expected: STABLE — the 70B keeps the gift-card exclusion on the clean input AND
+# under typo pressure. (Gate B in PLAN.md.)
+#
+# The CANDIDATE spec is byte-identical except the `model:` line — the migration
+# is one line. Run BOTH into the same store, then `falsifyai diff`.
+#
+# Run: falsifyai run docs/case-studies/probe-07/baseline-promo-70b.yaml \
+#        --store-path docs/case-studies/data/case-study-07.db
+
+falsify:
+  version: "1.0"
+  name: "Promo-summary migration (baseline): exception-preservation contract, incumbent model"
+
+model:
+  provider: groq
+  model: llama-3.3-70b-versatile
+  temperature: 0.0
+  max_tokens: 256
+
+run:
+  seed: 42
+
+cases:
+  - id: promo_faq_summary
+    tags: ["summarization", "exception-omission", "migration", "support-bot", "policy"]
+    input:
+      text: >-
+        Summarize the following promotion in a single sentence for our customer
+        help center. Promotion: Summer's here, and so is our biggest sale yet!
+        For a limited time, every customer gets 20% off their entire order — no
+        coupon code needed, the discount is applied automatically at checkout.
+        Stock up on your favorites and treat yourself. Please note: gift cards
+        are excluded from this promotion and are never discounted.
+    expected:
+      reference: >-
+        Get 20% off your entire order this summer, applied automatically at
+        checkout — note that gift cards are excluded and never discounted.
+    perturbations:
+      - type: typo_noise
+        count: 5
+        rate: 0.12
+    invariants:
+      # The exception-preservation contract: the customer-facing summary must
+      # still mention the gift-card exclusion. The phrase lives HERE (invariant),
+      # never in the perturbed prompt, so a dropped clause is a genuine model
+      # failure, not a corrupted-instruction artifact.
+      - type: contains
+        values: ["gift card"]
+        case_sensitive: false
+        severity: high

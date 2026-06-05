@@ -10,6 +10,7 @@ This directory contains preserved replay artifacts for the published case studie
 | [`case-study-04.db`](case-study-04.db) | [04 — Overconfident negation](../04-overconfident-negation.md) | 4 |
 | [`probe-05.db`](probe-05.db) | [probe-05 — grounding-verdict quartet](../probe-05/README.md) (probe; not yet promoted to a numbered study) | 5 |
 | [`probe-06.db`](probe-06.db) · [`probe-06-fixed.db`](probe-06-fixed.db) | [06 — When the test deletes the question](../06-perturbation-validity-omission.md) (before / after the §9.3 validity fix) | 1 each |
+| [`case-study-07.db`](case-study-07.db) | [07 — The regression that only appeared under pressure](../07-the-regression-that-only-appeared-under-pressure.md) | 2 |
 
 ## Bundle file
 
@@ -289,3 +290,49 @@ python -c "import hashlib; print(hashlib.sha256(open('docs/case-studies/data/pro
 
 - **Not a 4/4 success.** Only `INFORMATION_PRESENT` fired, and only after a fix. The three STABLE rows are the honest result: a capable 70B (and the 8B for D) resists the failure modes B/C/D target. The value is bounding where the verdicts do and don't fire.
 - **Not re-resolved on read.** Sessions are stamped `falsifyai 0.6.2`; verdicts are preserved as run. Both A sessions are kept deliberately — the `AMBIGUOUS` "before" is the replayable evidence of the perturbation-validity bug the fixed "after" resolves.
+
+---
+
+# `case-study-07.db` — The regression that only appeared under pressure
+
+Companion bundle for [`../07-the-regression-that-only-appeared-under-pressure.md`](../07-the-regression-that-only-appeared-under-pressure.md). Two sessions from running the [`../probe-07/`](../probe-07/) baseline and candidate specs end-to-end against Groq on 2026-06-05 — a model-migration regression (incumbent → cost downgrade) on a customer-facing promo-summarization contract.
+
+| Field | Value |
+|---|---|
+| Filename | `case-study-07.db` |
+| Format | FalsifyAI ReplayStore (SQLite, schema v1) |
+| SHA256 | `a1e8aabb61926b6906764e5ad64ae21eba75ad23b0fdfd403ff2e340519a32e6` |
+| Sessions | 2 |
+| Models | `groq/llama-3.3-70b-versatile` (baseline), `groq/llama-3.1-8b-instant` (candidate) — temperature 0.0, seed 42 |
+| Specs used | [`../probe-07/baseline-promo-70b.yaml`](../probe-07/baseline-promo-70b.yaml), [`../probe-07/candidate-promo-8b.yaml`](../probe-07/candidate-promo-8b.yaml) |
+| Perturbation | `typo_noise` (count 5, rate 0.12) |
+| Invariant | `contains` (`["gift card"]`, case-insensitive, severity high) |
+| FalsifyAI version | 0.6.4 (stamped on every session) |
+
+```bash
+python -c "import hashlib; print(hashlib.sha256(open('docs/case-studies/data/case-study-07.db','rb').read()).hexdigest())"
+# expected: a1e8aabb61926b6906764e5ad64ae21eba75ad23b0fdfd403ff2e340519a32e6
+```
+
+| Session ID | Created (UTC) | Model | Verdict | Notes |
+|---|---|---|---|---|
+| `793da5d6b6754fc88560887cbe3ac98b` | 2026-06-05T22:25:49 | `groq/llama-3.3-70b-versatile` | STABLE (1.00) | **Baseline** — keeps the gift-card exclusion on the clean input and all 5 perturbed variants |
+| `619ccfaafb6c497197b10dd69ebeb96a` | 2026-06-05T22:25:53 | `groq/llama-3.1-8b-instant` | AMBIGUOUS (0.40) | **Candidate** — clean PASS; drops the exclusion in perturbed variant [2] (`contains` FAIL) |
+
+`falsifyai diff 793da5d6… 619ccfaa…` → `REGRESSED`, **exit 5**. `falsifyai verify --all` → 16 checks, 16 passed. `falsifyai export 619ccfaa… --bundle …` → bundle_id `5912b8c355781363a125feb90a940bc41207eb3e4f67be9b0038b4d0cf084635`.
+
+## Command sequence used to generate (verbatim)
+
+```bash
+falsifyai run docs/case-studies/probe-07/baseline-promo-70b.yaml \
+                                   --store-path docs/case-studies/data/case-study-07.db
+falsifyai run docs/case-studies/probe-07/candidate-promo-8b.yaml \
+                                   --store-path docs/case-studies/data/case-study-07.db
+```
+
+## What this is NOT
+
+- **Not a leaderboard.** Not "70B beats 8B." The 8B is `STABLE` on other tasks in this repo; the finding is that *this migration broke this contract under this pressure* — a deployment property, not a model grade.
+- **Not a benchmark.** Two sessions, one case. Demonstrates the migration-safety workflow; not a population-scale measurement.
+- **Not a gotcha.** The pressure is benign character noise modeling messy real-world input. The contract — keep the exclusion — is what the incumbent model already satisfied.
+- **Not synthesized.** Both sessions are real `falsifyai run` invocations against the committed specs, copied verbatim. Outputs are not bit-stable across reruns of the hosted API; the preserved evidence is frozen in the artifact.
