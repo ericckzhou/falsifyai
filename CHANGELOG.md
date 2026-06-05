@@ -6,6 +6,26 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-06-05
+
+Patch release. Corrects a false-positive in the NLI `HallucinationOracle`
+surfaced by dogfooding the probe-03 "confidently wrong" bake-off — where all
+five candidate model outputs were in fact correct, yet one was being scored as a
+confident falsehood. No new fields, verdicts, or spec-language changes; default
+(non-`--nli`) behavior is byte-identical to 0.6.0.
+
+### Fixed
+
+- **`HallucinationOracle` treats NLI `NEUTRAL` as abstain, not wrong.** An
+  output the NLI backend can neither entail nor contradict against the ground
+  truth (relation `NEUTRAL`) is unsupported, not false — it no longer
+  contributes a spurious `CONSISTENTLY_WRONG` signal. Previously a correct
+  answer whose phrasing diverged from the reference enough to read as `NEUTRAL`
+  was mislabeled a hallucination. The oracle now fires only on genuine
+  `CONTRADICTION`. Regression tests pin the `NEUTRAL`→abstain boundary. See
+  [`docs/case-studies/probe-03/RESULTS.md`](docs/case-studies/probe-03/RESULTS.md)
+  (Finding 1) for the discovery and replay artifact.
+
 ## [0.6.0] — 2026-06-05
 
 Semantic-judgment depth. Deepens the oracle layer with natural-language
@@ -454,6 +474,7 @@ All four are verified in CI via `tests/integration/test_examples.py`.
 - **`--latest-baseline` / `--latest-candidate`** flags on `diff` are not
   shipped; users pass explicit session ids. Phase 1 candidate.
 
+[0.6.1]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.1
 [0.6.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.6.0
 [0.5.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ericckzhou/falsifyai/releases/tag/v0.4.0
