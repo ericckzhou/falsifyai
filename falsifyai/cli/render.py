@@ -33,15 +33,12 @@ if TYPE_CHECKING:
     from falsifyai.cli.diff import CaseTransition, DiffReport
     from falsifyai.integrity.checks import IntegrityReport
 
-# Exit codes mapped to the MVP 5 verdicts per plan.md section 16.1.
-#   STABLE              -> 0  SUCCESS
-#   FRAGILE             -> 1  DEGRADED
-#   CONSISTENTLY_WRONG  -> 2  FAILURE
-#   INVALID_EVAL        -> 2  FAILURE
-#   INSUFFICIENT        -> 4  INSUFFICIENT
-# Code 3 (ERROR) is reserved for infrastructure failures raised by the CLI
-# layer before a verdict exists; code 5 (REGRESSION) and 6 (LOW_FALSIFIABILITY)
-# land with the Week 2 features.
+# Session verdict -> CI exit code, per plan.md section 16.1. The full 9-verdict
+# taxonomy collapses onto four buckets here (see the grouped dict below):
+#   0 SUCCESS  ·  1 DEGRADED  ·  2 FAILURE  ·  4 INSUFFICIENT.
+# Code 3 (ERROR) is reserved for infrastructure failures raised by the CLI layer
+# before a verdict exists; codes 5 (REGRESSION) and 6 (LOW_FALSIFIABILITY) are
+# emitted by other surfaces (e.g. `falsifyai diff`), not by this verdict map.
 _EXIT_CODES: dict[Verdict, int] = {
     # SUCCESS (0): high stability, optionally grounded.
     Verdict.INFORMATION_PRESENT: 0,
