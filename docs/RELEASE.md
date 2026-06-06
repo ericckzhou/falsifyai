@@ -27,6 +27,16 @@ bump rules apply strictly.
 
 ## Pre-release checklist
 
+**One command runs the executable subset** (lint, format, coverage-gated tests,
+build, `twine check`):
+
+```bash
+uv run python scripts/release_gate.py
+```
+
+It exits non-zero on the first failure. Run it first; the manual items below
+cover what a script can't (CHANGELOG prose, version-string audit, smoke tests).
+
 Run through every item before tagging. CI doesn't catch all of these.
 
 1. **All tests green.**
@@ -34,7 +44,8 @@ Run through every item before tagging. CI doesn't catch all of these.
    uv run pytest
    ```
 
-2. **Coverage ≥ 80% baseline.**
+2. **Coverage ≥ 90%.** Enforced by CI (`--cov-fail-under=90`) and by the
+   release gate; this command shows the per-file gaps.
    ```bash
    uv run pytest --cov=falsifyai --cov-report=term-missing
    ```
