@@ -33,7 +33,7 @@ The goal is **maximum useful signal**, not maximum data. More evidence is not in
 - **Verdict design.** Compress evidence into actionable conclusions; don't enumerate it.
 - **Perturbation families.** Each must contribute orthogonal reliability information, not duplicate noise.
 - **Replay artifacts.** Self-contained; carry the full materialized spec so they outlive the YAML file on disk.
-- **MVP scope.** 2 perturbation families, 2 invariants, 5 verdicts — locked in [plan.md §22.1](../plan.md) because *that is enough to tell the story*.
+- **Scope restraint.** The 0.1.0 MVP shipped just 2 perturbation families, 2 invariants, 5 verdicts ([plan.md §22.1](../plan.md)) because *that was enough to tell the story*. The discipline — not the specific counts — is the lesson; the 0.x line grew only by orthogonal failure mode.
 - **Three-layer architectural separation.** *Evidence generation* (perturbation / materialization / execution) is architecturally distinct from *evidence interpretation* (invariants / verdict resolver / CLI compression), and both are distinct from *evidence preservation* (replay artifacts / stores). New work belongs in exactly one layer; don't let interpretation leak into generation under pressure.
 - **Resolver complexity is bounded.** The verdict resolver is the epistemic authority of the framework; its priority chain must stay compressible and predictable. Expand the consumer surface (replay / diff / future tools) when adding interpretation features, not the verdict logic. The trust test for any resolver change: *a competent user should be able to predict the resolver output from the inputs.*
 
@@ -129,15 +129,16 @@ All subpackages have empty `__init__.py` files only — no implementation yet.
 
 ## Scope discipline
 
-- **Phase 0 MVP is locked**: 3 weeks, single launch as `falsifyai==0.1.0`. See [plan.md §22.1](../plan.md). Includes `falsifyai diff`, `CONSISTENTLY_WRONG`, falsifiability scoring, and dogfooding from Week 1. Compression around the differentiator, not expansion of timeline.
-- **MVP verdict set**: `STABLE`, `FRAGILE`, `CONSISTENTLY_WRONG`, `INSUFFICIENT`, `INVALID_EVAL` (5 verdicts; full 8 in Phase 1).
-- **MVP perturbations**: `typo_noise` + `casing_variant` only (2 families — required for honest bootstrap CI).
-- **MVP invariants**: `contains` + `semantic_equivalence`.
-- **8-item acceptance gate** ([plan.md §22.1.1](../plan.md)) must pass before tagging 0.1.0. PyPI publication is deployment, not validation.
+The 0.1.0 MVP shipped a deliberately small, locked surface ([plan.md §22.1](../plan.md)) — 2 perturbation families, 2 invariants, 5 verdicts, `falsifyai diff`, falsifiability scoring, dogfooded from Week 1. The 0.x line has since expanded that surface (current state below), always by orthogonal failure mode, never by accretion. The discipline is permanent even though the counts grew:
+
+- **Verdicts**: the full taxonomy — 9 enum members (the 8-verdict 2D stability×grounding space plus `INSUFFICIENT`). Authoritative source: [`falsifyai/verdict/models.py`](../falsifyai/verdict/models.py). (MVP shipped 5.)
+- **Perturbations**: `typo_noise`, `casing_variant`, `unicode_chars`, `paraphrase` (the last gated by bidirectional NLI for validity). (MVP shipped the first 2.)
+- **Invariants**: `contains`, `semantic_equivalence`, `schema_match`, plus the `falsifyai.invariants` plugin entry-point group. (MVP shipped the first 2.)
+- **Spec language**: locked. New fields require a spec version bump and a migration plan.
 - Do not add features beyond what the spec demands. Do not invent abstractions for hypothetical extensions.
 - Do not change naming without explicit user confirmation.
 - Do not deviate from the flat package layout without asking.
-- Cuts from MVP that may feel tempting: rich/colored terminal output (defer), heavyweight NLI for ConsistencyOracle (use embeddings for MVP, NLI in Phase 1), full 8-verdict resolver (5 verdicts for MVP).
+- A new surface (verdict / perturbation / invariant) needs an architecture review and must justify *what orthogonal failure mode or better decision it enables* — not breadth.
 
 ## What to NOT do
 
