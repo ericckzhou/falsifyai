@@ -1,10 +1,12 @@
 # Case studies
 
-Worked tours of FalsifyAI's evidence infrastructure over real preserved artifacts. Each case study is itself a FalsifyAI artifact: a `ReplayStore` bundle plus prose that walks through what `history`, `diff`, `inspect`, and `replay` reveal when read against it.
+Worked tours of FalsifyAI's evidence infrastructure over real preserved artifacts. Each case study is itself a FalsifyAI artifact: a `ReplayStore` bundle (or, for 08, a committed reproducible spec) plus prose that walks through what `history`, `diff`, `inspect`, and `replay` reveal when read against it.
 
-> **Recursion principle**: claims about a stochastic system's reliability are only defensible if the evidence supporting them is preserved and replayable. The case studies below are written *in FalsifyAI's own format* — every command shown runs against a bundled SQLite store and reproduces the displayed output verbatim.
+> **Recursion principle**: claims about a stochastic system's reliability are only defensible if the evidence supporting them is preserved and replayable. The case studies below are written *in FalsifyAI's own format* — every command shown reproduces the displayed output verbatim against a bundled SQLite store (08 is the exception: `minimize` is an orchestrator, so it reproduces live from the committed spec).
 
 For the categorical framing the case studies operationalize — *why capability scores and reliability evidence answer different questions* — see [`../THE-EVIDENCE-GAP.md`](../THE-EVIDENCE-GAP.md).
+
+> **The arc.** Read in order, the case studies widen the *question* the preserved evidence answers. It can **show** a regression — a contract breaks under perturbation and the artifact catches it ([01](01-invisible-character-substitution.md), [07](07-the-regression-that-only-appeared-under-pressure.md)). It can **explain** one — `inspect` / `replay` open the run to show *why*, whether the fault is a real model contradiction ([04](04-overconfident-negation.md)) or, three times over, FalsifyAI's own machinery misfiring ([03](03-evaluator-false-positive.md) / [05](05-confidence-floor-inversion.md) / [06](06-perturbation-validity-omission.md), the self-falsification trilogy spanning the interpretation *and* generation layers). It can **track** drift across sessions, so change is a comparison rather than a memory (`history` / `diff` / `--show-timeline`; [01](01-invisible-character-substitution.md), [02](02-resolver-arbitration-boundary-shift.md)). And — newest — it can **measure** how much pressure a contract tolerates before it breaks ([08](08-how-fragile-exactly-the-minimal-falsifier.md), via `minimize`). The series moves from *did it break?* to *how fragile, exactly?* — each step the same evidence substrate read by a different tool.
 
 ## Index
 
