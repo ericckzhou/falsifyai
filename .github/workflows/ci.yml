@@ -38,5 +38,7 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check .
 
-      - name: Pytest
-        run: uv run pytest -v
+      - name: Pytest + coverage gate
+        # Coverage floor enforced here, not just documented in docs/RELEASE.md.
+        # Keep --cov-fail-under in sync with scripts/release_gate.py.
+        run: uv run pytest -v --cov=falsifyai --cov-report=term-missing --cov-fail-under=90

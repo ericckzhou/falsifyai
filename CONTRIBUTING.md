@@ -66,8 +66,9 @@ Types we use: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`,
 - **Harvest, don't hardcode, perturbation outputs.** Tests that need to
   know the realized perturbation strings should call `materialize()` at
   setup time and read them off, never hardcode the expected strings.
-- **Coverage target: 80% baseline, 95%+ on new subpackages.** Coverage is
-  not the goal; meaningful tests are. But sub-80% on new code is a smell.
+- **Coverage: CI enforces ≥ 90% total (`--cov-fail-under=90`); aim for 95%+
+  on new subpackages.** Coverage is not the goal; meaningful tests are. But a
+  PR that drops total coverage below the floor won't merge.
 
 ## Architectural constraints (non-negotiable)
 
