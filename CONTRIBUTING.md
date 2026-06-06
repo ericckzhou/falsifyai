@@ -138,17 +138,28 @@ When a PR proposes adding "just one more knob" / "just one more metric" /
 [`.claude/CLAUDE.md`](.claude/CLAUDE.md) under *Anti-goals / anti-entropy
 infrastructure* and push back.
 
-### MVP scope is locked for the 0.1.x line
+### Scope discipline (current as of the 0.6.x line)
 
-- **Perturbations:** `typo_noise` + `casing_variant` only.
-- **Invariants:** `contains` + `semantic_equivalence` only.
-- **Verdicts:** `STABLE`, `FRAGILE`, `CONSISTENTLY_WRONG`, `INSUFFICIENT`,
-  `INVALID_EVAL` (5 of the planned 8; full set lands in Phase 1).
-- **Spec language:** locked. New fields require a spec version bump and
-  a migration plan.
+The 0.1.0 MVP shipped a deliberately small surface (`typo_noise` +
+`casing_variant`; `contains` + `semantic_equivalence`; 5 verdicts). The 0.x
+line has since expanded it along the axes the plan sanctioned — by orthogonal
+failure mode, not by accretion:
 
-Phase 1 expands these. Additions to any of the locked surfaces during the
-0.x line need an architecture review.
+- **Perturbation families:** `typo_noise`, `casing_variant`, `unicode_chars`,
+  `paraphrase` (the last gated by bidirectional NLI for validity). A new family
+  must expose an *orthogonal* failure mode; a variant of an existing family is
+  not a new family.
+- **Invariants:** `contains`, `semantic_equivalence`, `schema_match`, plus the
+  `falsifyai.invariants` plugin entry-point group for out-of-tree invariants.
+- **Verdicts:** the full verdict taxonomy — 9 enum members (the 8-verdict 2D
+  stability×grounding space plus `INSUFFICIENT`). The authoritative source is
+  [`falsifyai/verdict/models.py`](falsifyai/verdict/models.py).
+- **Spec language:** locked. New fields require a spec version bump and a
+  migration plan.
+
+Additions to any of these surfaces still need an architecture review — the bar
+is *what orthogonal failure mode / better decision does this enable?*, not
+breadth.
 
 ## Planning a PR
 

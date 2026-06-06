@@ -1,6 +1,7 @@
 """Verdict types — the falsificationist evaluation taxonomy.
 
-Phase 0 ships the 5-verdict MVP subset; Phase 1 expands to the full 8.
+Ships the full verdict taxonomy (9 enum members); the 0.1.0 MVP shipped a
+5-verdict subset. ``falsifyai.verdict.models`` is the authoritative source.
 """
 
 from falsifyai.verdict.models import Verdict

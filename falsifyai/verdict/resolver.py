@@ -1,4 +1,4 @@
-"""Real verdict resolver: stratified bootstrap CI + lightweight CONSISTENTLY_WRONG.
+"""Real verdict resolver: stratified bootstrap CI + oracle-arbitrated 9-verdict taxonomy.
 
 Replaces the PR #8 placeholder that returned `STABLE` / `FRAGILE` / `INSUFFICIENT`
 based on a "passes / total" fraction. This module produces verdicts with
@@ -6,13 +6,25 @@ defensible statistical backing -- bootstrap CI per perturbation family,
 worst-case selection across families, lightweight ground-truth contradiction
 check for CONSISTENTLY_WRONG, and per-case + suite-level falsifiability.
 
-Verdict priority (worst-first):
+Verdict priority (worst/most-certain first), per ``resolve_case`` below and
+plan.md section 13.1::
 
-1. ``INSUFFICIENT`` -- no perturbed runs or no invariant results
-2. ``CONSISTENTLY_WRONG`` -- every output (original + perturbed) violates the
-   ground truth from ``expected.contains`` / ``expected.not_contains``
-3. ``FRAGILE`` -- worst-case stratum CI lower bound below ``stable_threshold``
-4. ``STABLE`` -- otherwise
+    INSUFFICIENT             -- no perturbed runs or no invariant results
+    INVALID_EVAL             -- meta-oracle: the eval itself is broken (sole source)
+    CONSISTENTLY_WRONG       -- consistent, confident, and contradicts ground truth
+    -- instability band (worst-case stratum CI lower bound below the stable bar) --
+    ADVERSARIALLY_VULNERABLE -- one family collapses while others hold (targeted)
+    FRAGILE                  -- diffuse instability; even the CI ceiling is low
+    AMBIGUOUS                -- ran but cannot discriminate (CI too wide)
+    -- stable band (worst-case CI lower bound cleared the stable bar) --
+    INFORMATION_NULL         -- structurally stable but semantically empty
+    INFORMATION_PRESENT      -- stable AND grounding confirmed (gold standard)
+    STABLE                   -- consistent under perturbation; no grounding claim
+
+This module shipped (PR #11) with a 4-verdict chain
+(``INSUFFICIENT -> CONSISTENTLY_WRONG -> FRAGILE -> STABLE``); the 0.6.x resolver
+emits the full 9-class taxonomy above. The single-condition-per-branch discipline
+is policed by ``tests/meta/test_resolver_branch_count.py``.
 
 The stratification keeps a single weak perturbation family from being drowned
 by other families' data -- per [plan.md section 12](../../plan.md), "worst-case

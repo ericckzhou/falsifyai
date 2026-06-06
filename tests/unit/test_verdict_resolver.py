@@ -4,7 +4,11 @@ Rewrites the PR #8 placeholder tests against the real (PR #11) resolver
 that does stratified bootstrap CI, lightweight CONSISTENTLY_WRONG, and
 worst-case stratum surfacing.
 
-Verdict priority: INSUFFICIENT -> CONSISTENTLY_WRONG -> FRAGILE -> STABLE.
+Case-level verdict priority (worst/most-certain first):
+INSUFFICIENT -> INVALID_EVAL -> CONSISTENTLY_WRONG -> [instability band:
+ADVERSARIALLY_VULNERABLE | FRAGILE | AMBIGUOUS] -> [stable band:
+INFORMATION_NULL | INFORMATION_PRESENT | STABLE]. The 4-verdict chain named
+above is the PR #11 origin; the 0.6.x resolver emits the full 9-class taxonomy.
 """
 
 import pytest
