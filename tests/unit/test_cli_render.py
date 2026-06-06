@@ -7,7 +7,7 @@ from falsifyai.verdict.models import Verdict
 from tests.fixtures.build_artifact import make_artifact
 
 # ---------------------------------------------------------------------------
-# exit_code_for — maps the MVP 5 verdicts to CI codes per plan §16.1
+# exit_code_for — maps the full 9-verdict taxonomy to CI codes per plan §16.1
 # ---------------------------------------------------------------------------
 
 
