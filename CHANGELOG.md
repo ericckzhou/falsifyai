@@ -6,6 +6,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Tests
+
+- **Consumer-side verdict-map coverage guard.** A new meta-test
+  ([`tests/meta/test_verdict_consumer_coverage.py`](tests/meta/test_verdict_consumer_coverage.py))
+  asserts that the two consumer tables which turn a `Verdict` into a CI signal
+  stay total over the enum: `render._EXIT_CODES` must cover every verdict (so
+  `exit_code_for` can never `KeyError` on a real verdict — the contract is "one
+  exit code your CI can gate on", and a crash is not an exit code), every
+  verdict must map to a documented verdict-derived code (`0`/`1`/`2`/`4`), and
+  `diff._QUALITY_RANK` must partition the enum into ranked verdicts plus exactly
+  the two deliberately off-ladder ones (`INVALID_EVAL`, `INSUFFICIENT`) — so a
+  newly added verdict can't silently fall off the quality ladder and suppress a
+  `diff` regression signal as `OTHER_CHANGE`. This closes the seam left by the
+  existing producer-side guard (`test_resolver_branch_count.py`) and the
+  frozen-enum guard (`test_verdict_models.py`): the enum could grow and the
+  resolver emit a new class while a downstream map went silently out of sync.
+  No runtime behavior changes.
+
 ### Documentation
 
 - **Evidence-protocol-doc freshness.**
