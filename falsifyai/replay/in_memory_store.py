@@ -77,6 +77,10 @@ class InMemoryStore:
         for r in rows[:limit]:
             yield _ser.artifact_from_json(self._sessions[r.session_id])
 
+    def close(self) -> None:
+        """No-op: nothing to release. Present so the store satisfies the
+        ``ReplayStore.close`` contract and works under ``contextlib.closing``."""
+
 
 def from_uri(uri: str) -> InMemoryStore:
     """Entry-point factory for the ``memory`` store scheme (``--store-path :memory:``).

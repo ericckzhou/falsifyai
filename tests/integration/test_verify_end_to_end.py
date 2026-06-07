@@ -95,13 +95,14 @@ def test_verify_detects_materialized_hash_mutation(tmp_path, capsys) -> None:
     not on a passed-in in-memory artifact.
     """
     import sqlite3
+    from contextlib import closing
 
     db_path = str(tmp_path / "replays.db")
     session_id = _do_one_run(db_path)
     capsys.readouterr()
 
     # Directly mutate the stored JSON payload to corrupt the materialized_hash.
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         row = conn.execute(
             "SELECT payload_json FROM sessions WHERE session_id = ?", (session_id,)
         ).fetchone()

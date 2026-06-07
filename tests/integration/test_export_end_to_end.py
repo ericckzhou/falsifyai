@@ -12,6 +12,7 @@ import argparse
 import json
 import sqlite3
 import zipfile
+from contextlib import closing
 from pathlib import Path
 
 import falsifyai.cli.export as cli_export
@@ -130,7 +131,7 @@ def test_export_refuses_corrupted_artifact_from_real_sqlite_store(tmp_path, caps
     capsys.readouterr()
 
     # Mutate the stored JSON to corrupt the materialized_hash.
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         row = conn.execute(
             "SELECT payload_json FROM sessions WHERE session_id = ?", (session_id,)
         ).fetchone()
@@ -162,7 +163,7 @@ def test_export_allow_corrupted_writes_bundle_with_protest_flag(tmp_path, capsys
     session_id = _do_one_run(db_path)
     capsys.readouterr()
 
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         row = conn.execute(
             "SELECT payload_json FROM sessions WHERE session_id = ?", (session_id,)
         ).fetchone()
