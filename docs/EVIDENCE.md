@@ -73,16 +73,36 @@ supporting a reliability claim. Without evidence, claims are
 anecdotes; with evidence, claims become inspectable. The replay
 artifact is reliability evidence in physical form.
 
-The five operations of the system, stated in these terms:
+The operations of the system divide cleanly into **producers** (which
+generate, derive, and preserve evidence) and **read-only consumers**
+(which re-present preserved evidence without re-deriving the claim).
+
+Producers — the forward pipeline that mints an artifact:
 
 - **Perturbations** generate reliability evidence
 - **Invariants + resolver** derive a reliability claim from generated
   evidence
 - **The replay artifact** preserves the (claim + evidence) pair
-- **`replay`** re-presents preserved evidence without re-deriving the
-  claim
-- **`diff`** compares two preserved (claim + evidence) pairs
+
+`run` drives this pipeline; `minimize` is a producer variant that
+searches for a smaller perturbation set reproducing the same verdict.
+
+Read-only consumers — they read a preserved artifact and never
+re-derive the claim:
+
+- **`replay`** re-presents the original run output verbatim
 - **`inspect`** expands preserved evidence on demand for legibility
+- **`diff`** compares two preserved (claim + evidence) pairs
+- **`history`** / **`timeline`** / **`matrix`** present preserved
+  artifacts across runs
+- **`verify`** / **`export`** check and package a preserved artifact
+
+(`doctor` is an environment diagnostic, not an evidence-protocol
+operation.) This producer/consumer split is the load-bearing boundary:
+preservation is read-only after save, so no consumer can mutate the
+claim it reads. The exact command surface is enumerated in
+[`ARCHITECTURE.md`](ARCHITECTURE.md); this document names the
+operations only to the depth the protocol semantics require.
 
 Perturbation engines are **replaceable** evidence generators —
 different families (paraphrase, retrieval, ordering) all feed the
@@ -159,6 +179,12 @@ The canonical contents of an artifact, by category:
 - `falsifyai_version` — the framework version that produced the
   artifact. Required for forward compatibility decisions.
 
+Provenance — *which command produced this artifact* — is carried by
+`cli_invocation` (descriptive, not part of the deterministic identity).
+Its semantic boundary is defined once in §6: it records the normalized
+invocation, **not** a guarantee that re-running reproduces the outputs
+(replay determinism lives in `materialized_hash` and `bundle_id`).
+
 The three hashes are deliberately split. They answer three different
 audit questions: *"is this the same file?"* / *"did materialization
 produce the same inputs?"* / *"which specific invocation am I looking
@@ -175,6 +201,14 @@ The full set of realized perturbations and their lineage:
 - Every perturbation that was applied (family, parameters, seed,
   resulting input string)
 - The materialization order (the order is part of the identity)
+
+For meaning-preserving families gated by validity (the `paraphrase`
+family under bidirectional NLI), the lineage also preserves the
+validity evidence for each accepted perturbation: `validity_score` and
+`validity_method` are stamped into the perturbation's parameters. This
+keeps the *reason a rewrite was admitted* inspectable — a reader can
+audit not just that a paraphrase was used, but that it cleared the
+validity gate and by what measure.
 
 The materialized spec is preserved *as data*, not as a reference to the
 source YAML. This is intentional: the source YAML may be deleted,
@@ -214,8 +248,11 @@ judgment, not just accept it.
 
 For each case:
 
-- The assigned verdict (`STABLE`, `FRAGILE`, `CONSISTENTLY_WRONG`,
-  `INSUFFICIENT`, `INVALID_EVAL`)
+- The assigned verdict — one of the nine taxonomy members:
+  `INFORMATION_PRESENT`, `STABLE`, `CONSISTENTLY_WRONG`,
+  `ADVERSARIALLY_VULNERABLE`, `FRAGILE`, `INFORMATION_NULL`,
+  `AMBIGUOUS`, `INSUFFICIENT`, `INVALID_EVAL` (the claim shape of each
+  is tabled in §7)
 - The stratified per-perturbation-family stability distribution that
   drove the verdict
 - The bootstrap confidence interval per family
@@ -226,6 +263,17 @@ per-case verdicts via the documented priority chain.
 
 The verdict is *the claim*. The rest of the artifact is *what the
 claim rests on*.
+
+**Semantic-oracle effects are preserved through the verdict, not as a
+separate payload.** The grounding, information-null, and meta oracles
+contribute their signals *into* verdict resolution; the artifact does
+not store a distinct "oracle results" record alongside the verdict.
+What an oracle concluded is recoverable from the assigned verdict (an
+`INFORMATION_PRESENT` verdict *is* the grounding oracle's affirmative
+signal made durable) together with the existing per-case and
+per-judgment fields above. This is deliberate: a second stored copy of
+oracle output would be redundant with the verdict it already produced,
+and redundancy invites drift between the two.
 
 ### 4.6 Falsifiability scoring
 
