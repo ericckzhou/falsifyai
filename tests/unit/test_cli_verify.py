@@ -230,34 +230,3 @@ def test_all_renders_aggregate_footer(monkeypatch, capsys) -> None:
     assert "2 sessions" in captured.out
     assert "15 passed" in captured.out
     assert "1 failed" in captured.out
-
-
-# ---------------------------------------------------------------------------
-# Architectural: cmd_verify must not transitively import verdict.resolver
-# ---------------------------------------------------------------------------
-
-
-def test_verify_does_not_import_resolver() -> None:
-    """falsifyai.cli.verify must not transitively import falsifyai.verdict.resolver.
-
-    Mirrors test_diff_does_not_import_resolver — preservation discipline:
-    verify is a pure reader of stored artifacts; it reads case.verdict from
-    the artifact, never re-resolves.
-    """
-    import sys
-
-    for mod_name in list(sys.modules):
-        if mod_name.startswith("falsifyai.cli.verify"):
-            del sys.modules[mod_name]
-        if mod_name.startswith("falsifyai.integrity"):
-            del sys.modules[mod_name]
-        if mod_name == "falsifyai.verdict.resolver":
-            del sys.modules[mod_name]
-
-    import falsifyai.cli.verify  # noqa: F401
-
-    assert "falsifyai.verdict.resolver" not in sys.modules, (
-        "falsifyai.cli.verify must not import falsifyai.verdict.resolver "
-        "(re-resolving violates the preservation guarantee). "
-        "Read case.verdict from the loaded artifact instead."
-    )

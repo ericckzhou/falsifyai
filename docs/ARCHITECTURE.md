@@ -109,14 +109,20 @@ piece of behavior lives in exactly one of them.
 | **Evidence interpretation** | Judges observations and compresses them into a verdict (which is *a claim about the evidence*). | `falsifyai.invariants`, `falsifyai.verdict`, `falsifyai.falsifiability`, `falsifyai.cli.render` |
 | **Evidence preservation** — *the durable product* | Persists the full evidence trail so it outlives the run. The replay artifact is the system's central object; the other two layers exist to produce and feed it. | `falsifyai.replay` (artifact, store, serializer) |
 
-The CLI subcommands (`falsifyai run` / `replay` / `diff`) are **consumers
-of these layers**, not a fourth layer:
+The CLI subcommands are **consumers of these layers**, not a fourth layer. The
+surface is 11 commands: the producer `run` (and `minimize`), the read-only
+consumers `replay`, `diff`, `inspect`, `history`, `timeline`, `matrix`,
+`verify`, and `export`, plus the `doctor` environment diagnostic.
 
 - `run` orchestrates generation → interpretation → preservation.
 - `replay` reads preservation and feeds it back through interpretation
   for rendering (never re-resolves).
 - `diff` reads two preserved artifacts and compares their interpretation
   outputs.
+- the other read-only consumers (`inspect`, `history`, `timeline`, `matrix`,
+  `verify`, `export`) follow `replay`'s shape: they read preserved verdicts and
+  never re-enter the resolver. `doctor` touches neither artifacts nor the
+  resolver — it probes the environment and store backend.
 
 ### The line to hold
 
@@ -437,8 +443,8 @@ know which question is being asked.
 
 These are not the same epistemic problem. The MVP `falsifyai run` answers
 *"Is this stable?"* (falsification-first). `falsifyai diff` answers *"Did
-migration regress?"* (comparative). Future commands (`history`,
-`inspect`) will address the others.
+migration regress?"* (comparative). The shipped consumers (`history`,
+`inspect`, `timeline`, `matrix`) address the others.
 
 **Architectural implication:** don't prematurely encode this as a CLI
 surface split (e.g., `run` vs `measure-fragility`). The strategy may be
@@ -456,13 +462,13 @@ A one-line orientation for each subpackage:
 | Subpackage | Role |
 |---|---|
 | `falsifyai.spec` | Pydantic models + YAML loader + `materialize()` |
-| `falsifyai.perturbation` | `Perturbation` Protocol + `typo_noise` + `casing_variant` + registry |
+| `falsifyai.perturbation` | `Perturbation` Protocol + `typo_noise` + `casing_variant` + `unicode_chars` + `paraphrase` (bidirectional-NLI validity) + registry |
 | `falsifyai.execution` | `ModelAdapter` Protocol + `LiteLLMAdapter` + `ExecutionEngine` + `InMemoryCache` |
-| `falsifyai.invariants` | `Invariant` Protocol + `contains` + `semantic_equivalence` + `EmbeddingBackend` |
+| `falsifyai.invariants` | `Invariant` Protocol + `contains` + `semantic_equivalence` + `schema_match` + `EmbeddingBackend` + plugin entry-point group |
 | `falsifyai.verdict` | `Verdict` enum + `resolver` (priority chain) + `stratify` + `consistency` |
 | `falsifyai.falsifiability` | Per-case + suite-level falsifiability scoring |
-| `falsifyai.replay` | `ReplayStore` Protocol + `SQLiteStore` + `InMemoryStore` + artifact + serializer |
-| `falsifyai.cli` | `main` (argparse) + `run` + `replay` + `diff` + `render` + `errors` |
+| `falsifyai.replay` | `ReplayStore` Protocol + `SQLiteStore` + `InMemoryStore` + pluggable store backends + artifact + serializer |
+| `falsifyai.cli` | `main` (argparse) + `run` / `minimize` + read-only consumers (`replay`, `diff`, `inspect`, `history`, `timeline`, `matrix`, `verify`, `export`) + `doctor` + `render` + `errors` |
 
 A new contributor should be able to find any feature in <30 seconds using
 this table.

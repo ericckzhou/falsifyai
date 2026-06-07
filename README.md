@@ -206,7 +206,7 @@ See [`docs/case-studies/`](docs/case-studies/) for the index and the framing con
 
 ## CLI reference
 
-Ten subcommands, one workflow:
+Eleven subcommands, one workflow:
 
 ```bash
 falsifyai run <spec.yaml> [--store-path PATH] [--nli]
@@ -221,6 +221,7 @@ falsifyai minimize <spec.yaml> [--case CASE_ID] [--family typo_noise|unicode] [-
 falsifyai verify <session_id> [--store-path PATH]
 falsifyai verify --all         [--store-path PATH]
 falsifyai export <session_id> --bundle <output>.fai.zip [--spec-path PATH] [--allow-corrupted] [--overwrite] [--exported-at ISO8601] [--store-path PATH]
+falsifyai doctor [--store-path PATH]                            # read-only environment diagnostics; run this first if an install looks broken
 ```
 
 `history` shows raw newest-first rows and refuses to aggregate; `timeline` is its inference counterpart (chronological trend + regression detection). `matrix` generalizes the pairwise `diff` to N model runs. `minimize` searches for the *smallest* perturbation that breaks a case — the minimal falsifier.
@@ -264,7 +265,7 @@ Ship the *evidence* with your PR, not just the pass/fail signal:
 - **Not a prompt optimization suite.** No prompt tuning, no automated A/B over wordings. The spec is authored deliberately.
 - **Not a telemetry platform.** No streaming, no production dashboards, no time-series. The artifact is per-run preserved evidence.
 - **Not a generalized observability product.** The CLI compresses; the artifact preserves. The headline tells you whether to look; the artifact tells you what to look at.
-- **Not a workflow orchestrator.** Ten subcommands are the entire surface.
+- **Not a workflow orchestrator.** Eleven subcommands are the entire surface.
 - **Not an AI governance suite.** Governance platforms consume reliability evidence; FalsifyAI produces it.
 
 These exclusions keep the surface compressible. Adding any of them corrupts the discipline.
@@ -381,6 +382,13 @@ git clone https://github.com/ericckzhou/falsifyai
 cd falsifyai
 uv sync --extra dev
 uv run pytest
+```
+
+If anything looks off — a confusing install, a missing optional extra, an
+unwritable store path — run the read-only diagnostic before filing an issue:
+
+```bash
+uv run falsifyai doctor
 ```
 
 ---

@@ -15,7 +15,6 @@ Covers acceptance criteria §5 of dev_notes/plans/PR-28-diff-sharpening.md:
   - Exit-code priority: 5 beats 6
   - --show-timeline: all rows visible, markers, numeric delta, exit-code parity
   - Composition: --strict --show-timeline
-  - Architectural assertion: diff.py must NOT import verdict.resolver
 """
 
 import argparse
@@ -615,32 +614,3 @@ def test_strict_and_show_timeline_exit_6_with_full_row_list(monkeypatch, capsys)
     assert rc == 6
     assert "c1" in out
     assert "c2" in out
-
-
-# ---------------------------------------------------------------------------
-# Architectural assertion: diff.py must NOT import verdict.resolver
-# ---------------------------------------------------------------------------
-
-
-def test_diff_does_not_import_resolver() -> None:
-    """falsifyai.cli.diff must not transitively import falsifyai.verdict.resolver.
-
-    Enforces the consumer-surface separation in §11 of PR-28 plan: diff is a
-    pure reader of preserved artifacts.  Re-resolving on read violates the
-    no-re-resolution invariant and the architectural rule from CLAUDE.md.
-    """
-    import sys
-
-    for mod_name in list(sys.modules):
-        if mod_name.startswith("falsifyai.cli.diff"):
-            del sys.modules[mod_name]
-        if mod_name == "falsifyai.verdict.resolver":
-            del sys.modules[mod_name]
-
-    import falsifyai.cli.diff  # noqa: F401
-
-    assert "falsifyai.verdict.resolver" not in sys.modules, (
-        "falsifyai.cli.diff must not import falsifyai.verdict.resolver "
-        "(re-resolving violates the preservation guarantee). "
-        "Read case.verdict from the loaded artifact instead."
-    )

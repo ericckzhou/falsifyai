@@ -6,6 +6,22 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Architecture-doc freshness + preservation guardrails.**
+  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) now reflects the full
+  11-command CLI surface (the read-only consumers `inspect`, `history`,
+  `timeline`, `matrix`, `verify`, `export` alongside `run` / `replay` / `diff`
+  and the `doctor` diagnostic) and the current perturbation (`unicode_chars`,
+  `paraphrase`) and invariant (`schema_match`) families. Two anti-entropy guards
+  now back the doc's claims with executable invariants: a single parametrized
+  harness asserts every read-only consumer closes its `ReplayStore` (on normal
+  return *and* on post-construction read failure), and the CLI import-hygiene
+  guard now also forbids read-only commands from importing
+  `falsifyai.verdict.resolver` — mechanizing the long-standing "consumers never
+  re-resolve" guarantee and closing a gap where `replay` had no such check. No
+  runtime behavior changes.
+
 ## [0.6.4] — 2026-06-05
 
 Patch release. Closes a self-falsification in the *evidence-generation* layer

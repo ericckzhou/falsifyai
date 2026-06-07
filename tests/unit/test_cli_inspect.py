@@ -350,36 +350,6 @@ def test_session_not_found_raises_infrastructure_error(monkeypatch) -> None:
         inspect_module.cmd_inspect(_args(session_id="never-saved"))
 
 
-# ---------------------------------------------------------------------------
-# Architectural assertion (§12.1 + §12.3) — load-bearing
-# ---------------------------------------------------------------------------
-
-
-def test_inspect_does_not_import_resolver() -> None:
-    """inspect.py must not transitively import the resolver module.
-
-    Enforces the architectural rule from §5 of the plan: inspect is pure
-    consumer surface. The verdict shown is the one stored at run time;
-    re-resolving on read would violate EVIDENCE.md §5.1 (immutability).
-    """
-    import sys
-
-    # Clear any prior cli.inspect import so we observe a fresh import graph.
-    for mod_name in list(sys.modules):
-        if mod_name.startswith("falsifyai.cli.inspect"):
-            del sys.modules[mod_name]
-        if mod_name == "falsifyai.verdict.resolver":
-            del sys.modules[mod_name]
-
-    import falsifyai.cli.inspect  # noqa: F401
-
-    assert "falsifyai.verdict.resolver" not in sys.modules, (
-        "falsifyai.cli.inspect must not import falsifyai.verdict.resolver "
-        "(re-resolving violates the preservation guarantee). If you need "
-        "verdict information, read it from the stored artifact."
-    )
-
-
 def test_inspect_does_not_crash_on_unicode_model_outputs(monkeypatch) -> None:
     """LLM outputs routinely contain Unicode (e.g. U+202F narrow no-break space)
     that non-UTF-8 terminals (Windows cp1252) cannot encode. inspect must
