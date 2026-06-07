@@ -114,7 +114,7 @@ falsifyai/                    ← repo root
 └── examples/
 ```
 
-All subpackages have empty `__init__.py` files only — no implementation yet.
+All subpackages shown above are implemented — the pipeline runs end-to-end (spec → materialize → execute → judge → resolve → save → CLI). See [CHANGELOG.md](../CHANGELOG.md) for what landed when.
 
 ## Design anchors (when implementing, do not reinvent)
 
