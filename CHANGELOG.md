@@ -8,6 +8,23 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Documentation
 
+- **Evidence-protocol-doc freshness.**
+  [`docs/EVIDENCE.md`](docs/EVIDENCE.md) now reflects v0.6.4 artifact semantics:
+  the verdict-preservation section (§4.5) carries all nine `Verdict` members
+  instead of the stale pre-0.6 five; the system-operations framing (§2) is
+  restated as the producer / read-only-consumer split (`run` / `minimize`
+  produce; `replay`, `inspect`, `diff`, `history`, `timeline`, `matrix`,
+  `verify`, `export` consume), replacing a mislabeled "five operations" list;
+  the materialized-spec section (§4.2) documents that `paraphrase` lineage
+  preserves `validity_score` / `validity_method`; identity (§4.1) cross-links
+  `cli_invocation` provenance to its §6 semantic boundary; and §4.5 clarifies
+  that semantic-oracle effects are preserved *through* the assigned verdict and
+  existing case/judgment fields, not as a separate stored oracle-results
+  payload. A coarse meta-test
+  ([`tests/meta/test_evidence_doc_freshness.py`](tests/meta/test_evidence_doc_freshness.py))
+  now guards the contract: every `Verdict` member and every read-only consumer
+  must be named in the doc. No runtime behavior changes.
+
 - **Architecture-doc freshness + preservation guardrails.**
   [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) now reflects the full
   11-command CLI surface (the read-only consumers `inspect`, `history`,
