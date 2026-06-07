@@ -82,7 +82,7 @@ class TestRender:
         assert "FAIL" in text
         assert "-> do something" in text
 
-    def test_collect_checks_has_six_rows(self, tmp_path) -> None:
+    def test_collect_checks_rows(self, tmp_path) -> None:
         checks = collect_checks(str(tmp_path / "replays.db"))
         labels = [c.label for c in checks]
         assert labels == [
@@ -91,5 +91,41 @@ class TestRender:
             "core deps",
             "[semantic] extra",
             "[nli] extra",
+            "store backend",
             "store write",
         ]
+
+
+class TestStoreBackend:
+    def test_default_path_reports_sqlite_backend(self, tmp_path, capsys) -> None:
+        rc = cmd_doctor(_args(str(tmp_path / "replays.db")))
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "store backend" in out
+        assert "sqlite" in out
+
+    def test_unknown_scheme_is_unhealthy_exit_3(self, capsys) -> None:
+        # No store plugin handles 'postgres' in this install, so backend
+        # resolution fails in diagnostics instead of crashing at run time.
+        rc = cmd_doctor(_args("postgres://host/db"))
+        out = capsys.readouterr().out
+        assert rc == 3
+        assert "no backend registered" in out
+
+    def test_memory_scheme_is_ephemeral_ok(self, capsys) -> None:
+        rc = cmd_doctor(_args(":memory:"))
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "ephemeral" in out
+
+    def test_registered_plugin_scheme_is_not_probed(self, capsys, monkeypatch) -> None:
+        # Simulate an installed plugin store without shipping one: the scheme is
+        # registered, but doctor must not construct it (possible side effects).
+        monkeypatch.setattr(
+            "falsifyai.replay.registry.discover_stores",
+            lambda: {"sqlite": object(), "memory": object(), "postgres": object()},
+        )
+        rc = cmd_doctor(_args("postgres://host/db"))
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "plugin store; not probed" in out

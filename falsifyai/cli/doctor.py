@@ -2,8 +2,9 @@
 
 Reports the runtime facts a user needs to explain a confusing install: the
 Python and package versions, whether the core runtime dependencies import,
-which optional extras (``[semantic]``, ``[nli]``) are available, and whether a
-replay store can actually be written.
+which optional extras (``[semantic]``, ``[nli]``) are available, which store
+backend the configured ``--store-path`` selects (and whether that backend is
+registered), and whether a replay store can actually be written.
 
 It *diagnoses only*. It never installs anything, writes config, or mutates user
 data -- the store-writability probe lives in a tempfile and is deleted, and
@@ -95,8 +96,45 @@ def _extra_check(label: str, modules: list[str], extra: str) -> Check:
     return Check(label, "not installed", _INFO, f'pip install "falsifyai[{extra}]"')
 
 
-def _store_check(store_path: str) -> Check:
-    """Prove a replay store can be written -- via a throwaway tempfile DB, never
+def _store_checks(store_path: str) -> list[Check]:
+    """Diagnose the store the configured ``--store-path`` actually selects.
+
+    Two facts. (1) *Backend resolution*: is a store registered for the selected
+    URI scheme? This is the same resolution ``build_store`` performs, so an
+    unknown scheme (a missing store plugin) fails here in diagnostics instead of
+    surfacing as a crash at ``run`` time. (2) *Writability*: for the built-in
+    SQLite store, prove a store can actually be written. A plugin store
+    (``postgres://`` ...) is reported as registered but *not* write-probed --
+    constructing one may open a network connection or allocate resources, which
+    would break doctor's diagnose-only contract.
+    """
+    from falsifyai.replay.registry import discover_stores, store_scheme
+
+    scheme = store_scheme(store_path)
+    backends = sorted(discover_stores())  # reads entry points only; no construction
+
+    if scheme not in backends:
+        return [
+            Check(
+                "store backend",
+                f"{scheme} (no backend registered)",
+                _FAIL,
+                f"available: {', '.join(backends) or 'none'} -- install a store plugin "
+                f"for {scheme!r}",
+            )
+        ]
+
+    backend = Check("store backend", f"{scheme} (available: {', '.join(backends)})", _OK)
+    if scheme == "sqlite":
+        return [backend, _sqlite_write_check(store_path)]
+    if scheme == "memory":
+        return [backend, Check("store write", ":memory: (ephemeral, no disk)", _OK)]
+    # A registered plugin backend: don't construct it (possible side effects).
+    return [backend, Check("store write", f"{store_path} (plugin store; not probed)", _INFO)]
+
+
+def _sqlite_write_check(store_path: str) -> Check:
+    """Prove a SQLite store can be written -- via a throwaway tempfile DB, never
     the user's real store -- and that the configured store dir is writable."""
     from falsifyai.replay.sqlite_store import SQLiteStore
 
@@ -129,7 +167,7 @@ def collect_checks(store_path: str) -> list[Check]:
         _core_deps_check(),
         _extra_check("[semantic] extra", ["sentence_transformers"], "semantic"),
         _extra_check("[nli] extra", ["transformers", "torch"], "nli"),
-        _store_check(store_path),
+        *_store_checks(store_path),
     ]
 
 
