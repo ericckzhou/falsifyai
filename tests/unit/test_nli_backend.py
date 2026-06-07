@@ -1,12 +1,15 @@
 """Unit tests for the NLI backend primitive (PR-I).
 
-The real ``TransformersNLIBackend`` is never asked to ``classify()`` here -- that
-would download ~500MB of deberta weights. We test:
+The real ``TransformersNLIBackend`` is never run against downloaded weights here
+-- that would pull ~500MB of deberta. Its ``classify()`` wiring is exercised with
+a fake ``torch`` + ``transformers`` injected into ``sys.modules`` instead. We test:
 
 - ``MockNLIBackend`` determinism + its documented substring/rules contract,
 - Protocol conformance for both backends,
 - that constructing the real backend does NOT load the model (laziness),
-- that reaching the real backend without ``transformers`` raises a friendly error.
+- that reaching the real backend without ``transformers`` raises a friendly error,
+- that the lazy-load success path loads once and reduces logits to the arg-max
+  label (via injected fakes, no network/weights).
 """
 
 import sys
@@ -124,3 +127,91 @@ class TestFriendlyError:
         backend = TransformersNLIBackend()
         with pytest.raises(ImportError, match=r"falsifyai\[nli\]"):
             backend.classify("a premise", "a hypothesis")
+
+
+def _inject_fake_backends(monkeypatch, logits_row: list[float]) -> None:
+    """Put a fake ``torch`` + ``transformers`` in ``sys.modules`` so the real
+    backend's lazy load + ``classify`` run without any download.
+
+    The fake model ignores tokenizer ``inputs`` and always returns ``logits_row``
+    over the deberta label order (entailment, neutral, contradiction); the fake
+    ``torch.softmax`` does a real softmax so score semantics match production.
+    """
+    import math
+    import types
+
+    class _NoGrad:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def _softmax(row, dim=-1):
+        top = max(row)
+        exps = [math.exp(v - top) for v in row]
+        total = sum(exps)
+        return types.SimpleNamespace(tolist=lambda: [e / total for e in exps])
+
+    fake_torch = types.ModuleType("torch")
+    fake_torch.no_grad = lambda: _NoGrad()
+    fake_torch.softmax = _softmax
+
+    class _Logits:
+        def __getitem__(self, _idx):
+            return logits_row
+
+    class _Output:
+        logits = _Logits()
+
+    class _Model:
+        config = types.SimpleNamespace(
+            id2label={0: "entailment", 1: "neutral", 2: "contradiction"}
+        )
+
+        def __call__(self, **_inputs):
+            return _Output()
+
+    class _Tokenizer:
+        def __call__(self, *_args, **_kwargs):
+            return {}
+
+    fake_tf = types.ModuleType("transformers")
+    fake_tf.AutoTokenizer = types.SimpleNamespace(from_pretrained=lambda _name: _Tokenizer())
+    fake_tf.AutoModelForSequenceClassification = types.SimpleNamespace(
+        from_pretrained=lambda _name: _Model()
+    )
+
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setitem(sys.modules, "transformers", fake_tf)
+
+
+class TestInjectedInferencePath:
+    """Exercise the real backend's ``_load`` success + ``classify`` reduction with
+    injected fakes -- covers the wiring that would otherwise need 500MB of weights."""
+
+    def test_classify_reduces_logits_to_argmax_label(self, monkeypatch) -> None:
+        _inject_fake_backends(monkeypatch, [5.0, 1.0, 0.0])  # entailment dominates
+        backend = TransformersNLIBackend()
+        result = backend.classify("a premise", "a hypothesis")
+        assert result.label is NLILabel.ENTAILMENT
+        assert result.scores[NLILabel.ENTAILMENT] == pytest.approx(max(result.scores.values()))
+        assert sum(result.scores.values()) == pytest.approx(1.0)
+        assert result.model_version == backend.model_version
+
+    def test_all_three_labels_populated_from_id2label(self, monkeypatch) -> None:
+        _inject_fake_backends(monkeypatch, [0.0, 0.0, 4.0])  # contradiction dominates
+        result = TransformersNLIBackend().classify("p", "h")
+        assert set(result.scores) == set(NLILabel)
+        assert result.label is NLILabel.CONTRADICTION
+
+    def test_model_is_loaded_once_then_reused(self, monkeypatch) -> None:
+        _inject_fake_backends(monkeypatch, [0.0, 5.0, 0.0])  # neutral dominates
+        backend = TransformersNLIBackend()
+        assert backend._model is None  # lazy: nothing loaded yet
+        backend.classify("p1", "h1")
+        loaded = backend._model
+        assert loaded is not None
+        result = backend.classify("p2", "h2")
+        assert backend._model is loaded  # reused, not reloaded
+        assert result.label is NLILabel.NEUTRAL

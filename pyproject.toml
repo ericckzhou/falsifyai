@@ -135,6 +135,13 @@ addopts = [
     "--strict-markers",
     "--strict-config",
 ]
+# A leaked resource (e.g. an unclosed sqlite3 connection) is a real defect for a
+# tool that promises clean evidence hygiene: promote ResourceWarning to an error
+# so CI fails on regressions. Stores now close deterministically via
+# ReplayStore.close / contextlib.closing (see falsifyai/replay/protocol.py).
+filterwarnings = [
+    "error::ResourceWarning",
+]
 markers = [
     "unit: unit tests",
     "integration: integration tests",
