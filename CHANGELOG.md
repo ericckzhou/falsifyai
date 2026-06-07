@@ -175,7 +175,7 @@ oracles are supplied.
   `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` to the prior
   five, completing the 2-D verdict space (§2). RAG-style grounding context is
   carried on `OracleContext`; failure-shape classification feeds the new
-  branches. CLI exit codes map all eight verdicts.
+  branches. CLI exit codes map all nine verdicts.
 - **`falsifyai run --nli`** — opt-in flag that constructs the NLI backend and
   activates the semantic oracles for a run. Purely additive: it adds
   grounding/hallucination evidence and can surface a richer verdict, but never

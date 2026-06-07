@@ -1,9 +1,14 @@
 """Verdict enum for the falsificationist evaluation taxonomy.
 
-The full 8-verdict taxonomy (per plan.md section 2.2) plus the two cross-cutting
-meta-verdicts. The 0.6.0 milestone adds the four remaining classes
-(``INFORMATION_PRESENT``, ``ADVERSARIALLY_VULNERABLE``, ``INFORMATION_NULL``,
-``AMBIGUOUS``) to the 0.5.0 set.
+Nine enum members. Eight come from the plan.md section 2.2 taxonomy: six occupy
+the 2D stability x grounding space (``INFORMATION_PRESENT``, ``STABLE``,
+``CONSISTENTLY_WRONG``, ``ADVERSARIALLY_VULNERABLE``, ``FRAGILE``,
+``INFORMATION_NULL``) and two are cross-cutting meta-verdicts overlaying it
+(``AMBIGUOUS``, ``INVALID_EVAL``). The ninth, ``INSUFFICIENT``, is a
+structural-gap verdict the MVP added (no perturbations / no invariants to run);
+it is not one of plan.md's eight. The 0.6.0 milestone landed the four classes
+the 0.5.0 set lacked (``INFORMATION_PRESENT``, ``ADVERSARIALLY_VULNERABLE``,
+``INFORMATION_NULL``, ``AMBIGUOUS``), completing the taxonomy.
 
 Note on layering: a verdict member existing here is not the same as the resolver
 *emitting* it. The semantic oracles (PR-J) contribute these verdicts as evidence;
@@ -21,11 +26,13 @@ from enum import Enum
 
 
 class Verdict(Enum):
-    """The 8-verdict falsificationist taxonomy (plan.md section 2.2).
+    """The nine-member falsificationist Verdict enum (plan.md section 2.2 + INSUFFICIENT).
 
-    Stability axis (how much behavior varies under perturbation) crossed with the
-    grounding axis (are outputs factually/safely correct), plus two cross-cutting
-    meta-verdicts.
+    Six members occupy the 2D space: the stability axis (how much behavior varies
+    under perturbation) crossed with the grounding axis (are outputs
+    factually/safely correct). Two cross-cutting meta-verdicts (``AMBIGUOUS``,
+    ``INVALID_EVAL``) overlay that space, and ``INSUFFICIENT`` covers the
+    structural-gap case -- nine in total.
 
     - ``INFORMATION_PRESENT``: high stability AND confirmed grounding -- the gold
       standard. STABLE plus a grounding oracle confirming the outputs are
