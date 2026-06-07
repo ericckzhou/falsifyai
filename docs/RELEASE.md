@@ -28,7 +28,7 @@ bump rules apply strictly.
 ## Pre-release checklist
 
 **One command runs the executable subset** (lint, format, coverage-gated tests,
-build, `twine check`):
+build, `twine check`, and a wheel-install smoke test):
 
 ```bash
 uv run python scripts/release_gate.py
@@ -128,6 +128,17 @@ If `twine check` fails, the most common causes are:
 - Long-description encoding issues (rare with `readme = "README.md"`).
 - Invalid classifiers.
 
+### Wheel-install smoke
+
+Both the release gate and the publish workflow install the freshly built wheel
+into a clean, isolated venv — not the project `.venv`, which carries an editable
+install plus dev deps — and run `falsifyai --help` plus a version import. This is
+the only check that exercises the *packaged* artifact rather than the source
+tree, so it catches missing package data, a broken `[project.scripts]` entry, or
+an import that only works from the repo root. `scripts/release_gate.py` runs it
+as its final step; `.github/workflows/publish.yml` runs it just before the
+irreversible upload.
+
 ## Tag (triggers automated publish)
 
 ```bash
@@ -146,7 +157,11 @@ The workflow:
 2. Re-runs the full test suite on the tagged commit.
 3. Builds sdist + wheel via `uv build`.
 4. Validates the distributions with `twine check`.
-5. Publishes to PyPI via Trusted Publisher OIDC (no API token needed).
+5. **Wheel-install smoke test** — installs the freshly built wheel into a clean,
+   isolated venv and runs `falsifyai --help` plus a version import. Catches
+   packaging breakage (missing package data, a broken `[project.scripts]` entry,
+   a repo-root-only import) before the upload becomes irreversible.
+6. Publishes to PyPI via Trusted Publisher OIDC (no API token needed).
 
 Watch the run at
 `https://github.com/ericckzhou/falsifyai/actions/workflows/publish.yml`.
