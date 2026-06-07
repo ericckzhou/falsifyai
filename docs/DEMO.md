@@ -180,7 +180,7 @@ sleep 2
 
 The point to narrate: `--nli` is **purely additive** — it never flips a pass
 into a fail, it adds grounding/hallucination evidence that the resolver
-compresses into the full 8-verdict taxonomy (`INFORMATION_PRESENT`,
+compresses into the full 9-verdict taxonomy (`INFORMATION_PRESENT`,
 `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, `AMBIGUOUS` joined the prior
 five in 0.6.0). Requires `pip install "falsifyai[nli]"`; the NLI model
 downloads on the first run, so mention that in the caption to keep the pause

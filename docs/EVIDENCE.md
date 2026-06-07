@@ -358,15 +358,19 @@ roadmap continuation.
 
 ## 7. The verdict as a claim
 
-Each of the five verdicts is *a claim*, with a specific epistemic
-shape. The artifact preserves the basis for the claim; the verdict
-preserves the claim itself.
+Each verdict is *a claim*, with a specific epistemic shape. The
+artifact preserves the basis for the claim; the verdict preserves the
+claim itself.
 
 | Verdict | Claim made | Basis required |
 |---|---|---|
+| `INFORMATION_PRESENT` | "Every perturbation left every invariant satisfied *and* a grounding oracle confirmed the outputs are supported by the provided reference." | Universal positive over perturbations × invariants, plus an affirmative grounding signal. |
 | `STABLE` | "Every perturbation in this case left every invariant satisfied." | Universal positive over all perturbations × all invariants. |
-| `FRAGILE` | "At least one perturbation produced an invariant failure that doesn't reflect the baseline (original) behavior." | Existence of a failing perturbation paired with a passing baseline. |
 | `CONSISTENTLY_WRONG` | "The baseline (original input) already fails the invariants, and the perturbations don't change that." | Baseline failure plus correlated perturbation failures. |
+| `ADVERSARIALLY_VULNERABLE` | "One perturbation family collapses the contract while the others hold — a targeted, reproducible failure vector." | A single dominating failing family against otherwise-passing families. |
+| `FRAGILE` | "At least one perturbation produced an invariant failure that doesn't reflect the baseline (original) behavior." | Existence of a failing perturbation paired with a passing baseline. |
+| `INFORMATION_NULL` | "Outputs are structurally consistent under perturbation but semantically empty (noise, refusals, hedging)." | Cross-output consistency with an emptiness/refusal signal and no grounding claim. |
+| `AMBIGUOUS` | "The eval ran, but the evidence is too thin to discriminate between the states above." | Wide bootstrap CI or a sub-`INVALID_EVAL` oracle disagreement — *not* a structural gap. |
 | `INSUFFICIENT` | "There are not enough perturbations to produce a defensible stability claim." | Configured perturbation budget below threshold. |
 | `INVALID_EVAL` | "The evaluation itself is internally contradictory or structurally broken." | Meta-oracle detection (e.g., invariants disagree in a way that means no claim can be made). |
 

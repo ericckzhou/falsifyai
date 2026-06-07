@@ -149,7 +149,7 @@ def test_classify_stable_to_insufficient_is_other_change() -> None:
     assert kind is TransitionKind.OTHER_CHANGE
 
 
-# --- 8-verdict ladder (PR-K) -------------------------------------------------
+# --- verdict quality ladder (PR-K) -------------------------------------------
 
 
 def test_classify_information_present_to_stable_is_regressed() -> None:
