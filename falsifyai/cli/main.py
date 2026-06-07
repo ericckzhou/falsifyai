@@ -28,17 +28,6 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from falsifyai.cli import diff as diff_cmd
-from falsifyai.cli import doctor as doctor_cmd
-from falsifyai.cli import export as export_cmd
-from falsifyai.cli import history as history_cmd
-from falsifyai.cli import inspect as inspect_cmd
-from falsifyai.cli import matrix as matrix_cmd
-from falsifyai.cli import minimize as minimize_cmd
-from falsifyai.cli import replay as replay_cmd
-from falsifyai.cli import run as run_cmd
-from falsifyai.cli import timeline as timeline_cmd
-from falsifyai.cli import verify as verify_cmd
 from falsifyai.cli.errors import CLIError
 
 
@@ -322,28 +311,56 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.print_help()
         return 0
 
+    # Command modules are imported lazily inside each branch, not at module top
+    # level: ``run`` / ``minimize`` pull in the model-execution stack (litellm),
+    # which is dead weight — and emits import-time warnings — for the read-only
+    # commands (``doctor``, ``verify``, ``replay``, ...). Dispatching one must not
+    # load the model stack. The guard in tests/meta/test_cli_import_hygiene.py
+    # fails if a command import leaks back to module top level.
     try:
         if args.command == "run":
+            from falsifyai.cli import run as run_cmd
+
             return run_cmd.cmd_run(args)
         if args.command == "replay":
+            from falsifyai.cli import replay as replay_cmd
+
             return replay_cmd.cmd_replay(args)
         if args.command == "inspect":
+            from falsifyai.cli import inspect as inspect_cmd
+
             return inspect_cmd.cmd_inspect(args)
         if args.command == "diff":
+            from falsifyai.cli import diff as diff_cmd
+
             return diff_cmd.cmd_diff(args)
         if args.command == "history":
+            from falsifyai.cli import history as history_cmd
+
             return history_cmd.cmd_history(args)
         if args.command == "timeline":
+            from falsifyai.cli import timeline as timeline_cmd
+
             return timeline_cmd.cmd_timeline(args)
         if args.command == "matrix":
+            from falsifyai.cli import matrix as matrix_cmd
+
             return matrix_cmd.cmd_matrix(args)
         if args.command == "minimize":
+            from falsifyai.cli import minimize as minimize_cmd
+
             return minimize_cmd.cmd_minimize(args)
         if args.command == "verify":
+            from falsifyai.cli import verify as verify_cmd
+
             return verify_cmd.cmd_verify(args)
         if args.command == "export":
+            from falsifyai.cli import export as export_cmd
+
             return export_cmd.cmd_export(args)
         if args.command == "doctor":
+            from falsifyai.cli import doctor as doctor_cmd
+
             return doctor_cmd.cmd_doctor(args)
     except CLIError as exc:
         print(f"falsifyai: error: {exc}", file=sys.stderr)

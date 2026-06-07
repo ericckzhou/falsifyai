@@ -42,7 +42,9 @@ def test_cli_error_is_caught_and_returns_exit_code(monkeypatch, capsys) -> None:
     def _raise(args):  # noqa: ANN001
         raise SpecError("bad spec", exit_code=3)
 
-    monkeypatch.setattr(cli_main.run_cmd, "cmd_run", _raise)
+    # main() imports the run module lazily inside its dispatch branch, so patch
+    # the source attribute rather than a (no-longer-existing) main-level alias.
+    monkeypatch.setattr("falsifyai.cli.run.cmd_run", _raise)
     rc = cli_main.main(["run", "missing.yaml"])
     assert rc == 3
     captured = capsys.readouterr()
