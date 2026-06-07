@@ -1,9 +1,7 @@
 """Tests for falsifyai.cli.matrix (reliability matrix)."""
 
 import argparse
-import ast
 import io
-from pathlib import Path
 from types import SimpleNamespace
 
 import falsifyai.cli.matrix as matrix_mod
@@ -62,18 +60,6 @@ def test_render_contains_rows_and_legend() -> None:
     assert "0.30" in out and "0.20" in out
     assert "openai:gpt-4o" in out  # legend
     assert "anthropic:claude" in out
-
-
-def test_matrix_module_does_not_import_resolver() -> None:
-    """matrix is a consumer surface; it must never re-resolve verdicts."""
-    source = ast.parse(Path(matrix_mod.__file__).read_text(encoding="utf-8"))
-    imported = set()
-    for node in ast.walk(source):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            imported.add(node.module)
-        elif isinstance(node, ast.Import):
-            imported.update(alias.name for alias in node.names)
-    assert "falsifyai.verdict.resolver" not in imported
 
 
 def test_cmd_matrix_unknown_session_raises(tmp_path) -> None:

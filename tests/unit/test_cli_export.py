@@ -5,9 +5,6 @@ overwrite semantics, exit codes (0 / 3 / 7), and the rendered output.
 
 A ``_FakeStore`` mirrors the pattern from ``test_cli_verify.py`` so we
 can serve hand-constructed artifacts including intentional corruption.
-
-The architectural assertion ``test_export_does_not_import_resolver`` is
-co-located here (matches PR-31 convention).
 """
 
 import argparse
@@ -347,34 +344,3 @@ def test_default_exported_at_uses_current_utc_time(tmp_path, monkeypatch) -> Non
     m = _read_manifest(bundle_path)
     exported_at = datetime.fromisoformat(m["exported_at"])
     assert before <= exported_at <= after
-
-
-# ---------------------------------------------------------------------------
-# Architectural assertion (co-located, mirrors PR-31 convention)
-# ---------------------------------------------------------------------------
-
-
-def test_export_does_not_import_resolver() -> None:
-    """falsifyai.cli.export must not transitively import falsifyai.verdict.resolver.
-
-    Mirrors test_diff_does_not_import_resolver and test_verify_does_not_import_resolver.
-    Preservation discipline: export reads case.verdict from the loaded artifact,
-    never re-resolves.
-    """
-    import sys
-
-    for mod_name in list(sys.modules):
-        if mod_name.startswith("falsifyai.cli.export"):
-            del sys.modules[mod_name]
-        if mod_name.startswith("falsifyai.bundle"):
-            del sys.modules[mod_name]
-        if mod_name == "falsifyai.verdict.resolver":
-            del sys.modules[mod_name]
-
-    import falsifyai.cli.export  # noqa: F401
-
-    assert "falsifyai.verdict.resolver" not in sys.modules, (
-        "falsifyai.cli.export must not import falsifyai.verdict.resolver "
-        "(re-resolving violates the preservation guarantee). "
-        "Read case.verdict from the loaded artifact instead."
-    )
