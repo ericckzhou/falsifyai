@@ -165,9 +165,7 @@ def _inject_fake_backends(monkeypatch, logits_row: list[float]) -> None:
         logits = _Logits()
 
     class _Model:
-        config = types.SimpleNamespace(
-            id2label={0: "entailment", 1: "neutral", 2: "contradiction"}
-        )
+        config = types.SimpleNamespace(id2label={0: "entailment", 1: "neutral", 2: "contradiction"})
 
         def __call__(self, **_inputs):
             return _Output()
