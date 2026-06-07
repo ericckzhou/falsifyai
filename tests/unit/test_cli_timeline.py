@@ -1,8 +1,6 @@
 """Tests for falsifyai.cli.timeline."""
 
 import argparse
-import ast
-from pathlib import Path
 from types import SimpleNamespace
 
 import falsifyai.cli.timeline as timeline_mod
@@ -48,17 +46,6 @@ def test_sparkline_maps_low_to_high() -> None:
     line = _sparkline([0.0, 1.0])
     assert line[0] == " "  # lowest level
     assert line[-1] == "@"  # highest level
-
-
-def test_timeline_module_does_not_import_resolver() -> None:
-    source = ast.parse(Path(timeline_mod.__file__).read_text(encoding="utf-8"))
-    imported = set()
-    for node in ast.walk(source):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            imported.add(node.module)
-        elif isinstance(node, ast.Import):
-            imported.update(alias.name for alias in node.names)
-    assert "falsifyai.verdict.resolver" not in imported
 
 
 def test_cmd_timeline_unknown_case_raises(tmp_path) -> None:

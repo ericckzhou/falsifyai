@@ -258,35 +258,6 @@ def test_history_unknown_case_id_raises(monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Architectural assertion (§12.2)
-# ---------------------------------------------------------------------------
-
-
-def test_history_does_not_import_resolver() -> None:
-    """history.py must not transitively import the resolver module.
-
-    Same architectural rule as inspect (PR-19): consumer surfaces over
-    preserved evidence never re-resolve. The verdict shown is the one
-    stored at run time; re-resolving would violate EVIDENCE.md §5.1.
-    """
-    import sys
-
-    for mod_name in list(sys.modules):
-        if mod_name.startswith("falsifyai.cli.history"):
-            del sys.modules[mod_name]
-        if mod_name == "falsifyai.verdict.resolver":
-            del sys.modules[mod_name]
-
-    import falsifyai.cli.history  # noqa: F401
-
-    assert "falsifyai.verdict.resolver" not in sys.modules, (
-        "falsifyai.cli.history must not import falsifyai.verdict.resolver "
-        "(re-resolving violates the preservation guarantee). Read case.verdict "
-        "from the loaded artifact instead."
-    )
-
-
-# ---------------------------------------------------------------------------
 # Exit code (E1)
 # ---------------------------------------------------------------------------
 

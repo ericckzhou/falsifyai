@@ -99,3 +99,50 @@ def test_artifact_roundtrip_via_load_session(tmp_path, monkeypatch) -> None:
 
     # Semantic equality across save -> load.
     assert loaded == sessions
+
+
+# ---------------------------------------------------------------------------
+# Store lifecycle: run is a *producer*; it owns the store it writes to and must
+# close it whether the save succeeds or raises. (Read-only consumers are covered
+# by tests/unit/test_cli_store_lifecycle.py; run is kept here, with the model
+# stack already mocked, so the producer/consumer boundary stays clean.)
+# ---------------------------------------------------------------------------
+
+
+class _TrackingStore:
+    """Minimal producer-side store double: records save_session + close."""
+
+    def __init__(self, *, fail_save: bool = False) -> None:
+        self.saved: list = []
+        self.closed = False
+        self._fail_save = fail_save
+
+    def save_session(self, artifact) -> None:
+        if self._fail_save:
+            raise RuntimeError("forced save failure")
+        self.saved.append(artifact)
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_run_closes_store_after_save(monkeypatch, capsys) -> None:
+    _patch_adapter(monkeypatch, "Paris is the capital of France.")
+    store = _TrackingStore()
+    monkeypatch.setattr(cli_run, "build_store", lambda _p: store)
+
+    cli_run.cmd_run(_args(_SMOKE_SPEC, ":memory:"))
+
+    assert len(store.saved) == 1
+    assert store.closed is True
+
+
+def test_run_closes_store_when_save_fails(monkeypatch, capsys) -> None:
+    _patch_adapter(monkeypatch, "Paris is the capital of France.")
+    store = _TrackingStore(fail_save=True)
+    monkeypatch.setattr(cli_run, "build_store", lambda _p: store)
+
+    with pytest.raises(RuntimeError):
+        cli_run.cmd_run(_args(_SMOKE_SPEC, ":memory:"))
+
+    assert store.closed is True
