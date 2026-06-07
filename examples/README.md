@@ -52,7 +52,7 @@ falsifyai diff <session_A_id> <session_B_id>
 ```
 
 The regression criterion is **verdict-class downgrade**, ranked over the
-8-verdict quality ladder: a move to a worse rank triggers exit 5 (e.g.
+verdict quality ladder: a move to a worse rank triggers exit 5 (e.g.
 `STABLE → FRAGILE`, `FRAGILE → ADVERSARIALLY_VULNERABLE`,
 `INFORMATION_PRESENT → STABLE`). Same-tier and same-verdict transitions
 (even with stability drops) do not trigger exit 5; the criterion is

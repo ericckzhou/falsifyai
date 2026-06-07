@@ -35,11 +35,17 @@ class ReplayStore(Protocol):
       (raises ``ReplayStoreError``).
     - ``load_session`` raises ``SessionNotFoundError`` for unknown ids.
     - ``query_sessions`` yields artifacts newest-first by ``created_at``.
+    - ``close`` releases any underlying resources and is idempotent. Backends
+      holding OS handles (e.g. ``SQLiteStore``'s connection) must release them
+      here so callers can close deterministically (``contextlib.closing``)
+      rather than relying on GC. In-memory backends make this a no-op.
     """
 
     def save_session(self, artifact: ReplayArtifact) -> None: ...
 
     def load_session(self, session_id: str) -> ReplayArtifact: ...
+
+    def close(self) -> None: ...
 
     def query_sessions(
         self,

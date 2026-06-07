@@ -1,14 +1,15 @@
 """``falsifyai`` CLI entry point.
 
-Argparse-based dispatch. Ten subcommands: ``run`` (execute a spec),
+Argparse-based dispatch. Eleven subcommands: ``run`` (execute a spec),
 ``replay`` (re-render a stored session), ``inspect`` (per-case deep-dive
 over preserved evidence), ``diff`` (compare two stored sessions and
 exit 5 on regression), ``history`` (temporal view of one case across
 saved sessions), ``timeline`` (longitudinal robustness trend for one
 case; exit 5 on regression), ``matrix`` (cross-model reliability profiles
 over N sessions), ``minimize`` (smallest perturbation that breaks a case),
-``verify`` (replay-artifact integrity validation), and
-``export`` (write a deterministic portable evidence bundle).
+``verify`` (replay-artifact integrity validation),
+``export`` (write a deterministic portable evidence bundle), and
+``doctor`` (read-only environment diagnostics).
 
 Exit codes (per [plan.md section 16.1](../../plan.md)):
 
@@ -28,6 +29,7 @@ import sys
 from collections.abc import Sequence
 
 from falsifyai.cli import diff as diff_cmd
+from falsifyai.cli import doctor as doctor_cmd
 from falsifyai.cli import export as export_cmd
 from falsifyai.cli import history as history_cmd
 from falsifyai.cli import inspect as inspect_cmd
@@ -299,6 +301,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="ReplayStore path. Default: .falsifyai/replays.db",
     )
 
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Report environment diagnostics: versions, optional extras, store writability.",
+    )
+    doctor_parser.add_argument(
+        "--store-path",
+        default=".falsifyai/replays.db",
+        help="Store path whose writability to check. Default: .falsifyai/replays.db",
+    )
+
     return parser
 
 
@@ -331,6 +343,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return verify_cmd.cmd_verify(args)
         if args.command == "export":
             return export_cmd.cmd_export(args)
+        if args.command == "doctor":
+            return doctor_cmd.cmd_doctor(args)
     except CLIError as exc:
         print(f"falsifyai: error: {exc}", file=sys.stderr)
         return exc.exit_code

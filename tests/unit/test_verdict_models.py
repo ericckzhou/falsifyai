@@ -1,9 +1,10 @@
-"""Tests for falsifyai.verdict.models.Verdict (full 8-verdict taxonomy).
+"""Tests for falsifyai.verdict.models.Verdict (the nine-member taxonomy).
 
-The 0.6.0 milestone adds the four remaining classes (INFORMATION_PRESENT,
-ADVERSARIALLY_VULNERABLE, INFORMATION_NULL, AMBIGUOUS) to the 0.5.0 set, giving
-the full §2.2 taxonomy plus INSUFFICIENT (the structural-gap class) and
-INVALID_EVAL (the meta-verdict).
+The enum is plan.md §2.2's eight verdicts -- six in the 2D stability×grounding
+space plus the two cross-cutting meta-verdicts (AMBIGUOUS, INVALID_EVAL) -- plus
+INSUFFICIENT, the structural-gap class the MVP added. The 0.6.0 milestone landed
+the four the 0.5.0 set lacked (INFORMATION_PRESENT, ADVERSARIALLY_VULNERABLE,
+INFORMATION_NULL, AMBIGUOUS).
 
 String values are part of the public replay-store on-disk format and must never
 change once written -- this test pins them so a rename or value change is caught.

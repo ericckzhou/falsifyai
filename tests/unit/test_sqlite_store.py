@@ -7,6 +7,7 @@ and the forward-compat version refusal all live here. Behavior shared with
 """
 
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -19,7 +20,7 @@ def test_schema_version_written_on_first_open(tmp_path) -> None:
     db_path = tmp_path / "replays.db"
     with SQLiteStore(db_path):
         pass
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         (version,) = conn.execute("SELECT version FROM schema_meta").fetchone()
         assert version == SCHEMA_VERSION
 
@@ -41,7 +42,7 @@ def test_refuses_to_open_db_with_higher_schema_version(tmp_path) -> None:
     # Create a baseline DB first so schema exists.
     SQLiteStore(db_path).close()
     # Bump version under the floor.
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         conn.execute("UPDATE schema_meta SET version = ?", (SCHEMA_VERSION + 5,))
         conn.commit()
     with pytest.raises(ReplayStoreError, match="newer than this build"):
@@ -50,7 +51,7 @@ def test_refuses_to_open_db_with_higher_schema_version(tmp_path) -> None:
 
 def test_wal_mode_enabled(tmp_path) -> None:
     db_path = tmp_path / "replays.db"
-    with SQLiteStore(db_path), sqlite3.connect(db_path) as conn:
+    with SQLiteStore(db_path), closing(sqlite3.connect(db_path)) as conn:
         (mode,) = conn.execute("PRAGMA journal_mode").fetchone()
         assert mode.lower() == "wal"
 
@@ -65,7 +66,7 @@ def test_expected_indexes_exist(tmp_path) -> None:
         "idx_case_results_case_id",
         "idx_case_results_verdict",
     }
-    with SQLiteStore(db_path), sqlite3.connect(db_path) as conn:
+    with SQLiteStore(db_path), closing(sqlite3.connect(db_path)) as conn:
         rows = conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
         names = {n for (n,) in rows}
     assert expected.issubset(names)

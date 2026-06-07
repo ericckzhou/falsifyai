@@ -15,7 +15,7 @@ regressions with a single command.
   verdicts compared are the ones assigned at each ``run`` time. Diff is a
   consumer of already-resolved artifacts; the resolver stays untouched.
 - Regression criterion is **verdict-class downgrade only**, ranked over the
-  8-verdict quality ladder (``_QUALITY_RANK``): a move to a worse rank is a
+  verdict quality ladder (``_QUALITY_RANK``): a move to a worse rank is a
   regression (e.g. STABLE -> FRAGILE, FRAGILE -> ADVERSARIALLY_VULNERABLE,
   INFORMATION_PRESENT -> STABLE). No thresholds, no per-stability deltas as
   regression signals. Predictable by design.
@@ -84,11 +84,11 @@ class DiffReport:
 # ---------------------------------------------------------------------------
 
 
-# Quality rank over the 8-verdict taxonomy (lower = better). A move to a higher
+# Quality rank over the 9-verdict taxonomy (lower = better). A move to a higher
 # rank is a REGRESSION; to a lower rank, an IMPROVEMENT; a tie (e.g. AMBIGUOUS vs
 # INFORMATION_NULL, both "degraded") is OTHER_CHANGE -- not a clear up or down.
 #
-# The two cross-cutting meta-verdicts are intentionally OFF the ladder:
+# Seven verdicts are ranked here; two are intentionally OFF the ladder:
 #   - INVALID_EVAL: a broken eval is not a point on the quality axis.
 #   - INSUFFICIENT: "couldn't judge" -- handled asymmetrically below (recovering
 #     FROM it to a positive verdict is an improvement, but degrading INTO it is

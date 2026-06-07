@@ -331,7 +331,7 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 - ✅ **NLI backend** — bidirectional entailment/contradiction scoring. `MockNLIBackend` (deterministic, dependency-free) is the default; `TransformersNLIBackend` ships behind the opt-in `[nli]` extra and lazy-loads its model on first use.
 - ✅ **Semantic oracles** — `GroundingOracle` (answer supported by provided context → `INFORMATION_PRESENT`), `HallucinationOracle` (confident claim contradicted by ground truth → `CONSISTENTLY_WRONG`), `ContradictionOracle` (self-inconsistency across the output set).
-- ✅ **Full 8-verdict resolver** — `INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five, completing the 2-D verdict space; the resolver branch count (5 → 9) stays guarded by the branch-count meta-test. CLI exit codes map all eight.
+- ✅ **Full 8-verdict resolver** — `INFORMATION_PRESENT`, `INFORMATION_NULL`, `ADVERSARIALLY_VULNERABLE`, and `AMBIGUOUS` join the prior five, completing the 2-D verdict space; the resolver branch count (5 → 9) stays guarded by the branch-count meta-test. CLI exit codes map all nine.
 - ✅ **`falsifyai run --nli`** — opt-in flag that activates the semantic oracles for a run. Purely additive: it enriches the verdict with grounding evidence but never flips a passing case to failing on its own.
 
 **0.5.0 — Capability-breadth track.** Closes the Phase 1 capability gaps the artifact-infrastructure track (0.2–0.4) skipped:
