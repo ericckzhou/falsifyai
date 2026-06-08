@@ -1,12 +1,15 @@
 """ReplayStore Protocol and its exception hierarchy.
 
 The Protocol is the contract every store implementation must satisfy. Two
-impls ship in PR #6: ``InMemoryStore`` (ephemeral, also useful as a test
-double) and ``SQLiteStore`` (default; file-backed at ``.falsifyai/replays.db``).
+impls ship: ``InMemoryStore`` (ephemeral, also useful as a test double) and
+``SQLiteStore`` (default; file-backed at ``.falsifyai/replays.db``).
 
-MVP surface only — ``case_history`` and ``diff_sessions`` from plan.md
-section 18.1 are deferred to the Week 2 PRs that introduce ``falsifyai diff``
-and verdict-history queries.
+The surface is deliberately small — ``save_session`` / ``load_session`` /
+``query_sessions`` / ``close``. Verdict-history and cross-session views
+(``history`` / ``timeline`` / ``matrix``) and ``diff`` are consumer-side
+operations layered on ``query_sessions`` and ``load_session``; they are not
+extra store methods. Keeping the store interface minimal is what lets new
+consumer commands ship without widening the persistence contract.
 """
 
 from collections.abc import Iterator

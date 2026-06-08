@@ -5,8 +5,8 @@ it for legibility. Hard architectural rule: inspect must never re-derive a
 verdict. Tests below enforce that rule and the decisions A-F from
 `dev_notes/plans/PR-19-falsifyai-inspect-cli.md`.
 
-RED phase: these tests describe the public surface before it exists. They
-are expected to fail until cli/inspect.py is implemented.
+These tests exercise the public surface of ``cli/inspect.py`` and enforce the
+never-re-derive-a-verdict rule.
 """
 
 import argparse
