@@ -1,8 +1,7 @@
 """Unit tests for ``falsifyai.bundle.writer`` (PR-32, Phase B).
 
-RED phase: imports ``BundleManifest``, ``BundleFileEntry``, ``write_bundle``,
-and the schema constants which do not exist yet. After GREEN, all tests
-should pass.
+Exercises ``BundleManifest``, ``BundleFileEntry``, ``write_bundle``, and the
+schema constants.
 
 Tests grouped by acceptance criterion from PR-32 plan §5:
 

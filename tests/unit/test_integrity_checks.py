@@ -1,7 +1,6 @@
 """Unit tests for ``falsifyai.integrity.checks`` (PR-31).
 
-RED phase: imports CheckResult, CheckStatus, IntegrityReport, run_integrity_checks
-which do not exist yet. After GREEN, all tests should pass.
+Exercises CheckResult, CheckStatus, IntegrityReport, and run_integrity_checks.
 
 Eight integrity checks per PR-31 plan §3:
 

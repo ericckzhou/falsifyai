@@ -1,19 +1,21 @@
-"""Plain-text terminal output for ``falsifyai run``, ``replay``, and ``diff``.
+"""Plain-text terminal output for the human-readable CLI surfaces.
 
-MVP scope: one row per case + a summary footer + the session id and store
-path so the user can find their saved artifact. No colors, no boxes, no
-JSON. Rich/colored output and ``--json`` land in Week 3 per
-[plan.md section 22.1](../../plan.md).
+Deliberately plain text -- no colors, no boxes, no JSON. The discipline is
+evidence density, not presentation: one row per case + a summary footer +
+the session id and store path so the user can find their saved artifact.
+This module renders ``run`` / ``replay`` (``render_session``), ``diff``
+(``render_diff``), ``verify`` (``render_verify`` / ``render_verify_all``),
+and ``export`` (``render_export`` / ``render_export_refusal``).
 
 The ``loaded_from`` parameter on ``render_session`` is what distinguishes
 the replay path: when set, an extra header line indicates the user is
 looking at a stored session rather than a fresh run. The detection of
-legacy artifacts (pre-PR-11, no CI evidence) lives in this module too --
+legacy artifacts (no CI evidence preserved) lives in this module too --
 the artifact shape, not the consumer, determines what's renderable.
 
-``render_diff`` is the diff CLI's render path (PR #14). It consumes a
-``DiffReport`` (consumer-side dataclass from cli/diff.py) and prints a
-compressed transition table: only rows where something changed are shown.
+``render_diff`` consumes a ``DiffReport`` (consumer-side dataclass from
+cli/diff.py) and prints a compressed transition table: only rows where
+something changed are shown.
 """
 
 import sys

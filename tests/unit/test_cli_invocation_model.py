@@ -1,7 +1,7 @@
 """Unit tests for ``CliInvocation`` and the ``ReplayArtifact.cli_invocation`` field (PR-35).
 
-RED phase: imports ``CliInvocation`` from ``falsifyai.replay.models`` which
-does not exist yet. After GREEN, all tests should pass.
+Exercises ``CliInvocation`` from ``falsifyai.replay.models`` and the
+``ReplayArtifact.cli_invocation`` field.
 
 Capture contract (per PR-35 plan §1):
 - ``CliInvocation`` is a frozen dataclass with exactly two fields:

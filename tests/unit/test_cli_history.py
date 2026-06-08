@@ -4,7 +4,7 @@ History reads preserved evidence; it never re-resolves or re-aggregates.
 Decisions A1/B1/D1/E1/F1/G1 + X1/Y1/Z1 from
 ``dev_notes/plans/PR-24-falsifyai-history-cli.md``.
 
-RED phase: these tests describe the public surface before it exists.
+These tests exercise the public surface of ``falsifyai.cli.history``.
 """
 
 import argparse

@@ -5,7 +5,7 @@ via embedding cosine similarity, and retries on validity failure up to
 ``max_attempts`` per requested paraphrase. Phase B of the validation
 campaign — see ``dev_notes/plans/PR-22-paraphrase-perturbation.md``.
 
-RED phase: these tests describe the public surface before it exists.
+These tests exercise the public surface of the Paraphrase family.
 """
 
 import pytest
