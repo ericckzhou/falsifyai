@@ -7,11 +7,14 @@ handle; leaking it across a long-lived process — or, on Windows, blocking a
 later unlink of the database file — is the failure this locks out.
 
 This is a single parametrized harness rather than a close assertion duplicated
-across eight command test files. ``run`` (and ``minimize``) are intentionally
-absent: they are *producers* that orchestrate generation -> interpretation ->
-preservation, not read-only consumers, and their store lifecycle is asserted in
-their own test file where the execution stack is already mocked. Folding them in
-here would blur the producer/consumer boundary the harness exists to protect.
+across eight command test files. ``run`` is intentionally absent: it is a
+*producer* that orchestrates generation -> interpretation -> preservation, not a
+read-only consumer, and its store lifecycle is asserted in its own test file
+where the execution stack is already mocked. ``minimize`` is also absent for a
+different reason -- it never opens a ``ReplayStore`` at all (it runs an
+in-memory search and persists nothing), so there is no store lifecycle to pin.
+Folding either in here would blur the producer/consumer boundary the harness
+exists to protect.
 
 Two situations matter, for every consumer:
 

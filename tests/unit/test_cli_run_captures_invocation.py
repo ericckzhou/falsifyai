@@ -1,7 +1,7 @@
 """Unit tests for ``cmd_run``'s ``cli_invocation`` capture (PR-35, Phase C).
 
-RED phase: the capture helper and the field-attachment do not exist yet.
-After GREEN, all tests should pass.
+Exercises the ``cli_invocation`` capture helper and its field-attachment in
+``cmd_run``.
 
 Capture contract (per PR-35 plan §1):
 - Capture at entry into ``cmd_run`` (single capture point)

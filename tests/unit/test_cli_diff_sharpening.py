@@ -1,12 +1,8 @@
-"""RED-phase tests for PR-28 diff-sharpening: --strict, --show-timeline, exit 6.
+"""Tests for diff-sharpening: --strict, --show-timeline, exit 6.
 
 All tests in this file import ``STRICT_CONFIDENCE_DROP_THRESHOLD`` and
-``LOW_FALSIFIABILITY_THRESHOLD`` from ``falsifyai.cli.diff``.  Those constants
-do not exist yet, so the entire module fails to collect in RED phase.  Once
-GREEN adds the constants and the flag logic, every test here should pass.
-
-Tests that already document a true property (introspection, exit-code parity
-with no flags) will pass immediately after import is unblocked.
+``LOW_FALSIFIABILITY_THRESHOLD`` from ``falsifyai.cli.diff`` and exercise the
+flag logic those constants drive, alongside the exit-code parity with no flags.
 
 Covers acceptance criteria §5 of dev_notes/plans/PR-28-diff-sharpening.md:
   - Named constants present with correct values
@@ -24,8 +20,8 @@ import pytest
 
 from falsifyai.cli import diff as diff_module
 from falsifyai.cli.diff import (
-    LOW_FALSIFIABILITY_THRESHOLD,  # RED: ImportError until GREEN adds this
-    STRICT_CONFIDENCE_DROP_THRESHOLD,  # RED: ImportError until GREEN adds this
+    LOW_FALSIFIABILITY_THRESHOLD,
+    STRICT_CONFIDENCE_DROP_THRESHOLD,
 )
 from falsifyai.replay.in_memory_store import InMemoryStore
 from falsifyai.replay.models import CaseResult, ReplayArtifact, SessionVerdict

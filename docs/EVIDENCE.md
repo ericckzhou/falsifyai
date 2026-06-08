@@ -151,15 +151,17 @@ where the claim is derived:
                      ▼
        ┌─────────────┼─────────────┐
        ▼             ▼             ▼
-   ┌───────┐   ┌──────────┐   ┌─────────┐
-   │ diff  │   │ inspect  │   │ archive │
-   └───────┘   └──────────┘   └─────────┘
+   ┌────────┐   ┌──────────┐   ┌──────┐
+   │ replay │   │ inspect  │   │ diff │
+   └────────┘   └──────────┘   └──────┘
 ```
 
 Generation flows forward only. Preservation is read-only after save.
-The arrow from artifact into `diff`/`inspect`/`archive` represents
+The arrows from the artifact into `replay`/`inspect`/`diff` represent
 consumers reading the preserved evidence — they do not re-derive the
-claim, they re-present it.
+claim, they re-present it. (These three are the read operations
+detailed in §9; the full consumer surface also includes `history` /
+`timeline` / `matrix` / `verify` / `export`.)
 
 ---
 
