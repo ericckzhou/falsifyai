@@ -6,6 +6,35 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.5] — 2026-06-12
+
+Patch release. CLI hygiene and a store-aware `doctor` in the
+*evidence-preservation* consumer surface, plus anti-entropy guards and
+doc-freshness tripwires across the architecture and evidence-protocol docs.
+No verdict, perturbation, invariant, or spec-language change.
+
+### Changed
+
+- **Read-only commands stay off the model stack.** `doctor`, `verify`,
+  `replay`, `inspect`, `diff`, `history`, `timeline`, `matrix`, and `export`
+  no longer import `litellm` (and its import-time warnings). `main.py`
+  dispatches each command module lazily, and `execution/__init__.py` defers
+  `LiteLLMAdapter` via PEP 562 `__getattr__` (the public import is unchanged).
+  A subprocess-per-module meta-guard
+  ([`tests/meta/test_cli_import_hygiene.py`](tests/meta/test_cli_import_hygiene.py))
+  keeps it that way and also forbids read-only commands from importing
+  `falsifyai.verdict.resolver` — mechanizing the "consumers never re-resolve"
+  guarantee and closing a gap where `replay` previously had no such check.
+  (#84, #87)
+
+- **`doctor` is store-backend aware.** It now resolves the store scheme the
+  same way `build_store` does: reports the selected scheme and registered
+  backends, **fails (exit 3)** when no backend is registered for a
+  `--store-path` scheme (a missing store plugin surfaces in diagnostics
+  instead of crashing later at `run`), and write-probes only the built-in
+  SQLite store. A registered plugin store (e.g. `postgres://…`) is reported
+  but never constructed, preserving doctor's diagnose-only contract. (#85)
+
 ### Tests
 
 - **Consumer-side verdict-map coverage guard.** A new meta-test
@@ -56,6 +85,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `falsifyai.verdict.resolver` — mechanizing the long-standing "consumers never
   re-resolve" guarantee and closing a gap where `replay` had no such check. No
   runtime behavior changes.
+
+- **Stale phase/MVP prose refreshed** with doc-surface drift guards that fail
+  if the documented surface drifts from the code. (#93, #94)
+
+- **Agent-context correction.** `.claude/CLAUDE.md` and `AGENTS.md` no longer
+  claim the subpackages are unimplemented stubs — the pipeline runs end-to-end;
+  both now point at the CHANGELOG instead. (#86)
 
 ## [0.6.4] — 2026-06-05
 
