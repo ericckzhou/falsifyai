@@ -18,7 +18,7 @@ falsifyai diff baseline candidate
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-**Status:** 0.6.4 — Perturbation-validity integrity. The `paraphrase` validity gate now rejects *lossy* rewrites — an `llm_rewrite` that drops a task's grounding while keeping its vocabulary — via a bidirectional-NLI entailment check under `--nli` ([case study 06](docs/case-studies/06-perturbation-validity-omission.md)); previously such an invalid perturbation could manufacture a false `CONSISTENTLY_WRONG`. `--nli`-less runs are byte-identical; spec language and replay format stay backward-compatible across the 0.x line.
+**Status:** 0.6.5 — CLI hygiene and a store-aware `doctor`. Read-only commands (`doctor`, `verify`, `replay`, `inspect`, `diff`, `history`, `timeline`, `matrix`, `export`) no longer load the model stack, and `doctor` now resolves the store backend your `--store-path` selects — failing fast when no backend is registered instead of crashing later at `run`. Atop perturbation-validity integrity (the `paraphrase` gate rejects *lossy* rewrites under `--nli`, [case study 06](docs/case-studies/06-perturbation-validity-omission.md)). Spec language and replay format stay backward-compatible across the 0.x line.
 
 ```bash
 pip install falsifyai
@@ -319,7 +319,12 @@ Consumer surfaces (`replay`, `inspect`, `diff`, `history`, `verify`, `export`) e
 
 ## Status and roadmap
 
-**0.6.4 (current release) — Perturbation-validity integrity.** Closes a generation-layer self-falsification ([case study 06](docs/case-studies/06-perturbation-validity-omission.md)): the `paraphrase` validity gate used embedding cosine, which preserves topic but not task completeness, so a rewrite that deleted a task's grounding passed and manufactured a false `CONSISTENTLY_WRONG`:
+**0.6.5 (current release) — CLI hygiene + store-aware `doctor`.** Hardens the *evidence-preservation* consumer surface without touching verdict semantics:
+
+- ✅ **Read-only commands stay off the model stack** — `doctor`, `verify`, `replay`, `inspect`, `diff`, `history`, `timeline`, `matrix`, and `export` no longer import `litellm` (lazy command dispatch + PEP 562 deferral of `LiteLLMAdapter`); a subprocess-per-module meta-guard keeps it that way and also forbids read-only commands from re-importing the verdict resolver.
+- ✅ **Store-aware `doctor`** — reports the store scheme `--store-path` selects and the registered backends, fails (exit 3) when no backend is registered, and write-probes only the built-in SQLite store (plugin stores are reported, never constructed — preserving the diagnose-only contract).
+
+**0.6.4 — Perturbation-validity integrity.** Closes a generation-layer self-falsification ([case study 06](docs/case-studies/06-perturbation-validity-omission.md)): the `paraphrase` validity gate used embedding cosine, which preserves topic but not task completeness, so a rewrite that deleted a task's grounding passed and manufactured a false `CONSISTENTLY_WRONG`:
 
 - ✅ **Bidirectional-NLI paraphrase validity** — a paraphrase must entail the original *and* be entailed by it; an omission breaks the reverse direction and is rejected (under `--nli`, reusing the oracle NLI backend). Generation-layer only; resolver byte-identical; `--nli`-less runs unchanged.
 
